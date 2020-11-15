@@ -13,64 +13,25 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: bin libsphinx.so tests
-bin: bin/challenge bin/respond bin/derive bin/2pass
+all: bin libopaque.so tests
 
-win: CC=x86_64-w64-mingw32-gcc
-win: INC=-Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
-win: LIBS=-L. -Lwin/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
-win: SOEXT=dll
-win: EXT=.exe
-win: MAKETARGET=win
-win: win/libsodium-win64 exe libsphinx.$(SOEXT) tests$(EXT)
-exe: bin/challenge$(EXT) bin/respond$(EXT) bin/derive$(EXT)
+tests$(EXT): tests/opaque$(EXT) tests/opaque-munit
 
-android: INC=-I$(SODIUM) -I$(SODIUM)/sodium
-android: LIBS=-Wl,-Bstatic -Wl,-Bdynamic -lsodiumjni -L.
-android: EXTRA_OBJECTS=jni.o
-android: jni.o libsphinx.so
+libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
+	$(CC) -shared -fpic $(CFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS)
 
-tests$(EXT): tests/sphinx$(EXT) tests/opaque$(EXT) tests/opaque-munit
+tests/opaque$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
+	$(CC) $(CFLAGS) -o tests/opaque$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)
 
-bin/challenge$(EXT): bin/challenge.c
-	$(CC) $(CFLAGS) -o bin/challenge$(EXT) bin/challenge.c $(LDFLAGS)
-
-bin/respond$(EXT): bin/respond.c
-	$(CC) $(CFLAGS) -o bin/respond$(EXT) bin/respond.c $(LDFLAGS)
-
-bin/derive$(EXT): bin/derive.c
-	$(CC) $(CFLAGS) -o bin/derive$(EXT) bin/derive.c $(LDFLAGS)
-
-bin/2pass$(EXT): bin/2pass.c
-	$(CC) $(CFLAGS) -o bin/2pass$(EXT) bin/2pass.c $(LDFLAGS)
-
-libsphinx.$(SOEXT): common.o sphinx.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared -fpic $(CFLAGS) -o libsphinx.$(SOEXT) $^ $(LDFLAGS)
-
-tests/sphinx$(EXT): tests/test.c libsphinx.$(SOEXT)
-	$(CC) $(CFLAGS) -o tests/sphinx$(EXT) tests/test.c -L. -lsphinx $(LDFLAGS)
-
-tests/opaque$(EXT): tests/opaque-test.c libsphinx.$(SOEXT)
-	$(CC) $(CFLAGS) -o tests/opaque$(EXT) tests/opaque-test.c -L. -lsphinx $(LDFLAGS)
-
-tests/opaque-munit$(EXT): tests/opaque_munit.c libsphinx.$(SOEXT)
-	$(CC) $(CFLAGS) -o tests/munit-opaque$(EXT) tests/munit/munit.c tests/opaque_munit.c -L. -lsphinx $(LDFLAGS)
+tests/opaque-munit$(EXT): tests/opaque_munit.c libopaque.$(SOEXT)
+	$(CC) $(CFLAGS) -o tests/munit-opaque$(EXT) tests/munit/munit.c tests/opaque_munit.c -L. -lopaque $(LDFLAGS)
 
 test: tests/opaque-munit$(EXT)
-	LD_PRELOAD=./libsphinx.so ./tests/munit-opaque --fatal-failures
+	LD_PRELOAD=./libopaque.so ./tests/munit-opaque --fatal-failures
 
-win/libsodium-win64:
-	@echo 'win/libsodium-win64 not found.'
-	@echo 'download and unpack latest libsodium-*-mingw.tar.gz and unpack into win/'
-	@echo 'https://download.libsodium.org/libsodium/releases/'
-	@false
+install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h
 
-install: $(PREFIX)/lib/libsphinx.$(SOEXT) $(PREFIX)/include/sphinx.h $(PREFIX)/include/opaque.h
-
-$(PREFIX)/lib/libsphinx.$(SOEXT): libsphinx.$(SOEXT)
-	cp $< $@
-
-$(PREFIX)/include/sphinx.h: sphinx.h
+$(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	cp $< $@
 
 $(PREFIX)/include/opaque.h: opaque.h
@@ -80,8 +41,8 @@ $(PREFIX)/include/opaque.h: opaque.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f bin/sphinx bin/challenge bin/respond bin/derive libsphinx.so
-	rm -f tests/sphinx tests/opaque tests/sphinx.exe tests/opaque.exe *.o tests/opaque-munit$(EXT)
-	rm -f bin/sphinx.exe bin/challenge.exe bin/respond.exe bin/derive.exe libsphinx.dll
+	rm -f libopaque.so
+	rm -f tests/opaque tests/opaque.exe *.o tests/opaque-munit$(EXT)
+	rm -f libopaque.dll
 
 .PHONY: bin clean install

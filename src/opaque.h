@@ -30,7 +30,7 @@
    /* x_u */    crypto_scalarmult_SCALARBYTES+         \
    /* nonceU */ OPAQUE_NONCE_BYTES+                    \
    /* alpha */  crypto_core_ristretto255_BYTES+        \
-   /* pw_len */ sizeof(uint32_t))
+   /* pw_len */ sizeof(uint16_t))
 
 #define OPAQUE_SERVER_SESSION_LEN (                    \
    /* beta */ crypto_core_ristretto255_BYTES+          \
@@ -148,7 +148,7 @@ typedef struct {
         encrypt/authenticate additional data.
    @return the function returns 0 if everything is correct
  */
-int opaque_init_srv(const uint8_t *pw, const size_t pwlen, const uint8_t *key, const uint64_t key_len, const uint8_t sk[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_init_srv(const uint8_t *pw, const uint16_t pwlen, const uint8_t *key, const uint16_t key_len, const uint8_t sk[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    This function initiates a new OPAQUE session, is the same as the
@@ -162,7 +162,7 @@ int opaque_init_srv(const uint8_t *pw, const size_t pwlen, const uint8_t *key, c
    @param [out] pub - the message to be sent to the server
    @return the function returns 0 if everything is correct
  */
-int opaque_session_usr_start(const uint8_t *pw, const size_t pwlen, uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+int opaque_session_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
    This is the same function as defined in the paper with name
@@ -219,7 +219,7 @@ int opaque_session_srv(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const 
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_session_usr_finish(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], const uint8_t *key, const uint64_t key_len, const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_session_usr_finish(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Explicit User Authentication.
@@ -268,7 +268,7 @@ int opaque_session_server_auth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const u
    envelope configuration etc.
    @return the function returns 0 if everything is correct.
  */
-int opaque_private_init_usr_start(const uint8_t *pw, const size_t pwlen, uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t *alpha);
+int opaque_private_init_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t *alpha);
 
 /**
    Server evaluates OPRF and creates a user-specific public/private keypair
@@ -346,7 +346,7 @@ int opaque_private_init_1ksrv_respond(const uint8_t *alpha, const uint8_t pk[cry
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_private_init_usr_respond(const uint8_t *ctx, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint64_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_private_init_usr_respond(const uint8_t *ctx, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Final Registration step - server adds own info to the record to be stored.

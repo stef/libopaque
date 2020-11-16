@@ -1,36 +1,30 @@
 /*
     @copyright 2018-20, pitchfork@ctrlc.hu
-    This file is part of libsphinx.
+    This file is part of libopaque.
 
-    libsphinx is free software: you can redistribute it and/or
+    libopaque is free software: you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public License
     as published by the Free Software Foundation, either version 3 of
     the License, or (at your option) any later version.
 
-    libsphinx is distributed in the hope that it will be useful,
+    libopaque is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with libsphinx. If not, see <http://www.gnu.org/licenses/>.
+    along with libopaque. If not, see <http://www.gnu.org/licenses/>.
 
-    This file implements the Opaque protocol
-    as specified on page 28 of: https://eprint.iacr.org/2018/163
-    with following deviations:
-       1/ instead of HMQV it implements a Triple-DH instead
-       2/ it implements "user iterated hashing" from page 29 of the paper
-       3/ implements a variant where U secrets never hit S unprotected
+    This file implements the Opaque protocol as specified by the IETF CFRG
 */
 
 #include "opaque.h"
 #include "common.h"
+#include <arpa/inet.h>
 
 #ifndef HAVE_SODIUM_HKDF
 #include "aux/crypto_kdf_hkdf_sha256.h"
 #endif
-
-#define RFCREF "RFCXXXX" // todo set after RFC is published
 
 typedef struct {
   uint8_t p_u[crypto_scalarmult_SCALARBYTES];
@@ -59,7 +53,7 @@ typedef struct {
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t alpha[crypto_core_ristretto255_BYTES];
-  uint32_t pwlen;
+  uint16_t pwlen;
   uint8_t pw[];
 } __attribute((packed)) Opaque_UserSession_Secret;
 
@@ -74,7 +68,7 @@ typedef struct {
 
 typedef struct {
   uint8_t r[crypto_core_ristretto255_BYTES];
-  size_t pwlen;
+  uint16_t pwlen;
   uint8_t pw[];
 } Opaque_RegisterUserSec;
 
@@ -124,15 +118,53 @@ typedef struct {
   uint8_t data[1];
 } __attribute((packed)) CredentialExtension;
 
-static int prf(const uint8_t *pwd, const size_t pwd_len,
+static int prf_finalize(const uint8_t *pwd, const uint16_t pwd_len,
+                        const uint8_t *key, const uint16_t key_len,
+                        const uint8_t *ue, uint8_t result[crypto_hash_sha512_BYTES]) {
+  // according to paper: hash(pwd||H0^k)
+  // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
+  //                                              htons(len(H0_k))||H0_k|||
+  //                                              htons(len(info))||info||
+  //                                              htons(len("VOPRF06-Finalize-OPAQUE00"))||"VOPRF06-Finalize-OPAQUE00")
+  crypto_hash_sha512_state state;
+  if(-1==sodium_mlock(&state,sizeof state)) {
+    return -1;
+  }
+  crypto_hash_sha512_init(&state);
+  // pwd
+  uint16_t size=htons(pwd_len);
+  crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
+  crypto_hash_sha512_update(&state, pwd, pwd_len);
+  // H0_k
+  size=htons(crypto_core_ristretto255_BYTES);
+  crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
+  crypto_hash_sha512_update(&state, ue, crypto_core_ristretto255_BYTES);
+  // info
+  if(key!=NULL && key_len>0) {
+    size=htons(key_len);
+    crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
+    crypto_hash_sha512_update(&state, key, key_len);
+  }
+  const uint8_t DST[]="VOPRF06-Finalize-OPAQUE00";
+  const uint8_t DST_size=strlen((const char*) DST);
+  size=htons(DST_size);
+  crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
+  crypto_hash_sha512_update(&state, DST, DST_size);
+
+  crypto_hash_sha512_final(&state, result);
+  sodium_munlock(&state, sizeof state);
+  return 0;
+}
+
+static int prf(const uint8_t *pwd, const uint16_t pwd_len,
                 const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
-                const uint8_t *key, const size_t key_len,
-                uint8_t rwd[crypto_generichash_BYTES]) {
+                const uint8_t *key, const uint16_t key_len,
+                uint8_t rwd[crypto_hash_sha512_BYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
   sodium_mlock(h0,sizeof h0);
   // hash pwd with H0
-  crypto_generichash(h0, sizeof h0, pwd, pwd_len, 0, 0);
+  crypto_hash_sha512(h0, pwd, pwd_len);
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
@@ -157,38 +189,35 @@ static int prf(const uint8_t *pwd, const size_t pwd_len,
   dump(H0_k, sizeof H0_k, "H0_k");
 #endif
 
-  // hash(pwd||H0^k)
-  crypto_generichash_state state;
-  sodium_mlock(&state, sizeof state);
-  if(key != NULL && key_len!=0) {
-     crypto_generichash_init(&state, key, key_len, 32);
-  } else {
-    uint8_t domain[]=RFCREF;
-    crypto_generichash_init(&state, domain, (sizeof domain) - 1, 32);
+  if(0!=prf_finalize(pwd, pwd_len, key, key_len, H0_k, rwd)) {
+    sodium_munlock(H0_k,sizeof H0_k);
+    return -1;
   }
-  crypto_generichash_update(&state, pwd, pwd_len);
-  crypto_generichash_update(&state, H0_k, sizeof H0_k);
-  crypto_generichash_final(&state, rwd, 32);
+  sodium_munlock(H0_k,sizeof H0_k);
+
 #ifdef TRACE
   dump(rwd, 32, "rwd");
 #endif
-  sodium_munlock(H0_k,sizeof H0_k);
-  sodium_munlock(&state, sizeof state);
 
   return 0;
 }
 
-static int blind(const uint8_t *pw, const size_t pwlen, uint8_t *r, uint8_t *alpha) {
+static int blind(const uint8_t *pw, const uint16_t pwlen, uint8_t *r, uint8_t *alpha) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
-  sodium_mlock(h0,sizeof h0);
-  crypto_generichash(h0, sizeof h0, pw, pwlen, 0, 0);
+  if(0!=sodium_mlock(h0,sizeof h0)) {
+    return -1;
+  }
+  crypto_hash_sha512(h0, pw, pwlen);
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
   unsigned char H0[crypto_core_ristretto255_BYTES];
-  sodium_mlock(H0,sizeof H0);
+  if(0!=sodium_mlock(H0,sizeof H0)) {
+    sodium_munlock(h0,sizeof h0);
+    return -1;
+  }
   crypto_core_ristretto255_from_hash(H0, h0);
   sodium_munlock(h0,sizeof h0);
 #ifdef TRACE
@@ -709,8 +738,8 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // (StorePwdFile, sid , U, pw): S computes k_s ←_R Z_q , rw := F_k_s (pw),
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
-int opaque_init_srv(const uint8_t *pw, const size_t pwlen,
-                    const uint8_t *key, const uint64_t key_len,
+int opaque_init_srv(const uint8_t *pw, const uint16_t pwlen,
+                    const uint8_t *key, const uint16_t key_len,
                     const uint8_t sk[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
                     const Opaque_Ids *ids,
@@ -828,7 +857,7 @@ int opaque_init_srv(const uint8_t *pw, const size_t pwlen,
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
 // more or less corresponds to CreateCredentialRequest in the ietf draft
-int opaque_session_usr_start(const uint8_t *pw, const size_t pwlen, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_session_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
 #ifdef TRACE
@@ -986,7 +1015,7 @@ int opaque_session_srv(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const
 // (e) Outputs (sid, ssid, SK).
 int opaque_session_usr_finish(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN],
-                              const uint8_t *key, const uint64_t key_len,
+                              const uint8_t *key, const uint16_t key_len,
                               const Opaque_PkgConfig *cfg,
                               const Opaque_App_Infos *infos,
                               Opaque_Ids *ids,
@@ -1040,28 +1069,15 @@ int opaque_session_usr_finish(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
 #endif
 
   // rw = H(pw, β^(1/r))
-  crypto_generichash_state state;
-  if(-1==sodium_mlock(&state,sizeof state)) {
-    sodium_munlock(h0,sizeof h0);
-    return -1;
-  }
-  if(key != NULL && key_len!=0) {
-     crypto_generichash_init(&state, key, key_len, 32);
-  } else {
-    uint8_t domain[]=RFCREF;
-    crypto_generichash_init(&state, domain, (sizeof domain) - 1, 32);
-  }
-  crypto_generichash_update(&state, sec->pw, sec->pwlen);
-  crypto_generichash_update(&state, h0, 32);
-  sodium_munlock(h0, sizeof(h0));
-
   uint8_t rw0[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw0,sizeof rw0)) {
-    sodium_munlock(&state, sizeof(state));
     return -1;
   }
-  crypto_generichash_final(&state, rw0, sizeof(rw0));
-  sodium_munlock(&state, sizeof(state));
+  if(0!=prf_finalize(sec->pw, sec->pwlen, key, key_len, h0, rw0)) {
+    sodium_munlock(h0, sizeof h0);
+    return -1;
+  }
+  sodium_munlock(h0,sizeof h0);
 
 #ifdef TRACE
   dump(rw0,sizeof(rw0), "session user finish rw0 ");
@@ -1196,7 +1212,7 @@ int opaque_session_server_auth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const u
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the ietf cfrg rfc draft
-int opaque_private_init_usr_start(const uint8_t *pw, const size_t pwlen, uint8_t _sec[sizeof(Opaque_RegisterUserSec)+pwlen], uint8_t *alpha) {
+int opaque_private_init_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[sizeof(Opaque_RegisterUserSec)+pwlen], uint8_t *alpha) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pw, pw, pwlen);
   sec->pwlen = pwlen;
@@ -1284,7 +1300,7 @@ int opaque_private_init_1ksrv_respond(const uint8_t *alpha, const uint8_t pk[cry
 // called FinalizeRequest in the ietf cfrg rfc draft
 int opaque_private_init_usr_respond(const uint8_t *_ctx,
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
-                                    const uint8_t *key, const uint64_t key_len,        // contributes to the final rwd calculation as a key to the hash
+                                    const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
                                     const Opaque_Ids *ids,
                                     uint8_t _rec[OPAQUE_USER_RECORD_LEN],
@@ -1331,29 +1347,15 @@ int opaque_private_init_usr_respond(const uint8_t *_ctx,
   dump((uint8_t*) h0, sizeof h0, "h0_k ");
 #endif
 
-  // rw = H(pw, β^(1/r))
-  crypto_generichash_state state;
-  if(-1==sodium_mlock(&state, sizeof state)) {
+  uint8_t rw0[32];
+  if(-1==sodium_mlock(rw0, sizeof rw0)) {
+    return -1;
+  }
+  if(0!=prf_finalize(ctx->pw, ctx->pwlen, key, key_len, h0, rw0)) {
     sodium_munlock(h0, sizeof h0);
     return -1;
   }
-  if(key != NULL && key_len!=0) {
-    crypto_generichash_init(&state, key, key_len, 32);
-  } else {
-    uint8_t domain[]=RFCREF;
-    crypto_generichash_init(&state, domain, (sizeof domain) - 1, 32);
-  }
-  crypto_generichash_update(&state, ctx->pw, ctx->pwlen);
-  crypto_generichash_update(&state, h0, 32);
-  sodium_munlock(h0, sizeof(h0));
-
-  uint8_t rw0[32];
-  if(-1==sodium_mlock(rw0, sizeof rw0)) {
-    sodium_munlock(&state, sizeof state);
-    return -1;
-  }
-  crypto_generichash_final(&state, rw0, sizeof rw0);
-  sodium_munlock(&state, sizeof(state));
+  sodium_munlock(h0,sizeof h0);
 
 #ifdef TRACE
   dump((uint8_t*) rw0, 32, "rw0 ");

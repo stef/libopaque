@@ -31,9 +31,9 @@ static void _dump(const uint8_t *p, const size_t len, const char* msg) {
 
 int main(void) {
   uint8_t pw[]="simple guessable dictionary password";
-  size_t pwlen=strlen((char*) pw);
+  uint16_t pwlen=strlen((char*) pw);
   uint8_t key[]="some optional key contributed to the opaque protocol";
-  size_t key_len=strlen((char*) key);
+  uint16_t key_len=strlen((char*) key);
   uint8_t export_key[crypto_hash_sha256_BYTES];
   uint8_t export_key_x[crypto_hash_sha256_BYTES];
   Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};

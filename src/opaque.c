@@ -96,8 +96,8 @@ typedef struct {
  *
  * In case the Opaque session requires explicit authentication of the
  * user, the client needs to retain this information from the
- * opaque_session_srv() to use during the authentication of the user
- * via the opaque_session_server_auth() function.
+ * opaque_CreateCredentialResponse() to use during the authentication of the user
+ * via the opaque_UserAuth() function.
  */
 typedef struct {
   uint8_t km3[crypto_auth_hmacsha256_KEYBYTES];
@@ -400,7 +400,6 @@ static void get_xcript(uint8_t xcript[crypto_hash_sha256_BYTES],
 #endif
 }
 
-//opaque_session_srv
 static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
                            uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN],
                            const Opaque_UserSession *pub,
@@ -674,7 +673,7 @@ static int opaque_envelope_open(const uint8_t *rwd, const uint8_t *envelope, con
 }
 
 // helper to calculate size of *Env parts of envelopes
-size_t package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type) {
+size_t opaque_package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type) {
   size_t res=0;
   if(cfg->skU==type) res+=crypto_scalarmult_SCALARBYTES+3;
   if(cfg->pkU==type) res+=crypto_scalarmult_BYTES+3;
@@ -807,7 +806,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // (StorePwdFile, sid , U, pw): S computes k_s ←_R Z_q , rw := F_k_s (pw),
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
-int opaque_init_srv(const uint8_t *pw, const uint16_t pwlen,
+int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
                     const uint8_t *key, const uint16_t key_len,
                     const uint8_t sk[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
@@ -816,8 +815,8 @@ int opaque_init_srv(const uint8_t *pw, const uint16_t pwlen,
                     uint8_t export_key[crypto_hash_sha256_BYTES]) {
   Opaque_UserRecord *rec = (Opaque_UserRecord *)_rec;
 
-  const uint16_t ClrEnv_len = package_len(cfg, ids, InClrEnv);
-  const uint16_t SecEnv_len = package_len(cfg, ids, InSecEnv);
+  const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
+  const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
   const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
 
 #ifdef TRACE
@@ -926,7 +925,7 @@ int opaque_init_srv(const uint8_t *pw, const uint16_t pwlen,
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
 // more or less corresponds to CreateCredentialRequest in the ietf draft
-int opaque_session_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
 #ifdef TRACE
@@ -969,7 +968,7 @@ int opaque_session_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t _s
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_session_srv(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]) {
+int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]) {
 
   Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
   Opaque_UserSession *pub = (Opaque_UserSession *) _pub;
@@ -1082,7 +1081,7 @@ int opaque_session_srv(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const
 //     Otherwise sets (p_u, P_u, P_s ) := AuthDec_rw (c);
 // (d) Computes K := KE(p_u, x_u, P_s, X_s) and SK := f_K(0);
 // (e) Outputs (sid, ssid, SK).
-int opaque_session_usr_finish(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
+int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN],
                               const uint8_t *key, const uint16_t key_len,
                               const Opaque_PkgConfig *cfg,
@@ -1257,7 +1256,7 @@ int opaque_session_usr_finish(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
 }
 
 // extra function to implement the hmac based auth as defined in the ietf cfrg draft
-int opaque_session_server_auth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
+int opaque_UserAuth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
   if(_ctx==NULL) return 1;
   Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
 
@@ -1281,7 +1280,7 @@ int opaque_session_server_auth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const u
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the ietf cfrg rfc draft
-int opaque_private_init_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[sizeof(Opaque_RegisterUserSec)+pwlen], uint8_t *alpha) {
+int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[sizeof(Opaque_RegisterUserSec)+pwlen], uint8_t *alpha) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pw, pw, pwlen);
   sec->pwlen = pwlen;
@@ -1294,7 +1293,7 @@ int opaque_private_init_usr_start(const uint8_t *pw, const uint16_t pwlen, uint8
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_private_init_srv_respond(const uint8_t *alpha, uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1327,14 +1326,14 @@ int opaque_private_init_srv_respond(const uint8_t *alpha, uint8_t _sec[OPAQUE_RE
   return 0;
 }
 
-// same function as opaque_private_init_srv_respond() but does not generate a long-term server keypair
+// same function as opaque_CreateRegistrationResponse() but does not generate a long-term server keypair
 // initUser: S
 // (1) checks α ∈ G^∗ If not, outputs (abort, sid , ssid ) and halts;
 // (2) generates k_s ←_R Z_q,
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_private_init_1ksrv_respond(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1367,7 +1366,7 @@ int opaque_private_init_1ksrv_respond(const uint8_t *alpha, const uint8_t pk[cry
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
 // called FinalizeRequest in the ietf cfrg rfc draft
-int opaque_private_init_usr_respond(const uint8_t *_ctx,
+int opaque_FinalizeRequest(const uint8_t *_ctx,
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                     const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
@@ -1379,8 +1378,8 @@ int opaque_private_init_usr_respond(const uint8_t *_ctx,
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
-  const uint16_t ClrEnv_len = package_len(cfg, ids, InClrEnv);
-  const uint16_t SecEnv_len = package_len(cfg, ids, InSecEnv);
+  const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
+  const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
 
 #ifdef TRACE
   const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
@@ -1499,7 +1498,7 @@ int opaque_private_init_usr_respond(const uint8_t *_ctx,
 
 // S records file[sid ] := {k_s, p_s, P_s, P_u, c}.
 // called StoreUserRecord in the ietf cfrg rfc draft
-void opaque_private_init_srv_finish(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
+void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
@@ -1511,7 +1510,7 @@ void opaque_private_init_srv_finish(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LE
 #endif
 }
 
-void opaque_private_init_1ksrv_finish(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
+void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 

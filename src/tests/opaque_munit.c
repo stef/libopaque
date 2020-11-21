@@ -202,8 +202,8 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   Opaque_PkgConfig *cfg=(Opaque_PkgConfig *) munit_parameters_get(params, "cfg");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
 
-  const uint16_t ClrEnv_len = package_len(cfg, &ids, InClrEnv);
-  const uint16_t SecEnv_len = package_len(cfg, &ids, InSecEnv);
+  const uint16_t ClrEnv_len = opaque_package_len(cfg, &ids, InClrEnv);
+  const uint16_t SecEnv_len = opaque_package_len(cfg, &ids, InSecEnv);
   const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
   unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
   fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
@@ -244,44 +244,44 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
 
   if(type==ServerInit || type==Server1kInit) {
     // register user
-    fprintf(stderr,"opaque_init_srv()\n");
-    if(0!=opaque_init_srv(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
+    fprintf(stderr,"opaque_Register()\n");
+    if(0!=opaque_Register(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
   } else {
     // user initiates:
-    fprintf(stderr,"opaque_private_init_usr_start\n");
-    if(0!=opaque_private_init_usr_start(pw, pwlen, usr_ctx, alpha)) return 1;
+    fprintf(stderr,"opaque_CreateRegistrationRequest\n");
+    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, usr_ctx, alpha)) return 1;
     // server responds
     unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
     if(type==Private1kInit) {
-      fprintf(stderr,"opaque_private_init_1ksrv_respond\n");
-      if(0!=opaque_private_init_1ksrv_respond(alpha, pkS, rsec, rpub)) return MUNIT_FAIL;
+      fprintf(stderr,"opaque_Create1kRegistrationResponse\n");
+      if(0!=opaque_Create1kRegistrationResponse(alpha, pkS, rsec, rpub)) return MUNIT_FAIL;
     } else {
-      fprintf(stderr,"opaque_private_init_srv_respond\n");
-      if(0!=opaque_private_init_srv_respond(alpha, rsec, rpub)) return MUNIT_FAIL;
+      fprintf(stderr,"opaque_CreateRegistrationResponse\n");
+      if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return MUNIT_FAIL;
     }
     // user commits its secrets
-    fprintf(stderr,"opaque_private_init_usr_respond\n");
-    if(0!=opaque_private_init_usr_respond(usr_ctx, rpub, key, key_len, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
+    fprintf(stderr,"opaque_FinalizeRequest\n");
+    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
     // server "saves"
     if(type==Private1kInit) {
-      fprintf(stderr,"opaque_private_init_1ksrv_finish\n");
-      opaque_private_init_1ksrv_finish(rsec, skS, rec);
+      fprintf(stderr,"opaque_Store1kUserRecord\n");
+      opaque_Store1kUserRecord(rsec, skS, rec);
     } else {
-      fprintf(stderr,"opaque_private_init_srv_finish\n");
-      opaque_private_init_srv_finish(rsec, rec);
+      fprintf(stderr,"opaque_StoreUserRecord\n");
+      opaque_StoreUserRecord(rsec, rec);
     }
   }
 
-  fprintf(stderr,"opaque_session_usr_start\n");
-  opaque_session_usr_start(pw, pwlen, sec, pub);
-  fprintf(stderr,"opaque_session_srv\n");
-  if(0!=opaque_session_srv(pub, rec, &ids, NULL, resp, sk, ctx)) return MUNIT_FAIL;
-  fprintf(stderr,"opaque_session_usr_finish\n");
-  if(0!=opaque_session_usr_finish(resp, sec, key, key_len, cfg, NULL, &ids1, pk, authU, export_key)) return MUNIT_FAIL;
+  fprintf(stderr,"opaque_CreateCredentialRequest\n");
+  opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
+  fprintf(stderr,"opaque_CreateCredentialResponse\n");
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) return MUNIT_FAIL;
+  fprintf(stderr,"opaque_RecoverCredentials\n");
+  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, cfg, NULL, &ids1, pk, authU, export_key)) return MUNIT_FAIL;
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
-  if(-1==opaque_session_server_auth(ctx, authU, NULL)) {
+  if(-1==opaque_UserAuth(ctx, authU, NULL)) {
     fprintf(stderr,"failed authenticating user\n");
     return MUNIT_FAIL;
   }

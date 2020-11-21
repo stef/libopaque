@@ -1,6 +1,6 @@
 PREFIX?=/usr/local
 LIBS=-lsodium
-CFLAGS=-march=native -Wall -fPIC -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro -mmitigate-rop -mindirect-branch=thunk -mfunction-return=thunk -ftrapv -Wl,-z,noexecstack -DTRACE -DNORANDOM
+CFLAGS=-march=native -Wall -fPIC -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -DTRACE -DNORANDOM
 LDFLAGS=-g $(LIBS)
 CC=gcc
 SOEXT=so

@@ -240,15 +240,68 @@ static int blind(const uint8_t *pw, const uint16_t pwlen, uint8_t *r, uint8_t *a
   return 0;
 }
 
-// derive keys
-// SK, Km2, Km3, Ke2, Ke3 = HKDF(salt=0, IKM, info, L)
+static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf_sha256_KEYBYTES], const char *label, const char transcript[crypto_hash_sha256_BYTES], const size_t len) {
+  // construct a hkdf label
+  // struct {
+  //   uint16 length = Length;
+  //   opaque label<8..255> = "OPAQUE " + Label;
+  //   opaque context<0..255> = Context;
+  // } HkdfLabel;
+  const size_t llen = strlen((const char*) label);
+  uint8_t hkdflabel[2+7/*"OPAQUE "*/+llen+(transcript!=NULL?crypto_hash_sha256_BYTES:0)];
+
+  *((uint16_t*) hkdflabel)=htons(crypto_auth_hmacsha256_KEYBYTES); // len
+
+  uint8_t *ptr=hkdflabel+2;
+  memcpy(ptr,"OPAQUE ",7);
+  ptr+=7;
+
+  memcpy(ptr,label,llen);
+  ptr+=llen;
+  if(transcript!=NULL)
+    memcpy(ptr, transcript, crypto_hash_sha256_BYTES);
+
+#ifdef TRACE
+  fprintf(stderr,"expanded label: ");
+  dump(hkdflabel, sizeof(hkdflabel), label);
+  if(transcript!=NULL) dump((const uint8_t*) transcript,crypto_hash_sha256_BYTES, "transcript: ");
+#endif
+
+  crypto_kdf_hkdf_sha256_expand(res, len, (const char*) hkdflabel, sizeof(hkdflabel), secret);
+}
+
+// derive keys according to ietf cfrg draft
 static void derive_keys(Opaque_Keys* keys, const uint8_t *ikm, const char info[crypto_hash_sha256_BYTES]) {
   uint8_t prk[crypto_kdf_hkdf_sha256_KEYBYTES];
   sodium_mlock(prk, sizeof prk);
-  // SK, Km2, Km3, Ke2, Ke3 = HKDF(salt=0, IKM, info, L)
+  // prk = HKDF-Extract(salt=0, IKM)
   crypto_kdf_hkdf_sha256_extract(prk, NULL, 0, ikm, crypto_scalarmult_BYTES*3);
-  crypto_kdf_hkdf_sha256_expand((uint8_t *) keys, sizeof(Opaque_Keys), info, crypto_hash_sha256_BYTES, prk);
+
+  // keys->sk         = Derive-Secret(., "session secret", info)
+  hkdf_expand_label(keys->sk, prk, "session secret", info, 32);
+
+  // handshake_secret = Derive-Secret(., "handshake secret", info)
+  uint8_t handshake_secret[32];
+  sodium_mlock(handshake_secret, sizeof handshake_secret);
+  hkdf_expand_label(handshake_secret, prk, "handshake secret", info, sizeof(handshake_secret));
   sodium_munlock(prk,sizeof(prk));
+
+  //Km2 = HKDF-Expand-Label(handshake_secret, "server mac", "", Hash.length)
+  hkdf_expand_label(keys->km2, handshake_secret, "server mac", NULL, crypto_auth_hmacsha256_KEYBYTES);
+  //Km3 = HKDF-Expand-Label(handshake_secret, "client mac", "", Hash.length)
+  hkdf_expand_label(keys->km3, handshake_secret, "client mac", NULL, crypto_auth_hmacsha256_KEYBYTES);
+  //Ke2 = HKDF-Expand-Label(handshake_secret, "server enc", "", key_length)
+  hkdf_expand_label(keys->ke2, handshake_secret, "server enc", NULL, 32);
+  //Ke3 = HKDF-Expand-Label(handshake_secret, "client enc", "", key_length)
+  hkdf_expand_label(keys->ke3, handshake_secret, "client enc", NULL, 32);
+  sodium_munlock(handshake_secret, sizeof handshake_secret);
+#ifdef TRACE
+  dump(keys->sk, 32, "keys->sk");
+  dump(keys->km2, 32, "keys->km2");
+  dump(keys->km3, 32, "keys->km3");
+  dump(keys->ke2, 32, "keys->ke2");
+  dump(keys->ke3, 32, "keys->ke3");
+#endif
 }
 
 static void calc_info(char info[crypto_hash_sha256_BYTES],

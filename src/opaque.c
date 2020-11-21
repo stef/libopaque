@@ -266,11 +266,27 @@ static void calc_info(char info[crypto_hash_sha256_BYTES],
   dump(nonceS, OPAQUE_NONCE_BYTES, "nonceS ");
 #endif
 
+  uint16_t len = OPAQUE_NONCE_BYTES;
+  crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
   crypto_hash_sha256_update(&state, nonceU, OPAQUE_NONCE_BYTES);
+  crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
   crypto_hash_sha256_update(&state, nonceS, OPAQUE_NONCE_BYTES);
-  if(ids->idU!=NULL && ids->idU_len > 0) crypto_hash_sha256_update(&state, ids->idU, ids->idU_len);
-  if(ids->idS!=NULL && ids->idS_len > 0) crypto_hash_sha256_update(&state, ids->idS, ids->idS_len);
-
+  if(ids->idU!=NULL && ids->idU_len > 0) {
+    len=ids->idU_len;
+    crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
+    crypto_hash_sha256_update(&state, ids->idU, ids->idU_len);
+  } else {
+    len=0;
+    crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
+  }
+  if(ids->idS!=NULL && ids->idS_len > 0) {
+    len=ids->idS_len;
+    crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
+    crypto_hash_sha256_update(&state, ids->idS, ids->idS_len);
+  } else {
+    len=0;
+    crypto_hash_sha256_update(&state, (uint8_t*) &len, 2);
+  }
   crypto_hash_sha256_final(&state, (uint8_t *) info);
 }
 

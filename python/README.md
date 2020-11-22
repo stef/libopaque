@@ -1,8 +1,8 @@
 # libopaque Python bindings
 
 These bindings provide access to libopaque which implements the
-[https://github.com/cfrg/draft-irtf-cfrg-opaque](IETF CFRG RFC draft),
-or you can read the [https://eprint.iacr.org/2018/163](the original paper)
+IETF CFRG RFC draft: https://github.com/cfrg/draft-irtf-cfrg-opaque,
+or you can read the original paper: https://eprint.iacr.org/2018/163
 
 ## Depends
 
@@ -65,6 +65,7 @@ ctx, alpha = opaque.CreateRegistrationRequest(password)
 ```
 
 the user should hold on to `ctx` securely until step 3 of the registration process.
+`alpha` needs to be passed to the server running step2
 
 ### step2: server responds to the registration request
 
@@ -72,7 +73,9 @@ the user should hold on to `ctx` securely until step 3 of the registration proce
 sec, pub = opaque.CreateRegistrationResponse(alpha)
 ```
 
+ - `alpha` comes from the user running the previous step.
 the server should hold onto `sec` securely until step 4 of the registration process.
+`pub` should be passed to the user running step 3.
 
 ### step3: user finalizes the registration using the response from the server
 
@@ -80,21 +83,25 @@ the server should hold onto `sec` securely until step 4 of the registration proc
 rec, export_key = opaque.FinalizeRequest(ctx, pub, cfg, ids, key = key)
 ```
 
+ - `pub` comes from the server running the previous step.
  - `ctx` contains sensitive data and should be disposed securely after usage in this step.
  - `cfg` is a `PkgConfig` struct either known, or passed by the server.
  - `ids` is the App_Ids struct that contains the user Ids of the user and the server.
  - `key` is an optional domain separation value.
 
+
  - `export_key` is an extra secret that can be used to encrypt
    additional data that you might want to store on the server next to
    your record.
+ - `rec` should be passed to the server running step 4.
 
 ### step4: server finalizes the user record
 
 ```
-rec = opaque.StoreUserRecord(sec, rec)
+rec = opaque.StoreUserRecord(sec, urec)
 ```
 
+ - `urec` comes from the user running the previous step.
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
  - `rec` should be stored by the server associated with the id of the user.
 
@@ -113,6 +120,7 @@ AKE and thus request its credentials in the following 3(+1) step protocol:
 pub, sec = opaque.CreateCredentialRequest(password)
 ```
 the user should hold onto `sec` securely until step 3 of the protocol.
+`pub` needs to be passed to the server running step2
 
 ### step2: server responds to credential request
 
@@ -120,6 +128,7 @@ the user should hold onto `sec` securely until step 3 of the protocol.
 resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, infos)
 ```
 
+ - `pub` comes from the user running the previous step.
  - `rec` is the users record stored by the server at the end of the registration protocol.
  - `cfg` is a `PkgConfig` struct either known, or passed by the server.
  - `ids` is the App_Ids struct that contains the user Ids of the user and the server.
@@ -129,6 +138,7 @@ resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, infos)
  - the server should hold onto `ctx` securely until the optional step
    4 of the protocol, if needed. otherwise this value should be
    discarded securely.
+ - `resp` needs to be passed to the user running step3
 
 ### step3: user recovers its credentials from the servers response
 
@@ -136,6 +146,7 @@ resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, infos)
 sku, auth, export_key, ids = opaque.RecoverCredentials(resp, sec, cfg, infos, key=key)
 ```
 
+ - `resp` comes from the server running the previous step.
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
  - `cfg` is a `PkgConfig` struct either known, or passed by the server.
  - `infos` is an optional App_Infos structure.
@@ -156,5 +167,6 @@ towards the server using the shared secret.
 opaque.UserAuth(ctx, auth, infos)
 ```
 
+ - `auth` comes from the user running the previous step.
  - `ctx` contains sensitive data and should be disposed securely after usage in this step.
  - `infos` is an optional App_Infos structure.

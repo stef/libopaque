@@ -1,0 +1,8 @@
+prefix=/usr
+includedir=${prefix}/include
+
+Name: libopaque
+Description: Implementation of the OPAQUE protocol
+Version: 1.0.0
+Cflags: -I${includedir}/foo
+Libs: -lopaque

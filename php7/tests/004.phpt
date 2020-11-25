@@ -8,13 +8,13 @@ if (!extension_loaded('opaque')) {
 ?>
 --FILE--
 <?php
-$r=opaque_register("simple guessable dictionary password", "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv], "some optional key contributed to the opaque protocol");
+$r=opaque_register("simple guessable dictionary password", "user", "server", [opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv], "some optional key contributed to the opaque protocol");
 $rec = $r[0];
 #exp_key0 = $r[1];
 $r=opaque_create_credential_request("simple guessable dictionary password");
 $sec = $r[0];
 $pub = $r[1];
-$r=opaque_create_credential_response($pub, $rec, "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv]);
+$r=opaque_create_credential_response($pub, $rec, "user", "server", [opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv]);
 $resp=$r[0];
 $sk=$r[1];
 $ctx=$r[2];

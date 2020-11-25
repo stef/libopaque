@@ -14,7 +14,8 @@ $ctx = $r[1];
 $r=opaque_create_registration_response($alpha);
 $rsec = $r[0];
 $rpub = $r[1];
-$r=opaque_finalize_request($ctx, $rpub, "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv], "some optional key contributed to the opaque protocol");
+$cfg = [opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv];
+$r=opaque_finalize_request($ctx, $rpub, "user", "server", $cfg, "some optional key contributed to the opaque protocol");
 $rrec = $r[0];
 $export_key = $r[1];
 ?>

@@ -8,7 +8,7 @@ if (!extension_loaded('opaque')) {
 ?>
 --FILE--
 <?php
-$r=opaque_register("simple guessable dictionary password", "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv], "some optional key contributed to the opaque protocol");
+$r=opaque_register("simple guessable dictionary password", "user", "server", [opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv], "some optional key contributed to the opaque protocol");
 echo bin2hex($r[0]), "\n";
 echo bin2hex($r[1]), "\n";
 ?>

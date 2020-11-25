@@ -156,8 +156,10 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen, const uint8_t *key,
 
    @param [in] pw - users input password
    @param [in] pwlen - length of the users password
-   @param [out] sec - private context, The User should protect the sec
-        value (e.g. with sodium_mlock()) until
+   @param [out] sec - private context, it is essential that the memory
+        allocate for this buffer be **OPAQUE_USER_SESSION_SECRET_LEN+pwlen**.
+        The User should protect the sec value (e.g. with sodium_mlock())
+        until opaque_RecoverCredentials.
    @param [out] pub - the message to be sent to the server
    @return the function returns 0 if everything is correct
  */
@@ -177,7 +179,8 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pwlen, uint
    @param [in] ids - the id if the client and server
    @param [in] infos - various extra (unspecified) protocol information as recommended by the rfc.
    @param [out] resp - servers response to be sent to the client where
-   it is used as input into opaque_RecoverCredentials()
+   it is used as input into opaque_RecoverCredentials() - caller must allocate including env_len: e.g.: 
+   unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
    @param [out] sk - the shared secret established between the user & server
    @param [out] _ctx - the current context necessary for the explicit
    authentication of the user in opaque_UserAuth(). This

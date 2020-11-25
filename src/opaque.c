@@ -413,7 +413,6 @@ static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
   else
     get_xcript(xcript, NULL, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envelope, resp->env_len, resp->nonceS, resp->X_s, infos, 0);
 }
-// session user finish
 static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const Opaque_UserSession_Secret *sec,
                            const Opaque_ServerSession *resp,
@@ -793,6 +792,12 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
     crypto_scalarmult_base(creds->P_u, creds->p_u);
     seen|=(1 << (pkU - 1));
   }
+  if(cfg->idU == NotPackaged) {
+    ids->idU_len=0;
+  }
+  if(cfg->idS == NotPackaged) {
+    ids->idU_len=0;
+  }
 
   if(seen!=( 3 | ((!!cfg->pkS) << 2) | ((!!cfg->idU) << 3) | ((!!cfg->idS) << 4) )) {
 #ifdef TRACE
@@ -820,6 +825,14 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
   const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
 
 #ifdef TRACE
+  dump((uint8_t*) cfg,2, "cfg ");
+  fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->sku, cfg->pku, cfg->pks, cfg->idu, cfg->ids);
+  dump(ids->idU, ids->idU_len,"idU ");
+  dump(ids->idS, ids->idS_len,"idS ");
+  fprintf(stderr,"clrenv_len: %d\n", ClrEnv_len);
+  fprintf(stderr,"secenv_len: %d\n", SecEnv_len);
+  fprintf(stderr,"env_len: %d\n", env_len);
+  fprintf(stderr,"rec_len: %ld\n", OPAQUE_USER_RECORD_LEN+env_len);
   memset(_rec,0,OPAQUE_USER_RECORD_LEN+env_len);
 #endif
 
@@ -975,6 +988,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
   Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;
 
+  memset(_ctx, 0, sizeof(Opaque_ServerAuthCTX));
 #ifdef TRACE
   dump(_pub, sizeof(Opaque_UserSession), "session srv pub ");
   dump(_rec, OPAQUE_USER_SESSION_PUBLIC_LEN, "session srv rec ");

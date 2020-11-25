@@ -1,5 +1,5 @@
 --TEST--
-opaque_test5() Basic test
+opaque_test11() Basic test
 --SKIPIF--
 <?php
 if (!extension_loaded('opaque')) {
@@ -8,9 +8,17 @@ if (!extension_loaded('opaque')) {
 ?>
 --FILE--
 <?php
-$r=opaque_register("simple guessable dictionary password", "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv], "some optional key contributed to the opaque protocol");
-$rec = $r[0];
-#exp_key0 = $r[1];
+$r=opaque_create_registration_request("simple guessable dictionary password");
+$alpha = $r[0];
+$ctx = $r[1];
+$r=opaque_create_registration_response($alpha);
+$rsec = $r[0];
+$rpub = $r[1];
+$r=opaque_finalize_request($ctx, $rpub, "user", "server", [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv], "some optional key contributed to the opaque protocol");
+$rrec = $r[0];
+$export_key = $r[1];
+$rec = opaque_store_user_record($rsec, $rrec);
+echo "record: ", bin2hex($rec), "\n";
 $r=opaque_create_credential_request("simple guessable dictionary password");
 $sec = $r[0];
 $pub = $r[1];
@@ -24,11 +32,7 @@ $authU=$r[1];
 $export_key=$r[2];
 $idU=$r[3];
 $idS=$r[4];
-echo "sk: ", bin2hex($sk), "\n";
-echo "authU: ", bin2hex($authU), "\n";
-echo "export_key: ", bin2hex($export_key), "\n";
-echo "idU: ", bin2hex($idU), "\n";
-echo "idS: ", bin2hex($idS), "\n";
+var_dump(opaque_user_auth($ctx, $authU));
 ?>
 --EXPECT--
 string(11) "Hello World"

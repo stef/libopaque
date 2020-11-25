@@ -65,8 +65,6 @@ PHP_FUNCTION(opaque_register) {
 
   zend_array *cfg_array;
 
-  zend_string *retval;
-
 	ZEND_PARSE_PARAMETERS_START(4, 6)
 		Z_PARAM_STRING(pw, pwlen)
 		Z_PARAM_STRING(idU, idUlen)
@@ -125,8 +123,6 @@ PHP_FUNCTION(opaque_create_credential_request) {
   char *pw;
   size_t pwlen;
 
-  zend_string *retval;
-
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_STRING(pw, pwlen)
 		Z_PARAM_OPTIONAL
@@ -157,8 +153,6 @@ PHP_FUNCTION(opaque_create_credential_response) {
   size_t idSlen;
   zend_array *cfg_array;
   zend_array *infos_array=NULL;
-
-  zend_string *retval;
 
 	ZEND_PARSE_PARAMETERS_START(5, 6)
 		Z_PARAM_STRING(pub, publen)
@@ -238,8 +232,6 @@ PHP_FUNCTION(opaque_recover_credentials) {
   zend_array *cfg_array;
   zend_array *infos_array=NULL;
 
-  zend_string *retval;
-
 	ZEND_PARSE_PARAMETERS_START(3, 5)
 		Z_PARAM_STRING(resp, resplen)
 		Z_PARAM_STRING(sec, seclen)
@@ -314,6 +306,182 @@ PHP_FUNCTION(opaque_recover_credentials) {
     RETVAL_ARR(ret);
 }
 
+PHP_FUNCTION(opaque_user_auth) {
+  // create credential request
+  char *ctx;
+  size_t ctxlen;
+  char *authU;
+  size_t authUlen;
+  zend_array *infos_array=NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 3)
+		Z_PARAM_STRING(ctx, ctxlen)
+		Z_PARAM_STRING(authU, authUlen)
+		Z_PARAM_OPTIONAL
+        Z_PARAM_ARRAY_HT(infos_array)
+	ZEND_PARSE_PARAMETERS_END();
+
+    Opaque_App_Infos infos={0}, *infos_p=NULL;
+    if(infos_array!=NULL) {
+      zval *x;
+      //if((x=get_infostr(infos_array, 0))) {
+      //  infos.info1 = Z_STRVAL(*x);
+      //  infos.info1_len = Z_STRLEN(*x);
+      //}
+      //if((x=get_infostr(infos_array, 1))) {
+      //  infos.info2 = Z_STRVAL(*x);
+      //  infos.info2_len = Z_STRLEN(*x);
+      //}
+      //if((x=get_infostr(infos_array, 2))) {
+      //  infos.einfo2 = Z_STRVAL(*x);
+      //  infos.einfo2_len = Z_STRLEN(*x);
+      //}
+      if((x=get_infostr(infos_array, 3))) {
+        infos.info3 = Z_STRVAL(*x);
+        infos.info3_len = Z_STRLEN(*x);
+      }
+      if((x=get_infostr(infos_array, 4))) {
+        infos.einfo3 = Z_STRVAL(*x);
+        infos.einfo3_len = Z_STRLEN(*x);
+      }
+    }
+
+    zval zbool;
+
+    if(0!=opaque_UserAuth(ctx, authU, infos_p))
+      RETURN_FALSE;
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(opaque_create_registration_request) {
+  // register user
+  char *pw;
+  size_t pwlen;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STRING(pw, pwlen)
+		Z_PARAM_OPTIONAL
+	ZEND_PARSE_PARAMETERS_END();
+
+    uint8_t alpha[crypto_core_ristretto255_BYTES];
+    uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen];
+
+    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, ctx, alpha)) return;
+
+    zend_array *ret = zend_new_array(2);
+    zval zarr;
+    ZVAL_ARR(&zarr, ret);
+    add_next_index_stringl(&zarr,alpha, sizeof(alpha));
+    add_next_index_stringl(&zarr,ctx, sizeof(ctx));
+
+    RETVAL_ARR(ret);
+}
+
+PHP_FUNCTION(opaque_create_registration_response) {
+  // register user
+  char *alpha;
+  size_t alphalen;
+
+	ZEND_PARSE_PARAMETERS_START(1, 1)
+		Z_PARAM_STRING(alpha, alphalen)
+		Z_PARAM_OPTIONAL
+	ZEND_PARSE_PARAMETERS_END();
+
+    unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
+    printf("opaque_CreateRegistrationResponse\n");
+    if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return;
+
+    zend_array *ret = zend_new_array(2);
+    zval zarr;
+    ZVAL_ARR(&zarr, ret);
+    add_next_index_stringl(&zarr,rsec, sizeof(rsec));
+    add_next_index_stringl(&zarr,rpub, sizeof(rpub));
+
+    RETVAL_ARR(ret);
+}
+
+PHP_FUNCTION(opaque_finalize_request) {
+  // create credential request
+  char *ctx;
+  size_t ctxlen;
+  char *rpub;
+  size_t rpublen;
+  char *idU;
+  size_t idUlen;
+  char *idS;
+  size_t idSlen;
+  zend_array *cfg_array;
+  char *key=NULL;
+  size_t keylen=0;
+
+	ZEND_PARSE_PARAMETERS_START(5, 6)
+		Z_PARAM_STRING(ctx, ctxlen)
+		Z_PARAM_STRING(rpub, rpublen)
+		Z_PARAM_STRING(idU, idUlen)
+		Z_PARAM_STRING(idS, idSlen)
+        Z_PARAM_ARRAY_HT(cfg_array)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_STRING(key, keylen)
+	ZEND_PARSE_PARAMETERS_END();
+
+    Opaque_Ids ids={.idU_len=idUlen,.idU=idU,.idS_len=idSlen,.idS=idS};
+    Opaque_PkgConfig cfg={
+                          .skU = InSecEnv,
+                          .pkU = InSecEnv,
+                          .pkS = InSecEnv,
+                          .idS = InSecEnv,
+                          .idU = InSecEnv,
+    };
+
+    int r;
+    if((r=get_cfgval(cfg_array, 0))==-1) return;
+    cfg.skU=r;
+    if((r=get_cfgval(cfg_array, 1))==-1) return;
+    cfg.pkU=r;
+    if((r=get_cfgval(cfg_array, 2))==-1) return;
+    cfg.pkS=r;
+    if((r=get_cfgval(cfg_array, 3))==-1) return;
+    cfg.idS=r;
+    if((r=get_cfgval(cfg_array, 4))==-1) return;
+    cfg.idU=r;
+
+    const uint16_t ClrEnv_len = opaque_package_len(&cfg, &ids, InClrEnv);
+    const uint16_t SecEnv_len = opaque_package_len(&cfg, &ids, InSecEnv);
+    const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
+
+    unsigned char rrec[OPAQUE_USER_RECORD_LEN+env_len];
+    uint8_t export_key[crypto_hash_sha256_BYTES];
+    if(0!=opaque_FinalizeRequest(ctx, rpub, key, keylen, &cfg, &ids, rrec, export_key)) return;
+
+    zend_array *ret = zend_new_array(2);
+    zval zarr;
+    ZVAL_ARR(&zarr, ret);
+    add_next_index_stringl(&zarr,rrec, sizeof(rrec));
+    add_next_index_stringl(&zarr,export_key, sizeof(export_key));
+
+    RETVAL_ARR(ret);
+}
+
+PHP_FUNCTION(opaque_store_user_record) {
+  // register user
+  char *rsec;
+  size_t rseclen;
+  char *rec;
+  size_t reclen;
+  zend_string *retval;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+		Z_PARAM_STRING(rsec, rseclen)
+		Z_PARAM_STRING(rec, reclen)
+		Z_PARAM_OPTIONAL
+	ZEND_PARSE_PARAMETERS_END();
+
+    opaque_StoreUserRecord(rsec, rec);
+
+    retval = zend_string_init(rec, reclen, 0);
+    RETURN_STR(retval);
+}
+
 /* }}}*/
 
 /* {{{ PHP_RINIT_FUNCTION
@@ -369,6 +537,34 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_recover_credentials, 0)
 	ZEND_ARG_INFO(0, key)
 	ZEND_ARG_INFO(0, infos_array)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_opaque_user_auth, 0)
+	ZEND_ARG_INFO(0, ctx)
+	ZEND_ARG_INFO(0, authU)
+	ZEND_ARG_INFO(0, infos_array)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_request, 0)
+	ZEND_ARG_INFO(0, pw)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_response, 0)
+	ZEND_ARG_INFO(0, alpha)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_opaque_finalize_request, 0)
+	ZEND_ARG_INFO(0, ctx)
+	ZEND_ARG_INFO(0, rpub)
+	ZEND_ARG_INFO(0, key)
+	ZEND_ARG_INFO(0, idU)
+	ZEND_ARG_INFO(0, idS)
+	ZEND_ARG_INFO(0, cfg_array)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO(arginfo_opaque_store_user_record, 0)
+	ZEND_ARG_INFO(0, rsec)
+	ZEND_ARG_INFO(0, rrec)
+ZEND_END_ARG_INFO()
 /* }}} */
 
 /* {{{ opaque_functions[]
@@ -378,6 +574,11 @@ static const zend_function_entry opaque_functions[] = {
 	PHP_FE(opaque_create_credential_request,		arginfo_opaque_create_credential_request)
 	PHP_FE(opaque_create_credential_response,		arginfo_opaque_create_credential_response)
 	PHP_FE(opaque_recover_credentials,				arginfo_opaque_recover_credentials)
+	PHP_FE(opaque_user_auth,						arginfo_opaque_user_auth)
+	PHP_FE(opaque_create_registration_request,		arginfo_opaque_create_registration_request)
+	PHP_FE(opaque_create_registration_response,		arginfo_opaque_create_registration_response)
+	PHP_FE(opaque_finalize_request,					arginfo_opaque_finalize_request)
+	PHP_FE(opaque_store_user_record,				arginfo_opaque_store_user_record)
 	PHP_FE_END
 };
 /* }}} */

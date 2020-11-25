@@ -1,0 +1,7 @@
+ARG_ENABLE('opaque', 'opaque support', 'no');
+
+if (PHP_OPAQUE != 'no') {
+	AC_DEFINE('HAVE_OPAQUE', 1, 'opaque support enabled');
+
+	EXTENSION('opaque', 'opaque.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+}

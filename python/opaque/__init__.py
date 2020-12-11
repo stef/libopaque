@@ -145,7 +145,7 @@ class App_Infos(ctypes.Structure):
             self.einfo3_len=0
 
 # enum to define the handling of various fields packed in the opaque envelope
-NotPackaged = 0,
+NotPackaged = 0
 InSecEnv = 1      # field is encrypted
 InClrEnv = 2      # field is plaintext, but authenticated
 

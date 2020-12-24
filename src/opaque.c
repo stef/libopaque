@@ -796,7 +796,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
     ids->idU_len=0;
   }
   if(cfg->idS == NotPackaged) {
-    ids->idU_len=0;
+    ids->idS_len=0;
   }
 
   if(seen!=( 3 | ((!!cfg->pkS) << 2) | ((!!cfg->idU) << 3) | ((!!cfg->idS) << 4) )) {

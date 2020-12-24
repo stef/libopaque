@@ -826,7 +826,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
 
 #ifdef TRACE
   dump((uint8_t*) cfg,2, "cfg ");
-  fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->sku, cfg->pku, cfg->pks, cfg->idu, cfg->ids);
+  fprintf(stderr, "cfg skU: %d, pkU:%d, pkS:%d, idU:%d, idS:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
   dump(ids->idU, ids->idU_len,"idU ");
   dump(ids->idS, ids->idS_len,"idS ");
   fprintf(stderr,"clrenv_len: %d\n", ClrEnv_len);

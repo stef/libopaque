@@ -12,7 +12,7 @@ on:
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - name: Checkout repository
@@ -52,6 +52,6 @@ jobs:
        sudo apt-get update
        sudo apt-get install python libsodium-dev pkgconf
        make bin libopaque.so tests/opaque
-     
+
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

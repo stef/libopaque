@@ -132,7 +132,7 @@ typedef struct {
         "RFCXXXX" - TODO set XXXX to the real value when the rfc is
         published.
    @param [in] key_len - length of the key, ignored if key is NULL
-   @param [in] sk - in case of global server keys this is the servers
+   @param [in] skS - in case of global server keys this is the servers
         private key, should be set to NULL if per/user keys are to be
         generated
    @param [in] cfg - configuration of the opaque envelope, see
@@ -148,7 +148,7 @@ typedef struct {
         encrypt/authenticate additional data.
    @return the function returns 0 if everything is correct
  */
-int opaque_Register(const uint8_t *pw, const uint16_t pwlen, const uint8_t *key, const uint16_t key_len, const uint8_t sk[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_Register(const uint8_t *pw, const uint16_t pwlen, const uint8_t *key, const uint16_t key_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    This function initiates a new OPAQUE session, is the same as the

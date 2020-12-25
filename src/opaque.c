@@ -813,7 +813,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
 int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
                     const uint8_t *key, const uint16_t key_len,
-                    const uint8_t sk[crypto_scalarmult_SCALARBYTES],
+                    const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
                     const Opaque_Ids *ids,
                     uint8_t _rec[OPAQUE_USER_RECORD_LEN],
@@ -873,10 +873,10 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
   dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "k_s\nplain user rec ");
 #endif
   // p_s ←_R Z_q
-  if(sk==NULL) {
+  if(skS==NULL) {
     randombytes(rec->p_s, crypto_scalarmult_SCALARBYTES); // random server secret key
   } else {
-    memcpy(rec->p_s, sk, crypto_scalarmult_SCALARBYTES);
+    memcpy(rec->p_s, skS, crypto_scalarmult_SCALARBYTES);
   }
 
 #ifdef TRACE

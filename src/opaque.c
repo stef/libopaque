@@ -274,6 +274,10 @@ static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf
 static void derive_keys(Opaque_Keys* keys, const uint8_t *ikm, const char info[crypto_hash_sha256_BYTES]) {
   uint8_t prk[crypto_kdf_hkdf_sha256_KEYBYTES];
   sodium_mlock(prk, sizeof prk);
+#ifdef TRACE
+  dump(ikm, crypto_scalarmult_BYTES*3, "ikm ");
+  dump((uint8_t*) info, crypto_hash_sha256_BYTES, "info ");
+#endif
   // prk = HKDF-Extract(salt=0, IKM)
   crypto_kdf_hkdf_sha256_extract(prk, NULL, 0, ikm, crypto_scalarmult_BYTES*3);
 
@@ -792,12 +796,6 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
     crypto_scalarmult_base(creds->P_u, creds->p_u);
     seen|=(1 << (pkU - 1));
   }
-  if(cfg->idU == NotPackaged) {
-    ids->idU_len=0;
-  }
-  if(cfg->idS == NotPackaged) {
-    ids->idS_len=0;
-  }
 
   if(seen!=( 3 | ((!!cfg->pkS) << 2) | ((!!cfg->idU) << 3) | ((!!cfg->idS) << 4) )) {
 #ifdef TRACE
@@ -880,7 +878,8 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
   }
 
 #ifdef TRACE
-  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "p_s\nplain user rec ");
+  dump(rec->p_s, crypto_scalarmult_SCALARBYTES, "p_s ");
+  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "plain user rec ");
 #endif
   Opaque_Credentials cred;
   sodium_mlock(&cred, sizeof cred);
@@ -898,7 +897,8 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
   crypto_scalarmult_base(rec->P_s, rec->p_s);
 
 #ifdef TRACE
-  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "P_s\nplain user rec ");
+  dump(rec->P_s, crypto_scalarmult_BYTES, "P_s ");
+  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "plain user rec ");
 #endif
   // P_u := g^p_u
   crypto_scalarmult_base(rec->P_u, cred.p_u);
@@ -1098,6 +1098,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN],
                               const uint8_t *key, const uint16_t key_len,
+                              const uint8_t pkS[crypto_scalarmult_BYTES],
                               const Opaque_PkgConfig *cfg,
                               const Opaque_App_Infos *infos,
                               Opaque_Ids *ids,
@@ -1205,6 +1206,12 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   sodium_mlock(&cred,sizeof cred);
   if(0!=unpack(cfg, SecEnv, SecEnv_len, ClrEnv, ClrEnv_len, rw, &cred, ids)) {
     sodium_munlock(&cred,sizeof cred);
+    return -1;
+  }
+
+  if(cfg->pkS==NotPackaged && pkS!=NULL) {
+    memcpy(cred.P_s, pkS, crypto_scalarmult_BYTES);
+  } else if ((cfg->pkS==NotPackaged) ^ (pkS!=NULL)) {
     return -1;
   }
 

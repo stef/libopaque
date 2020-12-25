@@ -23,6 +23,15 @@
 #include "../opaque.h"
 #include "../common.h"
 
+typedef struct {
+  uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t p_s[crypto_scalarmult_SCALARBYTES];
+  uint8_t P_u[crypto_scalarmult_BYTES];
+  uint8_t P_s[crypto_scalarmult_BYTES];
+  uint32_t env_len;
+  uint8_t envelope[];
+} __attribute((packed)) Opaque_UserRecord;
+
 static char* type_params[] = {
   "\x00",
   "\x01",
@@ -277,7 +286,17 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   fprintf(stderr,"opaque_CreateCredentialResponse\n");
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) return MUNIT_FAIL;
   fprintf(stderr,"opaque_RecoverCredentials\n");
-  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, cfg, NULL, &ids1, pk, authU, export_key)) return MUNIT_FAIL;
+
+  if(cfg->pkS == NotPackaged) {
+    Opaque_UserRecord *_rec = (Opaque_UserRecord *) &rec;
+    if(type!=Private1kInit && type!=Server1kInit) {
+      pkS = _rec->P_s;
+    }
+  } else {
+    pkS = NULL;
+  }
+
+  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, cfg, NULL, &ids1, pk, authU, export_key)) return MUNIT_FAIL;
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:

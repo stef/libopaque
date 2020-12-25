@@ -209,11 +209,14 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    of the OPRF, the rfc specifies this as 'RFCXXXX' but can be any other
    local secret amending the password typed in in the first step.
    @param [in] key_len - the length of the previous param key
+   @param [in] pkS - if cfg.pkS == NotPackaged pkS *must* be supplied here, otherwise it must be NULL
    @param [in] cfg - the configuration of the envelope secret and cleartext part
    @param [in] infos - various extra (unspecified) protocol information
    as recommended by the rfc
    @param [out] ids - if ids were packed in the envelope - as given by
-   the cfg param -, they are returned in this struct
+   the cfg param -, they are returned in this struct - if either
+   cfg.idS or cfg.idU is NotPackaged, then the according value must be
+   set in this struct before calling opaque_RecoverCredentials
    @param [out] sk - the shared secret established between the user & server
    @param [out] auth - the authentication code to be sent to the server
    in case explicit user authentication is required
@@ -221,7 +224,7 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], const uint8_t *key, const uint16_t key_len, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Explicit User Authentication.

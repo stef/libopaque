@@ -254,23 +254,38 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   if(type==ServerInit || type==Server1kInit) {
     // register user
     fprintf(stderr,"\nopaque_Register\n");
-    if(0!=opaque_Register(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
+    if(0!=opaque_Register(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) {
+      fprintf(stderr,"opaque_Register failed.\n");
+      return MUNIT_FAIL;
+    }
   } else {
     // user initiates:
     fprintf(stderr,"\nopaque_CreateRegistrationRequest\n");
-    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, usr_ctx, alpha)) return 1;
+    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, usr_ctx, alpha)) {
+      fprintf(stderr,"opaque_CreateRegistrationRequest failed.\n");
+      return MUNIT_FAIL;
+    }
     // server responds
     unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
     if(type==Private1kInit) {
       fprintf(stderr,"\nopaque_Create1kRegistrationResponse\n");
-      if(0!=opaque_Create1kRegistrationResponse(alpha, pkS, rsec, rpub)) return MUNIT_FAIL;
+      if(0!=opaque_Create1kRegistrationResponse(alpha, pkS, rsec, rpub)) {
+        fprintf(stderr,"opaque_Create1kRegistrationResponse failed.\n");
+        return MUNIT_FAIL;
+      }
     } else {
       fprintf(stderr,"\nopaque_CreateRegistrationResponse\n");
-      if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return MUNIT_FAIL;
+      if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) {
+        fprintf(stderr,"opaque_CreateRegistrationResponse failed.\n");
+        return MUNIT_FAIL;
+      }
     }
     // user commits its secrets
     fprintf(stderr,"\nopaque_FinalizeRequest\n");
-    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
+    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, cfg, &ids, rec, export_key)) {
+      fprintf(stderr,"opaque_FinalizeRequest failed.\n");
+      return MUNIT_FAIL;
+    }
     // server "saves"
     if(type==Private1kInit) {
       fprintf(stderr,"\nopaque_Store1kUserRecord\n");
@@ -284,7 +299,10 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   fprintf(stderr,"\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
   fprintf(stderr,"\nopaque_CreateCredentialResponse\n");
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) return MUNIT_FAIL;
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) {
+    fprintf(stderr,"opaque_CreateCredentialResponse failed.\n");
+    return MUNIT_FAIL;
+  }
   fprintf(stderr,"\nopaque_RecoverCredentials\n");
 
   if(cfg->pkS == NotPackaged) {
@@ -296,7 +314,10 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
     pkS = NULL;
   }
 
-  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, cfg, NULL, &ids1, pk, authU, export_key)) return MUNIT_FAIL;
+  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, cfg, NULL, &ids1, pk, authU, export_key)) {
+    fprintf(stderr,"opaque_RecoverCredentials failed.\n");
+    return MUNIT_FAIL;
+  }
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:

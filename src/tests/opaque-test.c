@@ -64,24 +64,24 @@ int main(void) {
   fprintf(stderr, "sizeof(rec): %ld\n",sizeof(rec));
 
   // register user
-  fprintf(stderr, "opaque_Register()\n");
+  fprintf(stderr, "opaque_Register\n");
   if(0!=opaque_Register(pw, pwlen, key, key_len, NULL, &cfg, &ids, rec, export_key)) return 1;
 
   // initiate login
   unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  fprintf(stderr, "opaque_CreateCredentialRequest()\n");
+  fprintf(stderr, "opaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
 
   unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
   uint8_t sk[32];
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  fprintf(stderr, "opaque_CreateCredentialResponse()\n");
+  fprintf(stderr, "opaque_CreateCredentialResponse\n");
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) return 1;
 
   _dump(sk,32,"sk_s: ");
 
   uint8_t pk[32];
-  fprintf(stderr, "opaque_RecoverCredentials()\n");
+  fprintf(stderr, "opaque_RecoverCredentials\n");
   uint8_t authU[crypto_auth_hmacsha256_BYTES];
   uint8_t idU[ids.idU_len], idS[ids.idS_len]; // must be big enough to fit ids
   Opaque_Ids ids1={sizeof idU,idU, sizeof idS ,idS};
@@ -106,7 +106,7 @@ int main(void) {
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
   assert(sodium_memcmp(export_key,export_key_x,sizeof export_key)==0);
 
-  fprintf(stderr, "opaque_UserAuth()\n");
+  fprintf(stderr, "opaque_UserAuth\n");
   if(-1==opaque_UserAuth(ctx, authU, NULL)) {
     fprintf(stderr, "failed authenticating user\n");
     return 1;
@@ -160,4 +160,3 @@ int main(void) {
 
   return 0;
 }
-

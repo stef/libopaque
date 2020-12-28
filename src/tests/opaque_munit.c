@@ -253,7 +253,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
 
   if(type==ServerInit || type==Server1kInit) {
     // register user
-    fprintf(stderr,"opaque_Register()\n");
+    fprintf(stderr,"opaque_Register\n");
     if(0!=opaque_Register(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) return MUNIT_FAIL;
   } else {
     // user initiates:

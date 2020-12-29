@@ -41,8 +41,14 @@ $(PREFIX)/include/opaque.h: opaque.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f libopaque.so
-	rm -f tests/opaque tests/opaque.exe *.o tests/opaque-munit$(EXT)
-	rm -f libopaque.dll
+	rm -f \
+		*.o \
+		aux/*.o \
+		libopaque.dll \
+		libopaque.so \
+		tests/munit-opaque \
+		tests/munit-opaque.exe \
+		tests/opaque \
+		tests/opaque.exe
 
 .PHONY: bin clean install

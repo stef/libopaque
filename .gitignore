@@ -1,0 +1,7 @@
+*.dll
+*.exe
+*.o
+*.so
+.DS_Store
+src/tests/munit-opaque
+src/tests/opaque

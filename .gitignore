@@ -3,7 +3,16 @@
 *.o
 *.so
 .DS_Store
+node_modules/
 src/tests/opaque-munit
+src/tests/opaque-munit.html
+src/tests/opaque-munit.js
 src/tests/opaque-test
+src/tests/opaque-test.html
+src/tests/opaque-test.js
 src/tests/opaque-tv1
+src/tests/opaque-tv1.html
+src/tests/opaque-tv1.js
 src/tests/opaque-tv2
+src/tests/opaque-tv2.html
+src/tests/opaque-tv2.js

@@ -71,11 +71,19 @@ clean:
 		libopaque.so \
 		tests/opaque-munit \
 		tests/opaque-munit.exe \
+		tests/opaque-munit.html \
+		tests/opaque-munit.js \
 		tests/opaque-test \
 		tests/opaque-test.exe \
+		tests/opaque-test.html \
+		tests/opaque-test.js \
 		tests/opaque-tv1 \
 		tests/opaque-tv1.exe \
+		tests/opaque-tv1.html \
+		tests/opaque-tv1.js \
 		tests/opaque-tv2 \
-		tests/opaque-tv2.exe
+		tests/opaque-tv2.exe \
+		tests/opaque-tv2.html \
+		tests/opaque-tv2.js \
 
 .PHONY: all clean debug install test

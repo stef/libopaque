@@ -1,0 +1,13 @@
+{
+  "name": "libopaque-demo",
+  "version": "0.0.0",
+  "description": "Demo of libopaque, an implementation of the OPAQUE asymmetric PAKE protocol",
+  "license": "GPLv3",
+  "author": "Stefan Marsiske <pyopaque@ctrlc.hu>",
+  "contributors": [
+    "Chris Topher <c@creemama.com>"
+  ],
+  "dependencies": {
+    "express": "4.17.1"
+  }
+}

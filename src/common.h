@@ -20,4 +20,17 @@ void a_randomscalar(unsigned char* buf);
 #define randombytes a_randombytes
 #endif
 
+#ifdef __EMSCRIPTEN__
+// Per
+// https://emscripten.org/docs/compiling/Building-Projects.html#detecting-emscripten-in-preprocessor,
+// "The preprocessor define __EMSCRIPTEN__ is always defined when compiling
+// programs with Emscripten". For why we are replacing sodium_m(un)?lock, see
+// common.c for more details.
+#include <sodium.h>
+int opaque_mlock(void *const addr, const size_t len);
+int opaque_munlock(void *const addr, const size_t len);
+#define sodium_mlock opaque_mlock
+#define sodium_munlock opaque_munlock
+#endif
+
 #endif //COMMON_H

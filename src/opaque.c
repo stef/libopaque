@@ -815,7 +815,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
                     const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
                     const Opaque_Ids *ids,
-                    uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                    uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/],
                     uint8_t export_key[crypto_hash_sha256_BYTES]) {
   Opaque_UserRecord *rec = (Opaque_UserRecord *)_rec;
 
@@ -939,7 +939,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
 // more or less corresponds to CreateCredentialRequest in the ietf draft
-int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pw_len*/], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
 #ifdef TRACE
@@ -982,7 +982,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uin
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]) {
+int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]) {
 
   Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
   Opaque_UserSession *pub = (Opaque_UserSession *) _pub;
@@ -1096,8 +1096,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 //     Otherwise sets (p_u, P_u, P_s ) := AuthDec_rw (c);
 // (d) Computes K := KE(p_u, x_u, P_s, X_s) and SK := f_K(0);
 // (e) Outputs (sid, ssid, SK).
-int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
-                              const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN],
+int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/],
+                              const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pw_len*/],
                               const uint8_t *key, const uint16_t key_len,
                               const uint8_t pkS[crypto_scalarmult_BYTES],
                               const Opaque_PkgConfig *cfg,
@@ -1393,7 +1393,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
                                     const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
                                     const Opaque_Ids *ids,
-                                    uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                                    uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/],
                                     uint8_t export_key[crypto_hash_sha256_BYTES]) {
 
   Opaque_RegisterUserSec *ctx = (Opaque_RegisterUserSec *) _ctx;
@@ -1520,7 +1520,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
 
 // S records file[sid ] := {k_s, p_s, P_s, P_u, c}.
 // called StoreUserRecord in the ietf cfrg rfc draft
-void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
+void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
@@ -1532,7 +1532,7 @@ void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint
 #endif
 }
 
-void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN]) {
+void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 

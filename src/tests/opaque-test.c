@@ -40,7 +40,7 @@ static void _dump(const uint8_t *p, const size_t len, const char* msg) {
 
 int main(void) {
   uint8_t pw[]="simple guessable dictionary password";
-  uint16_t pwlen=strlen((char*) pw);
+  uint16_t pw_len=strlen((char*) pw);
   uint8_t key[]="some optional key contributed to the opaque protocol";
   uint16_t key_len=strlen((char*) key);
   uint8_t export_key[crypto_hash_sha256_BYTES];
@@ -65,15 +65,15 @@ int main(void) {
 
   // register user
   fprintf(stderr, "\nopaque_Register\n");
-  if(0!=opaque_Register(pw, pwlen, key, key_len, NULL, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_Register(pw, pw_len, key, key_len, NULL, &cfg, &ids, rec, export_key)) {
     fprintf(stderr, "opaque_Register failed.\n");
     return 1;
   }
 
   // initiate login
-  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pw_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
-  opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
+  opaque_CreateCredentialRequest(pw, pw_len, sec, pub);
 
   unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
   uint8_t sk[32];
@@ -125,10 +125,10 @@ int main(void) {
 
   // variant where user registration does not leak secrets to server
   uint8_t alpha[crypto_core_ristretto255_BYTES];
-  uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen];
+  uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pw_len];
   // user initiates:
   fprintf(stderr, "\nopaque_CreateRegistrationRequest\n");
-  if(0!=opaque_CreateRegistrationRequest(pw, pwlen, usr_ctx, alpha)) {
+  if(0!=opaque_CreateRegistrationRequest(pw, pw_len, usr_ctx, alpha)) {
     fprintf(stderr, "opaque_CreateRegistrationRequest failed.\n");
     return 1;
   }
@@ -151,7 +151,7 @@ int main(void) {
   opaque_StoreUserRecord(rsec, rrec);
 
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
-  opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
+  opaque_CreateCredentialRequest(pw, pw_len, sec, pub);
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
   if(0!=opaque_CreateCredentialResponse(pub, rrec, &ids, NULL, resp, sk, ctx)) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");

@@ -198,7 +198,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   (void)user_data_or_fixture;
   const TestType type = *((const TestType*)munit_parameters_get(params, "type"));
   const uint8_t *pw=(const uint8_t*) munit_parameters_get(params, "pw");
-  const size_t pwlen=strlen((char*) pw);
+  const size_t pw_len=strlen((char*) pw);
   const uint8_t *key=(const uint8_t*) munit_parameters_get(params, "key");;
   size_t key_len=strlen((char*) key);
   uint8_t export_key[crypto_hash_sha256_BYTES];
@@ -217,7 +217,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
   fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
 
-  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pw_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
   uint8_t sk[32];
   uint8_t pk[32];
@@ -237,7 +237,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
 
   uint8_t alpha[crypto_core_ristretto255_BYTES];
-  uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen];
+  uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pw_len];
 
   uint8_t _skS[crypto_scalarmult_SCALARBYTES], _pkS[crypto_scalarmult_BYTES];
   uint8_t *skS, *pkS;
@@ -254,14 +254,14 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   if(type==ServerInit || type==Server1kInit) {
     // register user
     fprintf(stderr,"\nopaque_Register\n");
-    if(0!=opaque_Register(pw, pwlen, key, key_len, skS, cfg, &ids, rec, export_key)) {
+    if(0!=opaque_Register(pw, pw_len, key, key_len, skS, cfg, &ids, rec, export_key)) {
       fprintf(stderr,"opaque_Register failed.\n");
       return MUNIT_FAIL;
     }
   } else {
     // user initiates:
     fprintf(stderr,"\nopaque_CreateRegistrationRequest\n");
-    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, usr_ctx, alpha)) {
+    if(0!=opaque_CreateRegistrationRequest(pw, pw_len, usr_ctx, alpha)) {
       fprintf(stderr,"opaque_CreateRegistrationRequest failed.\n");
       return MUNIT_FAIL;
     }
@@ -297,7 +297,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   }
 
   fprintf(stderr,"\nopaque_CreateCredentialRequest\n");
-  opaque_CreateCredentialRequest(pw, pwlen, sec, pub);
+  opaque_CreateCredentialRequest(pw, pw_len, sec, pub);
   fprintf(stderr,"\nopaque_CreateCredentialResponse\n");
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) {
     fprintf(stderr,"opaque_CreateCredentialResponse failed.\n");

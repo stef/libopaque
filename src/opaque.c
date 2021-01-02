@@ -53,7 +53,7 @@ typedef struct {
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t alpha[crypto_core_ristretto255_BYTES];
-  uint16_t pwlen;
+  uint16_t pw_len;
   uint8_t pw[];
 } __attribute((packed)) Opaque_UserSession_Secret;
 
@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct {
   uint8_t r[crypto_core_ristretto255_SCALARBYTES];
-  uint16_t pwlen;
+  uint16_t pw_len;
   uint8_t pw[];
 } Opaque_RegisterUserSec;
 
@@ -203,14 +203,14 @@ static int prf(const uint8_t *pwd, const uint16_t pwd_len,
 }
 
 // See https://libsodium.gitbook.io/doc/advanced/point-arithmetic/ristretto.
-static int blind(const uint8_t *pw, const uint16_t pwlen, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
+static int blind(const uint8_t *pw, const uint16_t pw_len, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
   if(0!=sodium_mlock(h0,sizeof h0)) {
     return -1;
   }
-  crypto_hash_sha512(h0, pw, pwlen);
+  crypto_hash_sha512(h0, pw, pw_len);
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
@@ -810,7 +810,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // (StorePwdFile, sid , U, pw): S computes k_s ←_R Z_q , rw := F_k_s (pw),
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
-int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
+int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
                     const uint8_t *key, const uint16_t key_len,
                     const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
@@ -841,7 +841,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
   // rw := F_k_s (pw),
   uint8_t rw0[32];
   if(-1==sodium_mlock(rw0,sizeof rw0)) return -1;
-  if(prf(pw, pwlen, rec->k_s, key, key_len, rw0)!=0) {
+  if(prf(pw, pw_len, rec->k_s, key, key_len, rw0)!=0) {
     sodium_munlock(rw0,sizeof rw0);
     return -1;
   }
@@ -939,17 +939,17 @@ int opaque_Register(const uint8_t *pw, const uint16_t pwlen,
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
 // more or less corresponds to CreateCredentialRequest in the ietf draft
-int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
 #ifdef TRACE
-  memset(_sec, 0, OPAQUE_USER_SESSION_SECRET_LEN+pwlen);
+  memset(_sec, 0, OPAQUE_USER_SESSION_SECRET_LEN+pw_len);
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  if(0!=blind(pw, pwlen, sec->r, pub->alpha)) return -1;
+  if(0!=blind(pw, pw_len, sec->r, pub->alpha)) return -1;
 #ifdef TRACE
-  dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwlen, "sec ");
+  dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pw_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
   memcpy(sec->alpha, pub->alpha, crypto_core_ristretto255_BYTES);
@@ -964,11 +964,11 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pwlen, uint
   // X_u := g^x_u
   crypto_scalarmult_base(pub->X_u, sec->x_u);
 
-  sec->pwlen = pwlen;
-  memcpy(sec->pw, pw, pwlen);
+  sec->pw_len = pw_len;
+  memcpy(sec->pw, pw, pw_len);
 
 #ifdef TRACE
-  dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwlen, "sec ");
+  dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pw_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
   return 0;
@@ -1110,7 +1110,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret *) _sec;
 
 #ifdef TRACE
-  dump(sec->pw,sec->pwlen, "session user finish pw ");
+  dump(sec->pw,sec->pw_len, "session user finish pw ");
   dump(key,key_len, "session user finish key ");
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN, "session user finish sec ");
   dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
@@ -1157,7 +1157,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   if(-1==sodium_mlock(rw0,sizeof rw0)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pw, sec->pwlen, key, key_len, h0, rw0)) {
+  if(0!=prf_finalize(sec->pw, sec->pw_len, key, key_len, h0, rw0)) {
     sodium_munlock(h0, sizeof h0);
     return -1;
   }
@@ -1302,11 +1302,11 @@ int opaque_UserAuth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t auth
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the ietf cfrg rfc draft
-int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
+int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pw_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pw_len], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
-  memcpy(&sec->pw, pw, pwlen);
-  sec->pwlen = pwlen;
-  return blind(pw, pwlen, sec->r, alpha);
+  memcpy(&sec->pw, pw, pw_len);
+  sec->pw_len = pw_len;
+  return blind(pw, pw_len, sec->r, alpha);
 }
 
 // initUser: S
@@ -1388,7 +1388,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristrett
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
 // called FinalizeRequest in the ietf cfrg rfc draft
-int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pwlen*/],
+int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_len*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                     const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
@@ -1441,7 +1441,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pwl
   if(-1==sodium_mlock(rw0, sizeof rw0)) {
     return -1;
   }
-  if(0!=prf_finalize(ctx->pw, ctx->pwlen, key, key_len, h0, rw0)) {
+  if(0!=prf_finalize(ctx->pw, ctx->pw_len, key, key_len, h0, rw0)) {
     sodium_munlock(h0, sizeof h0);
     return -1;
   }

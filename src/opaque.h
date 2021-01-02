@@ -408,18 +408,33 @@ void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8
 void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]);
 
 /**
-   helper function calculating the length of the two parts of the envelope
+   This helper function calculates the length of one part, either the secret
+   part (SecEnv) or the cleartext part (ClrEnv), of the envelope in bytes.
 
-   based on the config and the length of the id[U|S] returns the size
-   for the SecEnv or the ClrEnv portion of the envelope
+   @param [in] cfg - the configuration of the envelope's secret and cleartext
+   parts
+   @param [in] ids - the IDs of the user and server that are only needed if we
+   pack one of the IDs into the envelope as given by the cfg param
+   @param [in] type - InSecEnv|InClrEnv - NotPackaged is useless
 
-   @param [in] cfg - the configuration of the envelope secret and cleartext part
-   @param [in] ids - if ids are to be packed in the envelope - as given by
-   the cfg param
-   @param [in] type - InSecEnv|InClrEnv - calling with NotPackaged is useless
-
-   @return the function returns the size of the envelope part specified in the param type.
+   @return the function returns the size of the envelope part specified by the
+   type param in bytes.
  */
 size_t opaque_package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type);
+
+/**
+   This helper function calculates the length of the envelope in bytes.
+
+   The returned size should be OPAQUE_ENVELOPE_META_LEN + SecEnv_len +
+   ClrEnv_len.
+
+   @param [in] cfg - the configuration of the envelope's secret and cleartext
+   parts
+   @param [in] ids - the IDs of the user and server that are only needed if we
+   pack one of the IDs into the envelope as given by the cfg param
+
+   @return the function returns the size of the envelope.
+ */
+size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids);
 
 #endif // opaque_h

@@ -676,7 +676,6 @@ static int opaque_envelope_open(const uint8_t *rwd, const uint8_t *envelope, con
   return 0;
 }
 
-// helper to calculate size of *Env parts of envelopes
 size_t opaque_package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type) {
   size_t res=0;
   if(cfg->skU==type) res+=crypto_scalarmult_SCALARBYTES+3;
@@ -685,6 +684,12 @@ size_t opaque_package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, co
   if(cfg->idU==type) res+=ids->idU_len+3;
   if(cfg->idS==type) res+=ids->idS_len+3;
   return res;
+}
+
+size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids) {
+  const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
+  const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
+  return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
 }
 
 static int extend_package(const uint8_t *src, const size_t src_len, const Opaque_PkgTarget ptype, const CredentialType type, uint8_t **SecEnv, uint8_t **ClrEnv) {

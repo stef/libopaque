@@ -211,9 +211,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   Opaque_PkgConfig *cfg=(Opaque_PkgConfig *) munit_parameters_get(params, "cfg");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
 
-  const uint16_t ClrEnv_len = opaque_package_len(cfg, &ids, InClrEnv);
-  const uint16_t SecEnv_len = opaque_package_len(cfg, &ids, InSecEnv);
-  const uint32_t env_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
+  const uint32_t env_len = opaque_envelope_len(cfg, &ids);
   unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
   fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
 

@@ -179,17 +179,17 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pwlen, uint
    @param [in] ids - the id if the client and server
    @param [in] infos - various extra (unspecified) protocol information as recommended by the rfc.
    @param [out] resp - servers response to be sent to the client where
-   it is used as input into opaque_RecoverCredentials() - caller must allocate including env_len: e.g.: 
+   it is used as input into opaque_RecoverCredentials() - caller must allocate including env_len: e.g.:
    unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
    @param [out] sk - the shared secret established between the user & server
-   @param [out] _ctx - the current context necessary for the explicit
+   @param [out] ctx - the current context necessary for the explicit
    authentication of the user in opaque_UserAuth(). This
    param is optional if no explicit user auth is necessary it can be
    set to NULL
    @return the function returns 0 if everything is correct
  */
 
-int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[crypto_secretbox_KEYBYTES], uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]);
+int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[crypto_secretbox_KEYBYTES], uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]);
 
 /**
    This is the same function as defined in the paper with the
@@ -241,7 +241,7 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], con
    info3/einfo3 is needed - the rest is already cached in ctx)
    @return the function returns 0 if the hmac verifies correctly.
  */
-int opaque_UserAuth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
+int opaque_UserAuth(uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
 
 /**
    Alternative user initialization, user registration as specified by the RFC
@@ -314,7 +314,7 @@ int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t sec[OPAQUE_R
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating
@@ -405,7 +405,7 @@ void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8
    account the variable length of idU and idS in case these are
    included in the envelope.
  */
-void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN]);
+void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN]);
 
 /**
    helper function calculating the length of the two parts of the envelope

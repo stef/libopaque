@@ -67,7 +67,7 @@ typedef struct {
 } __attribute((packed)) Opaque_ServerSession;
 
 typedef struct {
-  uint8_t r[crypto_core_ristretto255_BYTES];
+  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
   uint16_t pwlen;
   uint8_t pw[];
 } Opaque_RegisterUserSec;
@@ -202,7 +202,8 @@ static int prf(const uint8_t *pwd, const uint16_t pwd_len,
   return 0;
 }
 
-static int blind(const uint8_t *pw, const uint16_t pwlen, uint8_t *r, uint8_t *alpha) {
+// See https://libsodium.gitbook.io/doc/advanced/point-arithmetic/ristretto.
+static int blind(const uint8_t *pw, const uint16_t pwlen, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
@@ -1301,7 +1302,7 @@ int opaque_UserAuth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t auth
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the ietf cfrg rfc draft
-int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[sizeof(Opaque_RegisterUserSec)+pwlen], uint8_t *alpha) {
+int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pw, pw, pwlen);
   sec->pwlen = pwlen;
@@ -1314,7 +1315,7 @@ int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, ui
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1354,7 +1355,7 @@ int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t _sec[OPAQUE_
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1387,7 +1388,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[c
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
 // called FinalizeRequest in the ietf cfrg rfc draft
-int opaque_FinalizeRequest(const uint8_t *_ctx,
+int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pwlen*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                     const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,

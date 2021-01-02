@@ -39,6 +39,10 @@
    /* auth */ crypto_auth_hmacsha256_BYTES+            \
    /* env_len */ sizeof(uint32_t))
 
+#define OPAQUE_REGISTER_USER_SEC_LEN (                 \
+   /* r */ crypto_core_ristretto255_SCALARBYTES+       \
+   /* pwlen */ sizeof(uint16_t))                       \
+
 #define OPAQUE_REGISTER_PUBLIC_LEN (                   \
    /* beta */ crypto_core_ristretto255_BYTES+          \
    /* P_s */ crypto_scalarmult_BYTES)
@@ -46,10 +50,6 @@
 #define OPAQUE_REGISTER_SECRET_LEN (                   \
    /* p_s */ crypto_scalarmult_SCALARBYTES+            \
    /* k_s */ crypto_core_ristretto255_SCALARBYTES)
-
-#define OPAQUE_REGISTER_USER_SEC_LEN (                 \
-   /* r */ crypto_scalarmult_BYTES+                    \
-   sizeof(size_t))
 
 #define OPAQUE_SERVER_AUTH_CTX_LEN ( \
   crypto_auth_hmacsha256_KEYBYTES +  \
@@ -273,7 +273,7 @@ int opaque_UserAuth(uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU
    envelope configuration etc.
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t *alpha);
+int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t alpha[crypto_core_ristretto255_BYTES]);
 
 /**
    Server evaluates OPRF and creates a user-specific public/private keypair
@@ -289,7 +289,7 @@ int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, ui
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    2nd step of registration: Server evaluates OPRF - Global Server Key Version
@@ -314,7 +314,7 @@ int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t sec[OPAQUE_R
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pk[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating
@@ -350,7 +350,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[c
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(const uint8_t *ctx, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_FinalizeRequest(const uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pwlen*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Final Registration step - server adds own info to the record to be stored.

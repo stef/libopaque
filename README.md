@@ -60,3 +60,20 @@ other cryptographic primitives:
 
 [1]: https://doc.libsodium.org/password_hashing/default_phf
 [2]: https://download.libsodium.org/doc/generating_random_data
+
+### Debugging
+
+To aid in debugging and testing, there are two macros available:
+
+| Macro      | Description                                       |
+| ---------- | ------------------------------------------------- |
+| `TRACE`    | outputs extra information to stderr for debugging |
+| `NORANDOM` | removes randomness for deterministic results      |
+
+To use these macros, specify the `DEFINES` Makefile variable when calling
+`make`:
+
+```
+$ make DEFINES='-DTRACE -DNORANDOM' clean libopaque.so tests
+$ LD_LIBRARY_PATH=. ./tests/opaque
+```

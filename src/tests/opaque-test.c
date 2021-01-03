@@ -1,5 +1,5 @@
 /*
-    @copyright 2018-2020, pitchfork@ctrlc.hu
+    @copyright 2018-2020, pyopaque@ctrlc.hu
     This file is part of libopaque
 
     libopaque is free software: you can redistribute it and/or

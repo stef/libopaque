@@ -241,7 +241,7 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env
    info3/einfo3 is needed - the rest is already cached in ctx)
    @return the function returns 0 if the hmac verifies correctly.
  */
-int opaque_UserAuth(uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
+int opaque_UserAuth(const uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
 
 /**
    Alternative user initialization, user registration as specified by the RFC
@@ -308,13 +308,13 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
    function also outputs a value pub which needs to be passed to the
    user.
    @param [in] alpha - the blinded password as per the OPRF.
-   @param [in] pk - the servers long-term pubkey
+   @param [in] pkS - the servers long-term pubkey
    @param [out] sec - the private key and the OPRF secret of the server.
    @param [out] pub - the evaluated OPRF and pubkey of the server to
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pk[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating
@@ -397,7 +397,7 @@ void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8
    @param [in] sec - the private value of the server running
    opaque_CreateRegistrationResponse() in step 2 of the registration
    protocol
-   @param [in] sk - the servers long-term private key
+   @param [in] skS - the servers long-term private key
    @param [in/out] rec - input the record from the client running
    opaque_FinalizeRequest() - output the final record to be
    stored by the server this is a pointer to memory allocated by the
@@ -405,7 +405,7 @@ void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8
    account the variable length of idU and idS in case these are
    included in the envelope.
  */
-void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]);
+void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]);
 
 /**
    helper function calculating the length of the two parts of the envelope

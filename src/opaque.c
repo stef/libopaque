@@ -1278,7 +1278,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 }
 
 // extra function to implement the hmac based auth as defined in the ietf cfrg draft
-int opaque_UserAuth(uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
+int opaque_UserAuth(const uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
   if(_ctx==NULL) return 1;
   Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
 
@@ -1355,7 +1355,7 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1373,7 +1373,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristrett
   dump((uint8_t*) pub->beta, sizeof pub->beta, "beta ");
 #endif
 
-  memcpy(pub->P_s, pk, crypto_scalarmult_BYTES);
+  memcpy(pub->P_s, pkS, crypto_scalarmult_BYTES);
 #ifdef TRACE
   dump((uint8_t*) pub->P_s, sizeof pub->P_s, "P_s ");
 #endif
@@ -1532,13 +1532,13 @@ void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint
 #endif
 }
 
-void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t sk[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]) {
+void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
   memcpy(rec->k_s, sec->k_s, sizeof rec->k_s);
-  memcpy(rec->p_s, sk, crypto_scalarmult_SCALARBYTES);
-  crypto_scalarmult_base(rec->P_s, sk);
+  memcpy(rec->p_s, skS, crypto_scalarmult_SCALARBYTES);
+  crypto_scalarmult_base(rec->P_s, skS);
 #ifdef TRACE
   dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");
 #endif

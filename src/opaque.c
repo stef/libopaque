@@ -1109,7 +1109,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
                               const Opaque_App_Infos *infos,
                               Opaque_Ids *ids,
                               uint8_t *sk,
-                              uint8_t auth[crypto_auth_hmacsha256_BYTES],
+                              uint8_t authU[crypto_auth_hmacsha256_BYTES],
                               uint8_t export_key[crypto_hash_sha256_BYTES]) {
   Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret *) _sec;
@@ -1265,14 +1265,14 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   dump(keys.km3,crypto_auth_hmacsha256_KEYBYTES,"session user finish km3 ");
 #endif
 
-  if(auth) {
+  if(authU) {
     get_xcript_usr(xcript, sec, resp, env, X_u, infos, 1);
-    crypto_auth_hmacsha256(auth, xcript, crypto_hash_sha256_BYTES, keys.km3);
+    crypto_auth_hmacsha256(authU, xcript, crypto_hash_sha256_BYTES, keys.km3);
 #ifdef TRACE
   dump(xcript, crypto_hash_sha256_BYTES, "session user finish xcript ");
   if(infos)
     dump((uint8_t*) infos, sizeof(Opaque_App_Infos), "session user finish infos ");
-  dump(auth,crypto_auth_hmacsha256_BYTES, "session user finish auth ");
+  dump(authU,crypto_auth_hmacsha256_BYTES, "session user finish authU ");
 #endif
   }
 

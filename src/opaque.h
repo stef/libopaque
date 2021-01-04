@@ -218,13 +218,13 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    cfg.idS or cfg.idU is NotPackaged, then the according value must be
    set in this struct before calling opaque_RecoverCredentials
    @param [out] sk - the shared secret established between the user & server
-   @param [out] auth - the authentication code to be sent to the server
+   @param [out] authU - the authentication code to be sent to the server
    in case explicit user authentication is required
    @param [out] export_key - key used to encrypt/authenticate extra
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pw_len*/], const uint8_t *key, const uint16_t key_len, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pw_len*/], const uint8_t *key, const uint16_t key_len, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Explicit User Authentication.

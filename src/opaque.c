@@ -205,7 +205,7 @@ static int prf(const uint8_t *pwd, const uint16_t pwd_len,
   sodium_munlock(H0_k,sizeof H0_k);
 
 #ifdef TRACE
-  dump(rwd, 32, "rwd");
+  dump(rwd, crypto_hash_sha512_BYTES, "rwd");
 #endif
 
   return 0;
@@ -236,7 +236,7 @@ static int blind(const uint8_t *pw, const uint16_t pw_len, uint8_t r[crypto_core
   // U picks r
   crypto_core_ristretto255_scalar_random(r);
 #ifdef TRACE
-  dump(r, 32, "r");
+  dump(r, crypto_core_ristretto255_SCALARBYTES, "r");
 #endif
   // H^0(pw)^r
   if (crypto_scalarmult_ristretto255(alpha, r, H0) != 0) {
@@ -245,7 +245,7 @@ static int blind(const uint8_t *pw, const uint16_t pw_len, uint8_t r[crypto_core
   }
   sodium_munlock(H0,sizeof H0);
 #ifdef TRACE
-  dump(alpha, 32, "alpha");
+  dump(alpha, crypto_core_ristretto255_BYTES, "alpha");
 #endif
   return 0;
 }
@@ -862,7 +862,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
   }
 
 #ifdef TRACE
-  dump((uint8_t*) rw0, 32, "rw0 ");
+  dump((uint8_t*) rw0, sizeof rw0, "rw0 ");
 #endif
   uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw,sizeof rw)) {
@@ -883,7 +883,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
   crypto_kdf_hkdf_sha256_extract(rw, (uint8_t*) "RwdU", 4, rw, sizeof rw);
 
 #ifdef TRACE
-  dump((uint8_t*) rw, 32, "key ");
+  dump((uint8_t*) rw, sizeof rw, "key ");
   dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "k_s\nplain user rec ");
 #endif
   // p_s ←_R Z_q
@@ -1463,7 +1463,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   sodium_munlock(h0,sizeof h0);
 
 #ifdef TRACE
-  dump((uint8_t*) rw0, 32, "rw0 ");
+  dump((uint8_t*) rw0, sizeof rw0, "rw0 ");
 #endif
 
   uint8_t rw[crypto_secretbox_KEYBYTES];
@@ -1485,7 +1485,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   crypto_kdf_hkdf_sha256_extract(rw, (uint8_t*) "RwdU", 4, rw, sizeof rw);
 
 #ifdef TRACE
-  dump((uint8_t*) rw, 32, "key ");
+  dump((uint8_t*) rw, sizeof rw, "key ");
 #endif
 
   Opaque_Credentials cred;

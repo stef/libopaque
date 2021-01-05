@@ -189,7 +189,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uin
    @return the function returns 0 if everything is correct
  */
 
-int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[crypto_secretbox_KEYBYTES], uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
+int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t *sk, uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
 
 /**
    This is the same function as defined in the paper with the

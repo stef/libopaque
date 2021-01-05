@@ -26,6 +26,15 @@
 #include "aux/crypto_kdf_hkdf_sha256.h"
 #endif
 
+/**
+ * sk is a shared secret. In opaque.h, we do not report its byte size. We
+ * centralize its size here so that if the algorithm to calculate sk changes, we
+ * can just change it in one place.
+ */
+#define OPAQUE_SHARED_SECRETBYTES 32
+
+#define OPAQUE_HANDSHAKE_SECRETBYTES 32
+
 typedef struct {
   uint8_t p_u[crypto_scalarmult_SCALARBYTES];
   uint8_t P_u[crypto_scalarmult_BYTES];
@@ -83,11 +92,11 @@ typedef struct {
 } __attribute((packed)) Opaque_RegisterSrvSec;
 
 typedef struct {
-  uint8_t sk[32];
+  uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t km2[crypto_auth_hmacsha256_KEYBYTES];
   uint8_t km3[crypto_auth_hmacsha256_KEYBYTES];
-  uint8_t ke2[32];
-  uint8_t ke3[32];
+  uint8_t ke2[OPAQUE_HANDSHAKE_SECRETBYTES];
+  uint8_t ke3[OPAQUE_HANDSHAKE_SECRETBYTES];
 } __attribute((packed)) Opaque_Keys;
 
 /**
@@ -283,10 +292,10 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
   crypto_kdf_hkdf_sha256_extract(prk, NULL, 0, ikm, crypto_scalarmult_BYTES*3);
 
   // keys->sk         = Derive-Secret(., "session secret", info)
-  hkdf_expand_label(keys->sk, prk, "session secret", info, 32);
+  hkdf_expand_label(keys->sk, prk, "session secret", info, OPAQUE_SHARED_SECRETBYTES);
 
   // handshake_secret = Derive-Secret(., "handshake secret", info)
-  uint8_t handshake_secret[32];
+  uint8_t handshake_secret[OPAQUE_HANDSHAKE_SECRETBYTES];
   sodium_mlock(handshake_secret, sizeof handshake_secret);
   hkdf_expand_label(handshake_secret, prk, "handshake secret", info, sizeof(handshake_secret));
   sodium_munlock(prk,sizeof(prk));
@@ -296,16 +305,16 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
   //Km3 = HKDF-Expand-Label(handshake_secret, "client mac", "", Hash.length)
   hkdf_expand_label(keys->km3, handshake_secret, "client mac", NULL, crypto_auth_hmacsha256_KEYBYTES);
   //Ke2 = HKDF-Expand-Label(handshake_secret, "server enc", "", key_length)
-  hkdf_expand_label(keys->ke2, handshake_secret, "server enc", NULL, 32);
+  hkdf_expand_label(keys->ke2, handshake_secret, "server enc", NULL, OPAQUE_HANDSHAKE_SECRETBYTES);
   //Ke3 = HKDF-Expand-Label(handshake_secret, "client enc", "", key_length)
-  hkdf_expand_label(keys->ke3, handshake_secret, "client enc", NULL, 32);
+  hkdf_expand_label(keys->ke3, handshake_secret, "client enc", NULL, OPAQUE_HANDSHAKE_SECRETBYTES);
   sodium_munlock(handshake_secret, sizeof handshake_secret);
 #ifdef TRACE
-  dump(keys->sk, 32, "keys->sk");
-  dump(keys->km2, 32, "keys->km2");
-  dump(keys->km3, 32, "keys->km3");
-  dump(keys->ke2, 32, "keys->ke2");
-  dump(keys->ke3, 32, "keys->ke3");
+  dump(keys->sk, OPAQUE_SHARED_SECRETBYTES, "keys->sk");
+  dump(keys->km2, crypto_auth_hmacsha256_KEYBYTES, "keys->km2");
+  dump(keys->km3, crypto_auth_hmacsha256_KEYBYTES, "keys->km3");
+  dump(keys->ke2, OPAQUE_HANDSHAKE_SECRETBYTES, "keys->ke2");
+  dump(keys->ke3, OPAQUE_HANDSHAKE_SECRETBYTES, "keys->ke3");
 #endif
 }
 
@@ -987,7 +996,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uin
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN]) {
+int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[OPAQUE_SHARED_SECRETBYTES],  uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN]) {
 
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
   Opaque_UserSession *pub = (Opaque_UserSession *) _pub;
@@ -1108,7 +1117,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
                               const Opaque_PkgConfig *cfg,
                               const Opaque_App_Infos *infos,
                               Opaque_Ids *ids,
-                              uint8_t *sk,
+                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha256_BYTES],
                               uint8_t export_key[crypto_hash_sha256_BYTES]) {
   Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;

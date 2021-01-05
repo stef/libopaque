@@ -61,7 +61,7 @@ other cryptographic primitives:
 [1]: https://doc.libsodium.org/password_hashing/default_phf
 [2]: https://download.libsodium.org/doc/generating_random_data
 
-### Debugging
+## Debugging
 
 To aid in debugging and testing, there are two macros available:
 

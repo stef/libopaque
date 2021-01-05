@@ -120,7 +120,7 @@ typedef struct {
 
 static int prf_finalize(const uint8_t *pwd, const uint16_t pwd_len,
                         const uint8_t *key, const uint16_t key_len,
-                        const uint8_t *ue, uint8_t result[crypto_hash_sha512_BYTES]) {
+                        const uint8_t ue[crypto_core_ristretto255_BYTES], uint8_t result[crypto_hash_sha512_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
@@ -272,7 +272,7 @@ static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf
 }
 
 // derive keys according to ietf cfrg draft
-static void derive_keys(Opaque_Keys* keys, const uint8_t *ikm, const char info[crypto_hash_sha256_BYTES]) {
+static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_BYTES * 3], const char info[crypto_hash_sha256_BYTES]) {
   uint8_t prk[crypto_kdf_hkdf_sha256_KEYBYTES];
   sodium_mlock(prk, sizeof prk);
 #ifdef TRACE
@@ -418,6 +418,7 @@ static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
   else
     get_xcript(xcript, NULL, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envelope, resp->env_len, resp->nonceS, resp->X_s, infos, 0);
 }
+
 static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const Opaque_UserSession_Secret *sec,
                            const Opaque_ServerSession *resp,
@@ -427,7 +428,6 @@ static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const int use_info3) {
   get_xcript(xcript, 0, sec->alpha, sec->nonceU, X_u, resp->beta, env, resp->env_len, resp->nonceS, resp->X_s, infos, use_info3);
 }
-
 
 // implements server end of triple-dh
 static int server_3dh(Opaque_Keys *keys,

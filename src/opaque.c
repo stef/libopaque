@@ -406,15 +406,15 @@ static void get_xcript(uint8_t xcript[crypto_hash_sha256_BYTES],
 }
 
 static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
-                           uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN],
+                           uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN],
                            const Opaque_UserSession *pub,
                            const Opaque_ServerSession *resp,
                            const Opaque_App_Infos *infos) {
 
-  Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
+  Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
-  if(ctx!=NULL)
-    get_xcript(xcript, &ctx->xcript_state, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envelope, resp->env_len, resp->nonceS, resp->X_s, infos, 0);
+  if(sec!=NULL)
+    get_xcript(xcript, &sec->xcript_state, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envelope, resp->env_len, resp->nonceS, resp->X_s, infos, 0);
   else
     get_xcript(xcript, NULL, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envelope, resp->env_len, resp->nonceS, resp->X_s, infos, 0);
 }
@@ -987,14 +987,14 @@ int opaque_CreateCredentialRequest(const uint8_t *pw, const uint16_t pw_len, uin
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN]) {
+int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+env_len*/], uint8_t sk[crypto_secretbox_KEYBYTES],  uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN]) {
 
-  Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
+  Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
   Opaque_UserSession *pub = (Opaque_UserSession *) _pub;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
   Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;
 
-  memset(_ctx, 0, sizeof(Opaque_ServerAuthCTX));
+  memset(_sec, 0, sizeof(Opaque_ServerAuthCTX));
 #ifdef TRACE
   dump(_pub, sizeof(Opaque_UserSession), "session srv pub ");
   dump(_rec, OPAQUE_USER_SESSION_PUBLIC_LEN, "session srv rec ");
@@ -1065,7 +1065,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 
   // Mac(Km2; xcript2) - from the ietf cfrg draft
   uint8_t xcript[crypto_hash_sha256_BYTES];
-  get_xcript_srv(xcript, _ctx, pub, resp, infos);
+  get_xcript_srv(xcript, _sec, pub, resp, infos);
   crypto_auth_hmacsha256(resp->auth,                          // out
                          xcript,                              // in
                          crypto_hash_sha256_BYTES,            // len(in)
@@ -1076,7 +1076,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   memcpy(sk,keys.sk,sizeof(keys.sk));
-  if(ctx!=NULL) memcpy(ctx->km3,keys.km3,sizeof(keys.km3));
+  if(sec!=NULL) memcpy(sec->km3,keys.km3,sizeof(keys.km3));
   sodium_munlock(&keys,sizeof(keys));
 
 #ifdef TRACE
@@ -1283,24 +1283,24 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 }
 
 // extra function to implement the hmac based auth as defined in the ietf cfrg draft
-int opaque_UserAuth(const uint8_t _ctx[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
-  if(_ctx==NULL) return 1;
-  Opaque_ServerAuthCTX *ctx = (Opaque_ServerAuthCTX *)_ctx;
+int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
+  if(_sec==NULL) return 1;
+  Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
   if(infos!=NULL) {
-    if(infos->info3!=NULL) crypto_hash_sha256_update(&ctx->xcript_state, infos->info3, infos->info3_len);
-    if(infos->einfo3!=NULL) crypto_hash_sha256_update(&ctx->xcript_state, infos->einfo3, infos->einfo3_len);
+    if(infos->info3!=NULL) crypto_hash_sha256_update(&sec->xcript_state, infos->info3, infos->info3_len);
+    if(infos->einfo3!=NULL) crypto_hash_sha256_update(&sec->xcript_state, infos->einfo3, infos->einfo3_len);
   }
   uint8_t xcript[crypto_hash_sha256_BYTES];
-  crypto_hash_sha256_final(&ctx->xcript_state, xcript);
+  crypto_hash_sha256_final(&sec->xcript_state, xcript);
 #ifdef TRACE
-  dump(ctx->km3,crypto_auth_hmacsha256_KEYBYTES,"km3 ");
+  dump(sec->km3,crypto_auth_hmacsha256_KEYBYTES,"km3 ");
   dump(xcript, crypto_hash_sha256_BYTES, "xcript ");
   if(infos)
     dump((uint8_t*)infos, sizeof(Opaque_App_Infos), "infos ");
   dump(authU,crypto_auth_hmacsha256_BYTES, "authU ");
 #endif
-  return crypto_auth_hmacsha256_verify(authU, xcript, crypto_hash_sha256_BYTES, ctx->km3);
+  return crypto_auth_hmacsha256_verify(authU, xcript, crypto_hash_sha256_BYTES, sec->km3);
 }
 
 // variant where the secrets of U never touch S unencrypted
@@ -1393,7 +1393,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristrett
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
 // called FinalizeRequest in the ietf cfrg rfc draft
-int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_len*/],
+int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_len*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                     const uint8_t *key, const uint16_t key_len,        // contributes to the final rwd calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
@@ -1401,7 +1401,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
                                     uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+env_len*/],
                                     uint8_t export_key[crypto_hash_sha256_BYTES]) {
 
-  Opaque_RegisterUserSec *ctx = (Opaque_RegisterUserSec *) _ctx;
+  Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
@@ -1420,7 +1420,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   // invert r = 1/r
   uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
   if(-1==sodium_mlock(ir, sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, ctx->r) != 0) {
+  if (crypto_core_ristretto255_scalar_invert(ir, sec->r) != 0) {
     sodium_munlock(ir, sizeof ir);
     return -1;
   }
@@ -1446,7 +1446,7 @@ int opaque_FinalizeRequest(const uint8_t _ctx[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   if(-1==sodium_mlock(rw0, sizeof rw0)) {
     return -1;
   }
-  if(0!=prf_finalize(ctx->pw, ctx->pw_len, key, key_len, h0, rw0)) {
+  if(0!=prf_finalize(sec->pw, sec->pw_len, key, key_len, h0, rw0)) {
     sodium_munlock(h0, sizeof h0);
     return -1;
   }

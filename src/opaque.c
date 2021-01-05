@@ -870,7 +870,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
     return -1;
   }
   // according to the ietf draft this could be all zeroes
-  uint8_t salt[32]={0};
+  uint8_t salt[crypto_pwhash_SALTBYTES]={0};
   if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {
@@ -1187,7 +1187,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
     sodium_munlock(rw0, sizeof(rw0));
     return -1;
   }
-  uint8_t salt[32]={0};
+  uint8_t salt[crypto_pwhash_SALTBYTES]={0};
   if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {
@@ -1472,7 +1472,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
     return -1;
   }
   // salt - according to the ietf draft this could be all zeroes
-  uint8_t salt[32]={0};
+  uint8_t salt[crypto_pwhash_SALTBYTES]={0};
   if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {

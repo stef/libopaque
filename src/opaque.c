@@ -496,7 +496,8 @@ static int user_3dh(Opaque_Keys *keys,
 }
 
 // enveloping function as specified in the ietf cfrg draft https://tools.ietf.org/html/draft-krawczyk-cfrg-opaque-06#section-4
-static int opaque_envelope(const uint8_t *rwd, const uint8_t *SecEnv, const size_t SecEnv_len,
+static int opaque_envelope(const uint8_t rwd[crypto_secretbox_KEYBYTES],
+                     const uint8_t *SecEnv, const size_t SecEnv_len,
                      const uint8_t *ClrEnv, const size_t ClrEnv_len,
                      uint8_t *envelope, // must be of size: OPAQUE_ENVELOPE_META_LEN + SecEnv_len+ClrEnv_len
                                         // len(nonce|uint16|SecEnv|uint16|ClrEnv|hmacTag)
@@ -594,7 +595,7 @@ static int opaque_envelope(const uint8_t *rwd, const uint8_t *SecEnv, const size
   return 0;
 }
 
-static int opaque_envelope_open(const uint8_t *rwd, const uint8_t *envelope, const size_t env_len,
+static int opaque_envelope_open(const uint8_t rwd[crypto_secretbox_KEYBYTES], const uint8_t *envelope, const size_t env_len,
                          uint8_t *SecEnv, uint16_t *SecEnv_len,
                          uint8_t **ClrEnv, uint16_t *ClrEnv_len,
                          uint8_t export_key[crypto_hash_sha256_BYTES]) {
@@ -777,7 +778,7 @@ static int extract_credential(const Opaque_PkgConfig *cfg, const Opaque_PkgTarge
   return 0;
 }
 
-static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint16_t SecEnv_len, const uint8_t *ClrEnv, const uint16_t ClrEnv_len, const uint8_t *rwd, Opaque_Credentials *creds, Opaque_Ids *ids) {
+static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint16_t SecEnv_len, const uint8_t *ClrEnv, const uint16_t ClrEnv_len, const uint8_t rwd[crypto_secretbox_KEYBYTES], Opaque_Credentials *creds, Opaque_Ids *ids) {
   const uint8_t *ptr;
   uint8_t seen=0;
   const CredentialExtension* cred;
@@ -863,7 +864,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
 #ifdef TRACE
   dump((uint8_t*) rw0, 32, "rw0 ");
 #endif
-  uint8_t rw[32];
+  uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw,sizeof rw)) {
     sodium_munlock(rw0,sizeof rw0);
     return -1;
@@ -1465,7 +1466,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   dump((uint8_t*) rw0, 32, "rw0 ");
 #endif
 
-  uint8_t rw[32];
+  uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw, sizeof rw)) {
     sodium_munlock(rw0, sizeof rw0);
     return -1;

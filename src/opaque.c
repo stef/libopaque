@@ -854,7 +854,7 @@ int opaque_Register(const uint8_t *pw, const uint16_t pw_len,
   crypto_core_ristretto255_scalar_random(rec->k_s);
 
   // rw := F_k_s (pw),
-  uint8_t rw0[32];
+  uint8_t rw0[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(rw0,sizeof rw0)) return -1;
   if(prf(pw, pw_len, rec->k_s, key, key_len, rw0)!=0) {
     sodium_munlock(rw0,sizeof rw0);
@@ -1168,7 +1168,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 #endif
 
   // rw = H(pw, β^(1/r))
-  uint8_t rw0[crypto_secretbox_KEYBYTES];
+  uint8_t rw0[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(rw0,sizeof rw0)) {
     return -1;
   }
@@ -1452,7 +1452,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pw_
   dump((uint8_t*) h0, sizeof h0, "h0_k ");
 #endif
 
-  uint8_t rw0[32];
+  uint8_t rw0[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(rw0, sizeof rw0)) {
     return -1;
   }

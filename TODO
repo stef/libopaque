@@ -1,3 +1,2 @@
 * expose crypto_pwhash hardness params in the API
 * document API in the README
-* update OPAQUE.md

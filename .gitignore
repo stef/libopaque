@@ -3,5 +3,5 @@
 *.o
 *.so
 .DS_Store
-src/tests/munit-opaque
-src/tests/opaque
+src/tests/opaque-munit
+src/tests/opaque-test

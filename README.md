@@ -5,8 +5,8 @@ https://github.com/cfrg/draft-irtf-cfrg-opaque.
 
 ## Installing
 
-Install `python`, `libsodium` and `libsodium-dev` using your operating system's
-package manager.
+Install `libsodium-dev` and `pkgconf` using your operating system's package
+manager.
 
 Building everything should (hopefully) be quite simple afterwards:
 

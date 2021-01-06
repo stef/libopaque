@@ -15,9 +15,9 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: bin libopaque.$(SOEXT) tests$(EXT)
+all: libopaque.so tests
 
-tests$(EXT): tests/opaque$(EXT) tests/opaque-munit$(EXT)
+tests: tests/opaque$(EXT) tests/opaque-munit$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(CC) -shared -fpic $(CFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS)
@@ -28,8 +28,9 @@ tests/opaque$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
 tests/opaque-munit$(EXT): tests/opaque_munit.c libopaque.$(SOEXT)
 	$(CC) $(CFLAGS) -o tests/munit-opaque$(EXT) tests/munit/munit.c tests/opaque_munit.c -L. -lopaque $(LDFLAGS)
 
-test: tests/opaque-munit
-	LD_PRELOAD=./libopaque.so ./tests/munit-opaque --fatal-failures
+test: tests
+	LD_LIBRARY_PATH=. ./tests/opaque$(EXT)
+	LD_LIBRARY_PATH=. ./tests/munit-opaque$(EXT) --fatal-failures
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h
 
@@ -53,4 +54,4 @@ clean:
 		tests/opaque \
 		tests/opaque.exe
 
-.PHONY: bin clean install
+.PHONY: all clean install test

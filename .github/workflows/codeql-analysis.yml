@@ -2,7 +2,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [master, ]
+    branches: [master]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [master]
@@ -41,8 +41,8 @@ jobs:
        cd src
        git submodule update --init --recursive tests/munit
        sudo apt-get update
-       sudo apt-get install python libsodium-dev pkgconf
-       make bin libopaque.so tests/opaque
+       sudo apt-get install -y libsodium-dev pkgconf
+       make all test
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

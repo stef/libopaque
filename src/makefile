@@ -20,7 +20,7 @@ all: libopaque.so tests
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared -fpic $(CFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS)
+	$(CC) -shared $(CFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS)
 
 tests/opaque-test$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
 	$(CC) $(CFLAGS) -o tests/opaque-test$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)

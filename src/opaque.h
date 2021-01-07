@@ -17,7 +17,7 @@
    /* k_s */ crypto_core_ristretto255_SCALARBYTES+     \
    /* p_s */ crypto_scalarmult_SCALARBYTES+            \
    /* P_u */ crypto_scalarmult_BYTES+                  \
-   /* P_s */ crypto_scalarmult_BYTES+                  \
+   /* pkS */ crypto_scalarmult_BYTES+                  \
    /* env_len */ sizeof(uint32_t))
 
 #define OPAQUE_USER_SESSION_PUBLIC_LEN (               \
@@ -45,7 +45,7 @@
 
 #define OPAQUE_REGISTER_PUBLIC_LEN (                   \
    /* beta */ crypto_core_ristretto255_BYTES+          \
-   /* P_s */ crypto_scalarmult_BYTES)
+   /* pkS */ crypto_scalarmult_BYTES)
 
 #define OPAQUE_REGISTER_SECRET_LEN (                   \
    /* p_s */ crypto_scalarmult_SCALARBYTES+            \

@@ -38,7 +38,7 @@
 typedef struct {
   uint8_t p_u[crypto_scalarmult_SCALARBYTES];
   uint8_t P_u[crypto_scalarmult_BYTES];
-  uint8_t P_s[crypto_scalarmult_BYTES];
+  uint8_t pkS[crypto_scalarmult_BYTES];
 } __attribute((packed)) Opaque_Credentials;
 
 // user specific record stored at server upon registration
@@ -46,7 +46,7 @@ typedef struct {
   uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
   uint8_t p_s[crypto_scalarmult_SCALARBYTES];
   uint8_t P_u[crypto_scalarmult_BYTES];
-  uint8_t P_s[crypto_scalarmult_BYTES];
+  uint8_t pkS[crypto_scalarmult_BYTES];
   uint32_t env_len;
   uint8_t envelope[];
 } __attribute((packed)) Opaque_UserRecord;
@@ -83,7 +83,7 @@ typedef struct {
 
 typedef struct {
   uint8_t beta[crypto_core_ristretto255_BYTES];
-  uint8_t P_s[crypto_scalarmult_BYTES];
+  uint8_t pkS[crypto_scalarmult_BYTES];
 } __attribute((packed)) Opaque_RegisterSrvPub;
 
 typedef struct {
@@ -726,7 +726,7 @@ static int pack(const Opaque_PkgConfig *cfg, const Opaque_Credentials *cred, con
   uint8_t *senv = SecEnv, *cenv = ClrEnv;
   if(cfg->skU==InClrEnv || 0!=extend_package(cred->p_u, crypto_scalarmult_SCALARBYTES, cfg->skU, skU, &senv, &cenv)) return 1;
   if(0!=extend_package(cred->P_u, crypto_scalarmult_BYTES, cfg->pkU, pkU, &senv, &cenv)) return 1;
-  if(0!=extend_package(cred->P_s, crypto_scalarmult_BYTES, cfg->pkS, pkS, &senv, &cenv)) return 1;
+  if(0!=extend_package(cred->pkS, crypto_scalarmult_BYTES, cfg->pkS, pkS, &senv, &cenv)) return 1;
   if(0!=extend_package(ids->idU, ids->idU_len, cfg->idU, idU, &senv, &cenv)) return 1;
   if(0!=extend_package(ids->idS, ids->idS_len, cfg->idS, idS, &senv, &cenv)) return 1;
   return 0;
@@ -753,7 +753,7 @@ static int extract_credential(const Opaque_PkgConfig *cfg, const Opaque_PkgTarge
   case pkS: {
     if(cfg->pkS!=current_target) return 1;
     if(cred->size!=crypto_scalarmult_BYTES) return 1;
-    memcpy(&creds->P_s, &cred->data, crypto_scalarmult_BYTES);
+    memcpy(&creds->pkS, &cred->data, crypto_scalarmult_BYTES);
     break;
   };
   case idU: {
@@ -910,10 +910,10 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(cred.p_u, crypto_core_ristretto255_SCALARBYTES, "p_u ");
 #endif
   // P_s := g^p_s
-  crypto_scalarmult_base(rec->P_s, rec->p_s);
+  crypto_scalarmult_base(rec->pkS, rec->p_s);
 
 #ifdef TRACE
-  dump(rec->P_s, crypto_scalarmult_BYTES, "P_s ");
+  dump(rec->pkS, crypto_scalarmult_BYTES, "pkS ");
   dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "plain user rec ");
 #endif
   // P_u := g^p_u
@@ -1226,7 +1226,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   }
 
   if(cfg->pkS==NotPackaged && pkS!=NULL) {
-    memcpy(cred.P_s, pkS, crypto_scalarmult_BYTES);
+    memcpy(cred.pkS, pkS, crypto_scalarmult_BYTES);
   } else if ((cfg->pkS==NotPackaged) ^ (pkS!=NULL)) {
     return -1;
   }
@@ -1247,10 +1247,10 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 #ifdef TRACE
   dump(cred.p_u,crypto_scalarmult_SCALARBYTES, "c->p_u ");
   dump(sec->x_u,crypto_scalarmult_SCALARBYTES, "sec->x_u ");
-  dump(cred.P_s,crypto_scalarmult_BYTES, "c->P_s ");
+  dump(cred.pkS,crypto_scalarmult_BYTES, "c->pkS ");
   dump(resp->X_s,crypto_scalarmult_BYTES, "sec->X_s ");
 #endif
-  if(0!=user_3dh(&keys, cred.p_u, sec->x_u, cred.P_s, resp->X_s, info)) {
+  if(0!=user_3dh(&keys, cred.p_u, sec->x_u, cred.pkS, resp->X_s, info)) {
     sodium_munlock(&keys, sizeof(keys));
     sodium_munlock(&cred, sizeof cred);
     return -1;
@@ -1355,9 +1355,9 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
 #endif
 
   // P_s := g^p_s
-  crypto_scalarmult_base(pub->P_s, sec->p_s);
+  crypto_scalarmult_base(pub->pkS, sec->p_s);
 #ifdef TRACE
-  dump((uint8_t*) pub->P_s, sizeof pub->P_s, "P_s ");
+  dump((uint8_t*) pub->pkS, sizeof pub->pkS, "pkS ");
 #endif
 
   return 0;
@@ -1388,9 +1388,9 @@ int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristrett
   dump((uint8_t*) pub->beta, sizeof pub->beta, "beta ");
 #endif
 
-  memcpy(pub->P_s, pkS, crypto_scalarmult_BYTES);
+  memcpy(pub->pkS, pkS, crypto_scalarmult_BYTES);
 #ifdef TRACE
-  dump((uint8_t*) pub->P_s, sizeof pub->P_s, "P_s ");
+  dump((uint8_t*) pub->pkS, sizeof pub->pkS, "pkS ");
 #endif
 
   return 0;
@@ -1504,7 +1504,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   memcpy(rec->P_u, cred.P_u,crypto_scalarmult_BYTES);
 
   // copy P_s into rec.c
-  memcpy(cred.P_s, pub->P_s,crypto_scalarmult_BYTES);
+  memcpy(cred.pkS, pub->pkS,crypto_scalarmult_BYTES);
 
   // c ← AuthEnc_rw(p_u,P_u,P_s);
 #ifdef TRACE
@@ -1541,7 +1541,7 @@ void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint
 
   memcpy(rec->k_s, sec->k_s, sizeof rec->k_s);
   memcpy(rec->p_s, sec->p_s, sizeof rec->p_s);
-  crypto_scalarmult_base(rec->P_s, rec->p_s);
+  crypto_scalarmult_base(rec->pkS, rec->p_s);
 #ifdef TRACE
   dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");
 #endif
@@ -1553,7 +1553,7 @@ void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], co
 
   memcpy(rec->k_s, sec->k_s, sizeof rec->k_s);
   memcpy(rec->p_s, skS, crypto_scalarmult_SCALARBYTES);
-  crypto_scalarmult_base(rec->P_s, skS);
+  crypto_scalarmult_base(rec->pkS, skS);
 #ifdef TRACE
   dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");
 #endif

@@ -27,7 +27,7 @@ typedef struct {
   uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
   uint8_t p_s[crypto_scalarmult_SCALARBYTES];
   uint8_t P_u[crypto_scalarmult_BYTES];
-  uint8_t P_s[crypto_scalarmult_BYTES];
+  uint8_t pkS[crypto_scalarmult_BYTES];
   uint32_t env_len;
   uint8_t envelope[];
 } __attribute((packed)) Opaque_UserRecord;
@@ -306,7 +306,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   if(cfg->pkS == NotPackaged) {
     Opaque_UserRecord *_rec = (Opaque_UserRecord *) &rec;
     if(type!=Private1kInit && type!=Server1kInit) {
-      pkS = _rec->P_s;
+      pkS = _rec->pkS;
     }
   } else {
     pkS = NULL;

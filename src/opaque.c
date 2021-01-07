@@ -37,7 +37,7 @@
 
 typedef struct {
   uint8_t p_u[crypto_scalarmult_SCALARBYTES];
-  uint8_t P_u[crypto_scalarmult_BYTES];
+  uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
 } __attribute((packed)) Opaque_Credentials;
 
@@ -45,7 +45,7 @@ typedef struct {
 typedef struct {
   uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
   uint8_t p_s[crypto_scalarmult_SCALARBYTES];
-  uint8_t P_u[crypto_scalarmult_BYTES];
+  uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
   uint32_t env_len;
   uint8_t envelope[];
@@ -725,7 +725,7 @@ static int extend_package(const uint8_t *src, const size_t src_len, const Opaque
 static int pack(const Opaque_PkgConfig *cfg, const Opaque_Credentials *cred, const Opaque_Ids *ids, uint8_t *SecEnv, uint8_t *ClrEnv) {
   uint8_t *senv = SecEnv, *cenv = ClrEnv;
   if(cfg->skU==InClrEnv || 0!=extend_package(cred->p_u, crypto_scalarmult_SCALARBYTES, cfg->skU, skU, &senv, &cenv)) return 1;
-  if(0!=extend_package(cred->P_u, crypto_scalarmult_BYTES, cfg->pkU, pkU, &senv, &cenv)) return 1;
+  if(0!=extend_package(cred->pkU, crypto_scalarmult_BYTES, cfg->pkU, pkU, &senv, &cenv)) return 1;
   if(0!=extend_package(cred->pkS, crypto_scalarmult_BYTES, cfg->pkS, pkS, &senv, &cenv)) return 1;
   if(0!=extend_package(ids->idU, ids->idU_len, cfg->idU, idU, &senv, &cenv)) return 1;
   if(0!=extend_package(ids->idS, ids->idS_len, cfg->idS, idS, &senv, &cenv)) return 1;
@@ -747,7 +747,7 @@ static int extract_credential(const Opaque_PkgConfig *cfg, const Opaque_PkgTarge
   case pkU: {
     if(cfg->pkU!=current_target) return 1;
     if(cred->size!=crypto_scalarmult_BYTES) return 1;
-    memcpy(&creds->P_u, &cred->data, crypto_scalarmult_BYTES);
+    memcpy(&creds->pkU, &cred->data, crypto_scalarmult_BYTES);
     break;
   };
   case pkS: {
@@ -809,7 +809,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
   // recalculate non-packaged pkU
   if(cfg->pkU == NotPackaged) {
     if(!(seen & (1 << (skU-1)))) return 1;
-    crypto_scalarmult_base(creds->P_u, creds->p_u);
+    crypto_scalarmult_base(creds->pkU, creds->p_u);
     seen|=(1 << (pkU - 1));
   }
 
@@ -917,16 +917,16 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "plain user rec ");
 #endif
   // P_u := g^p_u
-  crypto_scalarmult_base(rec->P_u, cred.p_u);
+  crypto_scalarmult_base(rec->pkU, cred.p_u);
 
 #ifdef TRACE
-  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "P_u\nplain user rec ");
+  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "pkU\nplain user rec ");
 #endif
   // copy Pubkeys also into rec.c
-  memcpy(cred.P_u, rec->P_u,crypto_scalarmult_BYTES*2);
+  memcpy(cred.pkU, rec->pkU,crypto_scalarmult_BYTES*2);
 
 #ifdef TRACE
-  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "P_[us] -> c\nplain user rec ");
+  dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "pk[US] -> c\nplain user rec ");
 #endif
 
   // package up credential for the envelope
@@ -1055,10 +1055,10 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #ifdef TRACE
   dump(rec->p_s,crypto_scalarmult_SCALARBYTES, "rec->p_s ");
   dump(x_s,crypto_scalarmult_SCALARBYTES, "x_s ");
-  dump(rec->P_u,crypto_scalarmult_BYTES, "rec->P_u ");
+  dump(rec->pkU,crypto_scalarmult_BYTES, "rec->pkU ");
   dump(pub->X_u,crypto_scalarmult_BYTES, "pub->X_u ");
 #endif
-  if(0!=server_3dh(&keys, rec->p_s, x_s, rec->P_u, pub->X_u, info)) {
+  if(0!=server_3dh(&keys, rec->p_s, x_s, rec->pkU, pub->X_u, info)) {
     sodium_munlock(x_s, sizeof(x_s));
     sodium_munlock(&keys,sizeof(keys));
     return -1;
@@ -1498,10 +1498,10 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   }
 
   // P_u := g^p_u
-  crypto_scalarmult_base(cred.P_u, cred.p_u);
+  crypto_scalarmult_base(cred.pkU, cred.p_u);
 
   // copy P_u also into plaintext rec
-  memcpy(rec->P_u, cred.P_u,crypto_scalarmult_BYTES);
+  memcpy(rec->pkU, cred.pkU,crypto_scalarmult_BYTES);
 
   // copy P_s into rec.c
   memcpy(cred.pkS, pub->pkS,crypto_scalarmult_BYTES);

@@ -16,7 +16,7 @@
 #define OPAQUE_USER_RECORD_LEN (                       \
    /* k_s */ crypto_core_ristretto255_SCALARBYTES+     \
    /* p_s */ crypto_scalarmult_SCALARBYTES+            \
-   /* P_u */ crypto_scalarmult_BYTES+                  \
+   /* pkU */ crypto_scalarmult_BYTES+                  \
    /* pkS */ crypto_scalarmult_BYTES+                  \
    /* env_len */ sizeof(uint32_t))
 

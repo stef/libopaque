@@ -44,6 +44,10 @@ jobs:
        sudo apt-get install -y libsodium-dev pkgconf
        make debug test # Test a debug build.
        make clean all test # Test a production build.
+       cd ../python/test
+       sudo apt-get install -y python3-pip
+       pip3 install pysodium
+       LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

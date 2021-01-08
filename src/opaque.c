@@ -129,7 +129,7 @@ typedef struct {
 
 static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
                         const uint8_t *key, const uint16_t key_len,
-                        const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t result[crypto_hash_sha512_BYTES]) {
+                        const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t y[crypto_hash_sha512_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
@@ -160,7 +160,7 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, DST, DST_size);
 
-  crypto_hash_sha512_final(&state, result);
+  crypto_hash_sha512_final(&state, y);
   sodium_munlock(&state, sizeof state);
   return 0;
 }
@@ -168,7 +168,7 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                 const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
                 const uint8_t *key, const uint16_t key_len,
-                uint8_t rwd[crypto_hash_sha512_BYTES]) {
+                uint8_t y[crypto_hash_sha512_BYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
   sodium_mlock(h0,sizeof h0);
@@ -198,14 +198,14 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(N, sizeof N, "N");
 #endif
 
-  if(0!=prf_finalize(pwdU, pwdU_len, key, key_len, N, rwd)) {
+  if(0!=prf_finalize(pwdU, pwdU_len, key, key_len, N, y)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
   sodium_munlock(N,sizeof N);
 
 #ifdef TRACE
-  dump(rwd, crypto_hash_sha512_BYTES, "rwd");
+  dump(y, crypto_hash_sha512_BYTES, "y");
 #endif
 
   return 0;
@@ -854,32 +854,32 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   crypto_core_ristretto255_scalar_random(rec->kU);
 
   // rw := F_k_s (pw),
-  uint8_t rw0[crypto_hash_sha512_BYTES];
-  if(-1==sodium_mlock(rw0,sizeof rw0)) return -1;
-  if(prf(pwdU, pwdU_len, rec->kU, key, key_len, rw0)!=0) {
-    sodium_munlock(rw0,sizeof rw0);
+  uint8_t y[crypto_hash_sha512_BYTES];
+  if(-1==sodium_mlock(y,sizeof y)) return -1;
+  if(prf(pwdU, pwdU_len, rec->kU, key, key_len, y)!=0) {
+    sodium_munlock(y,sizeof y);
     return -1;
   }
 
 #ifdef TRACE
-  dump((uint8_t*) rw0, sizeof rw0, "rw0 ");
+  dump((uint8_t*) y, sizeof y, "y ");
 #endif
   uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw,sizeof rw)) {
-    sodium_munlock(rw0,sizeof rw0);
+    sodium_munlock(y,sizeof y);
     return -1;
   }
   // according to the ietf draft this could be all zeroes
   uint8_t salt[crypto_pwhash_SALTBYTES]={0};
-  if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
+  if (crypto_pwhash(rw, sizeof rw, (const char*) y, sizeof y, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {
     /* out of memory */
-    sodium_munlock(rw0,sizeof rw0);
+    sodium_munlock(y,sizeof y);
     sodium_munlock(rw,sizeof rw);
     return -1;
   }
-  sodium_munlock(rw0,sizeof rw0);
+  sodium_munlock(y,sizeof y);
   crypto_kdf_hkdf_sha256_extract(rw, (uint8_t*) "RwdU", 4, rw, sizeof rw);
 
 #ifdef TRACE
@@ -1168,35 +1168,35 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 #endif
 
   // rw = H(pw, β^(1/r))
-  uint8_t rw0[crypto_hash_sha512_BYTES];
-  if(-1==sodium_mlock(rw0,sizeof rw0)) {
+  uint8_t y[crypto_hash_sha512_BYTES];
+  if(-1==sodium_mlock(y,sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, rw0)) {
+  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
   sodium_munlock(N,sizeof N);
 
 #ifdef TRACE
-  dump(rw0,sizeof(rw0), "session user finish rw0 ");
+  dump(y,sizeof(y), "session user finish y ");
 #endif
 
   uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw,sizeof rw)) {
-    sodium_munlock(rw0, sizeof(rw0));
+    sodium_munlock(y, sizeof(y));
     return -1;
   }
   uint8_t salt[crypto_pwhash_SALTBYTES]={0};
-  if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
+  if (crypto_pwhash(rw, sizeof rw, (const char*) y, sizeof y, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {
     /* out of memory */
-    sodium_munlock(rw0, sizeof rw0);
+    sodium_munlock(y, sizeof y);
     sodium_munlock(rw, sizeof rw);
     return -1;
   }
-  sodium_munlock(rw0, sizeof rw0);
+  sodium_munlock(y, sizeof y);
   crypto_kdf_hkdf_sha256_extract(rw, (uint8_t*) "RwdU", 4, rw, sizeof rw);
 
 #ifdef TRACE
@@ -1452,36 +1452,36 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   dump((uint8_t*) N, sizeof N, "N ");
 #endif
 
-  uint8_t rw0[crypto_hash_sha512_BYTES];
-  if(-1==sodium_mlock(rw0, sizeof rw0)) {
+  uint8_t y[crypto_hash_sha512_BYTES];
+  if(-1==sodium_mlock(y, sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, rw0)) {
+  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
   sodium_munlock(N,sizeof N);
 
 #ifdef TRACE
-  dump((uint8_t*) rw0, sizeof rw0, "rw0 ");
+  dump((uint8_t*) y, sizeof y, "y ");
 #endif
 
   uint8_t rw[crypto_secretbox_KEYBYTES];
   if(-1==sodium_mlock(rw, sizeof rw)) {
-    sodium_munlock(rw0, sizeof rw0);
+    sodium_munlock(y, sizeof y);
     return -1;
   }
   // salt - according to the ietf draft this could be all zeroes
   uint8_t salt[crypto_pwhash_SALTBYTES]={0};
-  if (crypto_pwhash(rw, sizeof rw, (const char*) rw0, sizeof rw0, salt,
+  if (crypto_pwhash(rw, sizeof rw, (const char*) y, sizeof y, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
        crypto_pwhash_ALG_DEFAULT) != 0) {
     /* out of memory */
-    sodium_munlock(rw0, sizeof(rw0));
+    sodium_munlock(y, sizeof(y));
     sodium_munlock(rw, sizeof(rw));
     return -1;
   }
-  sodium_munlock(rw0, sizeof(rw0));
+  sodium_munlock(y, sizeof(y));
   crypto_kdf_hkdf_sha256_extract(rw, (uint8_t*) "RwdU", 4, rw, sizeof rw);
 
 #ifdef TRACE

@@ -211,15 +211,30 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   return 0;
 }
 
-// See https://libsodium.gitbook.io/doc/advanced/point-arithmetic/ristretto.
-static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t M[crypto_core_ristretto255_BYTES]) {
+/**
+ * This function converts input x into an element of the OPRF group, randomizes it
+ * by some scalar r, producing M, and outputs (r, M).
+ *
+ * This is the Blind OPRF function defined in the RFC.
+ *
+ * @param [in] x - the value to blind (for OPAQUE, this is pwdU, the user's
+ * password)
+ * @param [in] x_len - the length of param x in bytes
+ * @param [out] r - an OPRF scalar value used for randomization
+ * @param [out] M - a serialized OPRF group element, a byte array of fixed length,
+ * the blinded version of x, an input to oprf_Evaluate
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
+                      uint8_t r[crypto_core_ristretto255_SCALARBYTES],
+                      uint8_t M[crypto_core_ristretto255_BYTES]) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
   if(0!=sodium_mlock(h0,sizeof h0)) {
     return -1;
   }
-  crypto_hash_sha512(h0, pwdU, pwdU_len);
+  crypto_hash_sha512(h0, x, x_len);
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
@@ -962,7 +977,8 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  if(0!=blind(pwdU, pwdU_len, sec->blind, pub->M)) return -1;
+  // 1. (blind, M) = Blind(pwdU)
+  if(0!=oprf_Blind(pwdU, pwdU_len, sec->blind, pub->M)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
@@ -1321,7 +1337,8 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
   sec->pwdU_len = pwdU_len;
-  return blind(pwdU, pwdU_len, sec->blind, M);
+  // 1. (blind, M) = Blind(pwdU)
+  return oprf_Blind(pwdU, pwdU_len, sec->blind, M);
 }
 
 // initUser: S

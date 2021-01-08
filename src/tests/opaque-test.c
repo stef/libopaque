@@ -122,18 +122,18 @@ int main(void) {
   fprintf(stderr, "\n\nprivate registration\n\n");
 
   // variant where user registration does not leak secrets to server
-  uint8_t alpha[crypto_core_ristretto255_BYTES];
+  uint8_t M[crypto_core_ristretto255_BYTES];
   uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
   // user initiates:
   fprintf(stderr, "\nopaque_CreateRegistrationRequest\n");
-  if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, usr_ctx, alpha)) {
+  if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, usr_ctx, M)) {
     fprintf(stderr, "opaque_CreateRegistrationRequest failed.\n");
     return 1;
   }
   // server responds
   unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   fprintf(stderr, "\nopaque_CreateRegistrationResponse\n");
-  if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) {
+  if(0!=opaque_CreateRegistrationResponse(M, rsec, rpub)) {
     fprintf(stderr, "opaque_CreateRegistrationResponse failed.\n");
     return 1;
   }

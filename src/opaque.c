@@ -52,7 +52,7 @@ typedef struct {
 } __attribute((packed)) Opaque_UserRecord;
 
 typedef struct {
-  uint8_t alpha[crypto_core_ristretto255_BYTES];
+  uint8_t M[crypto_core_ristretto255_BYTES];
   uint8_t X_u[crypto_scalarmult_BYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
 } __attribute((packed)) Opaque_UserSession;
@@ -61,7 +61,7 @@ typedef struct {
   uint8_t r[crypto_core_ristretto255_SCALARBYTES];
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
-  uint8_t alpha[crypto_core_ristretto255_BYTES];
+  uint8_t M[crypto_core_ristretto255_BYTES];
   uint16_t pwdU_len;
   uint8_t pwdU[];
 } __attribute((packed)) Opaque_UserSession_Secret;
@@ -212,7 +212,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 }
 
 // See https://libsodium.gitbook.io/doc/advanced/point-arithmetic/ristretto.
-static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
+static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t M[crypto_core_ristretto255_BYTES]) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
@@ -239,13 +239,13 @@ static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_
   dump(r, crypto_core_ristretto255_SCALARBYTES, "r");
 #endif
   // H^0(pw)^r
-  if (crypto_scalarmult_ristretto255(alpha, r, H0) != 0) {
+  if (crypto_scalarmult_ristretto255(M, r, H0) != 0) {
     sodium_munlock(H0,sizeof H0);
     return -1;
   }
   sodium_munlock(H0,sizeof H0);
 #ifdef TRACE
-  dump(alpha, crypto_core_ristretto255_BYTES, "alpha");
+  dump(M, crypto_core_ristretto255_BYTES, "M");
 #endif
   return 0;
 }
@@ -423,9 +423,9 @@ static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
   if(sec!=NULL)
-    get_xcript(xcript, &sec->xcript_state, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, &sec->xcript_state, pub->M, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
   else
-    get_xcript(xcript, NULL, pub->alpha, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, NULL, pub->M, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
 }
 
 static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
@@ -435,7 +435,7 @@ static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const uint8_t X_u[crypto_scalarmult_BYTES],
                            const Opaque_App_Infos *infos,
                            const int use_info3) {
-  get_xcript(xcript, 0, sec->alpha, sec->nonceU, X_u, resp->beta, env, resp->envU_len, resp->nonceS, resp->X_s, infos, use_info3);
+  get_xcript(xcript, 0, sec->M, sec->nonceU, X_u, resp->beta, env, resp->envU_len, resp->nonceS, resp->X_s, infos, use_info3);
 }
 
 // implements server end of triple-dh
@@ -962,12 +962,12 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  if(0!=blind(pwdU, pwdU_len, sec->r, pub->alpha)) return -1;
+  if(0!=blind(pwdU, pwdU_len, sec->r, pub->M)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
-  memcpy(sec->alpha, pub->alpha, crypto_core_ristretto255_BYTES);
+  memcpy(sec->M, pub->M, crypto_core_ristretto255_BYTES);
 
   // x_u ←_R Z_q
   randombytes(sec->x_u, crypto_scalarmult_SCALARBYTES);
@@ -1011,7 +1011,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(pub->alpha)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(pub->M)!=1) return -1;
 
   // (b) Retrieves file[sid] = {k_s, p_s, P_s, P_u, c};
   // provided as parameter rec
@@ -1026,11 +1026,11 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 
 #ifdef TRACE
   dump(rec->kU, sizeof(rec->kU), "session srv kU ");
-  dump(pub->alpha, sizeof(pub->alpha), "session srv alpha ");
+  dump(pub->M, sizeof(pub->M), "session srv M ");
 #endif
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(resp->beta, rec->kU, pub->alpha) != 0) {
+  if (crypto_scalarmult_ristretto255(resp->beta, rec->kU, pub->M) != 0) {
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
@@ -1317,11 +1317,11 @@ int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the ietf cfrg rfc draft
-int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t alpha[crypto_core_ristretto255_BYTES]) {
+int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
   sec->pwdU_len = pwdU_len;
-  return blind(pwdU, pwdU_len, sec->r, alpha);
+  return blind(pwdU, pwdU_len, sec->r, M);
 }
 
 // initUser: S
@@ -1330,18 +1330,18 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(alpha)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
   crypto_core_ristretto255_scalar_random(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, alpha) != 0) {
+  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, M) != 0) {
     return -1;
   }
 #ifdef TRACE
@@ -1370,18 +1370,18 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
-int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(alpha)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
   crypto_core_ristretto255_scalar_random(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, alpha) != 0) {
+  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, M) != 0) {
     return -1;
   }
 #ifdef TRACE

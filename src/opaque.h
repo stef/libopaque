@@ -21,7 +21,7 @@
    /* envU_len */ sizeof(uint32_t))
 
 #define OPAQUE_USER_SESSION_PUBLIC_LEN (               \
-   /* alpha */  crypto_core_ristretto255_BYTES+        \
+   /* M */  crypto_core_ristretto255_BYTES+            \
    /* X_u */    crypto_scalarmult_BYTES+               \
    /* nonceU */ OPAQUE_NONCE_BYTES)
 
@@ -29,7 +29,7 @@
    /* r */      crypto_core_ristretto255_SCALARBYTES+  \
    /* x_u */    crypto_scalarmult_SCALARBYTES+         \
    /* nonceU */ OPAQUE_NONCE_BYTES+                    \
-   /* alpha */  crypto_core_ristretto255_BYTES+        \
+   /* M */  crypto_core_ristretto255_BYTES+            \
    /* pwdU_len */ sizeof(uint16_t))
 
 #define OPAQUE_SERVER_SESSION_LEN (                    \
@@ -259,37 +259,37 @@ int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t
 /**
    Initial step to start registering a new user/client with the server.
    The user inputs its password pwdU, and receives a secret context sec
-   and a blinded value alpha as output. sec should be protected until
-   step 3 of this registration protocol and the value alpha should be
+   and a blinded value M as output. sec should be protected until
+   step 3 of this registration protocol and the value M should be
    passed to the server.
    @param [in] pwdU - the users password
    @param [in] pwdU_len - length of the users password
    @param [out] sec - a secret context needed for the 3rd step in this
    registration protocol - this needs to be protected and sanitized
    after usage.
-   @param [out] alpha - the blinded hashed password as per the OPRF,
+   @param [out] M - the blinded hashed password as per the OPRF,
    this needs to be sent to the server together with any other
    important and implementation specific info such as user/client id,
    envelope configuration etc.
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t alpha[crypto_core_ristretto255_BYTES]);
+int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]);
 
 /**
    Server evaluates OPRF and creates a user-specific public/private keypair
 
-   The server receives alpha from the users invocation of its
+   The server receives M from the users invocation of its
    opaque_CreateRegistrationRequest() function, it outputs a value sec
    which needs to be protected until step 4 by the server. This
    function also outputs a value pub which needs to be passed to the
    user.
-   @param [in] alpha - the blinded password as per the OPRF.
+   @param [in] M - the blinded password as per the OPRF.
    @param [out] sec - the private key and the OPRF secret of the server.
    @param [out] pub - the evaluated OPRF and pubkey of the server to
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    2nd step of registration: Server evaluates OPRF - Global Server Key Version
@@ -302,19 +302,19 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
    server secret.
 
    This function is called CreateRegistrationResponse in the rfc.
-   The server receives alpha from the users invocation of its
+   The server receives M from the users invocation of its
    opaque_CreateRegistrationRequest() function, it outputs a value sec
    which needs to be protected until step 4 by the server. This
    function also outputs a value pub which needs to be passed to the
    user.
-   @param [in] alpha - the blinded password as per the OPRF.
+   @param [in] M - the blinded password as per the OPRF.
    @param [in] pkS - the servers long-term pubkey
    @param [out] sec - the private key and the OPRF secret of the server.
    @param [out] pub - the evaluated OPRF and pubkey of the server to
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_Create1kRegistrationResponse(const uint8_t alpha[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating

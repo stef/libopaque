@@ -325,7 +325,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
    output of the user running opaque_CreateRegistrationRequest(), and the
    output pub from the server of opaque_CreateRegistrationResponse().
    The key parameter can be used as an extra contribution to the
-   derivation of the rwd by means of being used as a key to the final
+   derivation of the rwdU by means of being used as a key to the final
    hash, if not specified it uses the value specified by the rfc. The
    result of this is the value rec which should be passed for the last
    step to the server.

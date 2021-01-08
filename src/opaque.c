@@ -44,7 +44,7 @@ typedef struct {
 // user specific record stored at server upon registration
 typedef struct {
   uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
-  uint8_t p_s[crypto_scalarmult_SCALARBYTES];
+  uint8_t skS[crypto_scalarmult_SCALARBYTES];
   uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
   uint32_t env_len;
@@ -87,7 +87,7 @@ typedef struct {
 } __attribute((packed)) Opaque_RegisterSrvPub;
 
 typedef struct {
-  uint8_t p_s[crypto_scalarmult_SCALARBYTES];
+  uint8_t skS[crypto_scalarmult_SCALARBYTES];
   uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
 } __attribute((packed)) Opaque_RegisterSrvSec;
 
@@ -888,13 +888,13 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
   // p_s ←_R Z_q
   if(skS==NULL) {
-    randombytes(rec->p_s, crypto_scalarmult_SCALARBYTES); // random server secret key
+    randombytes(rec->skS, crypto_scalarmult_SCALARBYTES); // random server secret key
   } else {
-    memcpy(rec->p_s, skS, crypto_scalarmult_SCALARBYTES);
+    memcpy(rec->skS, skS, crypto_scalarmult_SCALARBYTES);
   }
 
 #ifdef TRACE
-  dump(rec->p_s, crypto_scalarmult_SCALARBYTES, "p_s ");
+  dump(rec->skS, crypto_scalarmult_SCALARBYTES, "skS ");
   dump(_rec, OPAQUE_USER_RECORD_LEN+env_len, "plain user rec ");
 #endif
   Opaque_Credentials cred;
@@ -910,7 +910,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(cred.p_u, crypto_core_ristretto255_SCALARBYTES, "p_u ");
 #endif
   // P_s := g^p_s
-  crypto_scalarmult_base(rec->pkS, rec->p_s);
+  crypto_scalarmult_base(rec->pkS, rec->skS);
 
 #ifdef TRACE
   dump(rec->pkS, crypto_scalarmult_BYTES, "pkS ");
@@ -1053,12 +1053,12 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f_K(0);
   // paper instantiates HMQV, we do only triple-dh
 #ifdef TRACE
-  dump(rec->p_s,crypto_scalarmult_SCALARBYTES, "rec->p_s ");
+  dump(rec->skS,crypto_scalarmult_SCALARBYTES, "rec->skS ");
   dump(x_s,crypto_scalarmult_SCALARBYTES, "x_s ");
   dump(rec->pkU,crypto_scalarmult_BYTES, "rec->pkU ");
   dump(pub->X_u,crypto_scalarmult_BYTES, "pub->X_u ");
 #endif
-  if(0!=server_3dh(&keys, rec->p_s, x_s, rec->pkU, pub->X_u, info)) {
+  if(0!=server_3dh(&keys, rec->skS, x_s, rec->pkU, pub->X_u, info)) {
     sodium_munlock(x_s, sizeof(x_s));
     sodium_munlock(&keys,sizeof(keys));
     return -1;
@@ -1349,13 +1349,13 @@ int opaque_CreateRegistrationResponse(const uint8_t alpha[crypto_core_ristretto2
 #endif
 
   // p_s ←_R Z_q
-  randombytes(sec->p_s, crypto_scalarmult_SCALARBYTES); // random server long-term key
+  randombytes(sec->skS, crypto_scalarmult_SCALARBYTES); // random server long-term key
 #ifdef TRACE
-  dump((uint8_t*) sec->p_s, sizeof sec->p_s, "p_s ");
+  dump((uint8_t*) sec->skS, sizeof sec->skS, "skS ");
 #endif
 
   // P_s := g^p_s
-  crypto_scalarmult_base(pub->pkS, sec->p_s);
+  crypto_scalarmult_base(pub->pkS, sec->skS);
 #ifdef TRACE
   dump((uint8_t*) pub->pkS, sizeof pub->pkS, "pkS ");
 #endif
@@ -1540,8 +1540,8 @@ void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
   memcpy(rec->k_s, sec->k_s, sizeof rec->k_s);
-  memcpy(rec->p_s, sec->p_s, sizeof rec->p_s);
-  crypto_scalarmult_base(rec->pkS, rec->p_s);
+  memcpy(rec->skS, sec->skS, sizeof rec->skS);
+  crypto_scalarmult_base(rec->pkS, rec->skS);
 #ifdef TRACE
   dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");
 #endif
@@ -1552,7 +1552,7 @@ void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], co
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
   memcpy(rec->k_s, sec->k_s, sizeof rec->k_s);
-  memcpy(rec->p_s, skS, crypto_scalarmult_SCALARBYTES);
+  memcpy(rec->skS, skS, crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult_base(rec->pkS, skS);
 #ifdef TRACE
   dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");

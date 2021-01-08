@@ -14,7 +14,7 @@
 #define OPAQUE_ENVELOPE_META_LEN (2*crypto_hash_sha256_BYTES + 2*sizeof(uint16_t))
 
 #define OPAQUE_USER_RECORD_LEN (                       \
-   /* k_s */ crypto_core_ristretto255_SCALARBYTES+     \
+   /* kU */ crypto_core_ristretto255_SCALARBYTES+      \
    /* skS */ crypto_scalarmult_SCALARBYTES+            \
    /* pkU */ crypto_scalarmult_BYTES+                  \
    /* pkS */ crypto_scalarmult_BYTES+                  \
@@ -49,7 +49,7 @@
 
 #define OPAQUE_REGISTER_SECRET_LEN (                   \
    /* skS */ crypto_scalarmult_SCALARBYTES+            \
-   /* k_s */ crypto_core_ristretto255_SCALARBYTES)
+   /* kU */ crypto_core_ristretto255_SCALARBYTES)
 
 #define OPAQUE_SERVER_AUTH_CTX_LEN ( \
   crypto_auth_hmacsha256_KEYBYTES +  \

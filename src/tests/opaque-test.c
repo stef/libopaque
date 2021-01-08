@@ -22,7 +22,7 @@
 #include "../common.h"
 
 typedef struct {
-  uint8_t k_s[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t kU[crypto_core_ristretto255_SCALARBYTES];
   uint8_t skS[crypto_scalarmult_SCALARBYTES];
   uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];

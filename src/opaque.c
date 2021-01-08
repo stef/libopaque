@@ -127,6 +127,20 @@ typedef struct {
   uint8_t data[1];
 } __attribute((packed)) CredentialExtension;
 
+/**
+ * This function generates an OPRF private key.
+ *
+ * This is the KeyGen OPRF function defined in the RFC:
+ * > OPAQUE only requires an OPRF private key. We write (kU, _) = KeyGen() to denote
+ * > use of this function for generating secret key kU (and discarding the
+ * > corresponding public key).
+ *
+ * @param [out] kU - the per-user OPRF private key
+ */
+static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
+  crypto_core_ristretto255_scalar_random(kU);
+}
+
 static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
                         const uint8_t *info, const uint16_t info_len,
                         const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t y[crypto_hash_sha512_BYTES]) {
@@ -866,7 +880,8 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(rec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(rec->kU);
 
   // rw := F_k_s (pw),
   uint8_t y[crypto_hash_sha512_BYTES];
@@ -1355,7 +1370,8 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
   if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(sec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
   if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
@@ -1395,7 +1411,8 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(sec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
   if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {

@@ -279,6 +279,27 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
   return 0;
 }
 
+/**
+ * This function evaluates input element M using private key k, yielding output
+ * element Z.
+ *
+ * This is the Evaluate OPRF function defined in the RFC.
+ *
+ * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
+ * key)
+ * @param [in] M - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
+ * password)
+ * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
+ * an input to oprf_Unblind
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+                         const uint8_t M[crypto_core_ristretto255_BYTES],
+                         uint8_t Z[crypto_core_ristretto255_BYTES]) {
+  return crypto_scalarmult_ristretto255(Z, k, M);
+}
+
 static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf_sha256_KEYBYTES], const char *label, const char transcript[crypto_hash_sha256_BYTES], const size_t len) {
   // construct a hkdf label
   // struct {
@@ -1061,7 +1082,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(resp->Z, rec->kU, pub->M) != 0) {
+  // 1. Z = Evaluate(DeserializeScalar(credentialFile.kU), request.data)
+  if (oprf_Evaluate(rec->kU, pub->M, resp->Z) != 0) {
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
@@ -1374,7 +1396,8 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
   oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
+  // 2. Z = Evaluate(kU, request.data)
+  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
 #ifdef TRACE
@@ -1415,7 +1438,8 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
+  // 2. Z = Evaluate(kU, request.data)
+  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
 #ifdef TRACE

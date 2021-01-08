@@ -300,6 +300,55 @@ static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
   return crypto_scalarmult_ristretto255(Z, k, M);
 }
 
+/**
+ * This function removes random scalar r from Z, yielding output N.
+ *
+ * This is the Unblind OPRF function defined in the RFC.
+ *
+ * @param [in] r - an OPRF scalar value used for randomization in oprf_Blind
+ * @param [in] Z - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Evaluate
+ * @param [out] N - a serialized OPRF group element with random scalar r removed,
+ * a byte array of fixed length, an input to oprf_Finalize
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
+                        const uint8_t Z[crypto_core_ristretto255_BYTES],
+                        uint8_t N[crypto_core_ristretto255_BYTES]) {
+#ifdef TRACE
+  dump((uint8_t*) r, sizeof r, "r ");
+  dump((uint8_t*) Z, sizeof Z, "Z ");
+#endif
+
+  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
+  if(crypto_core_ristretto255_is_valid_point(Z) != 1) return -1;
+
+  // (b) Computes rw := H(pw, β^1/r );
+  // invert r = 1/r
+  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
+  if(-1==sodium_mlock(ir, sizeof ir)) return -1;
+  if (crypto_core_ristretto255_scalar_invert(ir, r) != 0) {
+    sodium_munlock(ir, sizeof ir);
+    return -1;
+  }
+#ifdef TRACE
+  dump((uint8_t*) ir, sizeof ir, "r^-1 ");
+#endif
+
+  // H0 = β^(1/r)
+  // beta^(1/r) = h(pwd)^k
+  if (crypto_scalarmult_ristretto255(N, ir, Z) != 0) {
+    sodium_munlock(ir, sizeof ir);
+    return -1;
+  }
+#ifdef TRACE
+  dump((uint8_t*) N, sizeof N, "N ");
+#endif
+
+  sodium_munlock(ir, sizeof ir);
+  return 0;
+}
+
 static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf_sha256_KEYBYTES], const char *label, const char transcript[crypto_hash_sha256_BYTES], const size_t len) {
   // construct a hkdf label
   // struct {
@@ -1184,41 +1233,13 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
 #endif
 
-  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(resp->Z)!=1) return -1;
-
-  // (b) Computes rw := H(pw, β^1/r );
-  // r = 1/r
-  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
-  if(-1==sodium_mlock(ir,sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->blind) != 0) {
-    sodium_munlock(ir,sizeof ir);
-    return -1;
-  }
-#ifdef TRACE
-  dump(sec->blind,sizeof(sec->blind), "session user finish blind ");
-  dump(ir,sizeof(ir), "session user finish r^-1 ");
-#endif
-
-  // h0 = β^(1/r)
-  // beta^(1/r) = h(pwd)^k
   uint8_t N[crypto_core_ristretto255_BYTES];
-  if(-1==sodium_mlock(N,sizeof N)) {
-    sodium_munlock(ir,sizeof ir);
+  if(-1==sodium_mlock(N, sizeof N)) return -1;
+  // 1. N = Unblind(blind, response.data)
+  if(0!=oprf_Unblind(sec->blind, resp->Z, N)) {
+    sodium_munlock(N, sizeof N);
     return -1;
   }
-#ifdef TRACE
-  dump(resp->Z,sizeof(resp->Z), "session user finish Z ");
-#endif
-  if (crypto_scalarmult_ristretto255(N, ir, resp->Z) != 0) {
-    sodium_munlock(ir,sizeof ir);
-    sodium_munlock(N,sizeof N);
-    return -1;
-  }
-  sodium_munlock(ir,sizeof ir);
-#ifdef TRACE
-  dump(N,sizeof(N), "session user finish N ");
-#endif
 
   // rw = H(pw, β^(1/r))
   uint8_t y[crypto_hash_sha512_BYTES];
@@ -1481,34 +1502,13 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   memset(_rec,0,OPAQUE_USER_RECORD_LEN+envU_len);
 #endif
 
-  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(pub->Z)!=1) return -1;
-
-  // (b) Computes rw := H(pw, β^1/r );
-  // invert r = 1/r
-  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
-  if(-1==sodium_mlock(ir, sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->blind) != 0) {
-    sodium_munlock(ir, sizeof ir);
-    return -1;
-  }
-
-  // H0 = β^(1/r)
-  // beta^(1/r) = h(pwd)^k
   uint8_t N[crypto_core_ristretto255_BYTES];
-  if(-1==sodium_mlock(N,sizeof N)) {
-    sodium_munlock(ir, sizeof ir);
-    return -1;
-  }
-  if (crypto_scalarmult_ristretto255(N, ir, pub->Z) != 0) {
-    sodium_munlock(ir, sizeof ir);
+  if(-1==sodium_mlock(N, sizeof N)) return -1;
+  // 1. N = Unblind(blind, response.data)
+  if(0!=oprf_Unblind(sec->blind, pub->Z, N)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
-  sodium_munlock(ir, sizeof ir);
-#ifdef TRACE
-  dump((uint8_t*) N, sizeof N, "N ");
-#endif
 
   uint8_t y[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(y, sizeof y)) {

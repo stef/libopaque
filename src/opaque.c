@@ -67,7 +67,7 @@ typedef struct {
 } __attribute((packed)) Opaque_UserSession_Secret;
 
 typedef struct {
-  uint8_t beta[crypto_core_ristretto255_BYTES];
+  uint8_t Z[crypto_core_ristretto255_BYTES];
   uint8_t X_s[crypto_scalarmult_BYTES];
   uint8_t nonceS[OPAQUE_NONCE_BYTES];
   uint8_t auth[crypto_auth_hmacsha256_BYTES];
@@ -82,7 +82,7 @@ typedef struct {
 } Opaque_RegisterUserSec;
 
 typedef struct {
-  uint8_t beta[crypto_core_ristretto255_BYTES];
+  uint8_t Z[crypto_core_ristretto255_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
 } __attribute((packed)) Opaque_RegisterSrvPub;
 
@@ -423,9 +423,9 @@ static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
   if(sec!=NULL)
-    get_xcript(xcript, &sec->xcript_state, pub->M, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, &sec->xcript_state, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
   else
-    get_xcript(xcript, NULL, pub->M, pub->nonceU, pub->X_u, resp->beta, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, NULL, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
 }
 
 static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
@@ -435,7 +435,7 @@ static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const uint8_t X_u[crypto_scalarmult_BYTES],
                            const Opaque_App_Infos *infos,
                            const int use_info3) {
-  get_xcript(xcript, 0, sec->M, sec->nonceU, X_u, resp->beta, env, resp->envU_len, resp->nonceS, resp->X_s, infos, use_info3);
+  get_xcript(xcript, 0, sec->M, sec->nonceU, X_u, resp->Z, env, resp->envU_len, resp->nonceS, resp->X_s, infos, use_info3);
 }
 
 // implements server end of triple-dh
@@ -1030,7 +1030,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(resp->beta, rec->kU, pub->M) != 0) {
+  if (crypto_scalarmult_ristretto255(resp->Z, rec->kU, pub->M) != 0) {
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
@@ -1132,7 +1132,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 #endif
 
   // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(resp->beta)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(resp->Z)!=1) return -1;
 
   // (b) Computes rw := H(pw, β^1/r );
   // r = 1/r
@@ -1155,9 +1155,9 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
     return -1;
   }
 #ifdef TRACE
-  dump(resp->beta,sizeof(resp->beta), "session user finish beta ");
+  dump(resp->Z,sizeof(resp->Z), "session user finish Z ");
 #endif
-  if (crypto_scalarmult_ristretto255(h0, ir, resp->beta) != 0) {
+  if (crypto_scalarmult_ristretto255(h0, ir, resp->Z) != 0) {
     sodium_munlock(ir,sizeof ir);
     sodium_munlock(h0,sizeof h0);
     return -1;
@@ -1341,11 +1341,11 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
   crypto_core_ristretto255_scalar_random(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, M) != 0) {
+  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
     return -1;
   }
 #ifdef TRACE
-  dump((uint8_t*) pub->beta, sizeof pub->beta, "beta ");
+  dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
 #endif
 
   // p_s ←_R Z_q
@@ -1381,11 +1381,11 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   crypto_core_ristretto255_scalar_random(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->beta, sec->kU, M) != 0) {
+  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
     return -1;
   }
 #ifdef TRACE
-  dump((uint8_t*) pub->beta, sizeof pub->beta, "beta ");
+  dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
 #endif
 
   memcpy(pub->pkS, pkS, crypto_scalarmult_BYTES);
@@ -1424,7 +1424,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
 #endif
 
   // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(pub->beta)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(pub->Z)!=1) return -1;
 
   // (b) Computes rw := H(pw, β^1/r );
   // invert r = 1/r
@@ -1442,7 +1442,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
     sodium_munlock(ir, sizeof ir);
     return -1;
   }
-  if (crypto_scalarmult_ristretto255(h0, ir, pub->beta) != 0) {
+  if (crypto_scalarmult_ristretto255(h0, ir, pub->Z) != 0) {
     sodium_munlock(ir, sizeof ir);
     sodium_munlock(h0, sizeof h0);
     return -1;

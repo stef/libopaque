@@ -33,7 +33,7 @@
    /* pwdU_len */ sizeof(uint16_t))
 
 #define OPAQUE_SERVER_SESSION_LEN (                    \
-   /* beta */ crypto_core_ristretto255_BYTES+          \
+   /* Z */ crypto_core_ristretto255_BYTES+             \
    /* X_s */ crypto_scalarmult_BYTES+                  \
    /* nonceS */ OPAQUE_NONCE_BYTES+                    \
    /* auth */ crypto_auth_hmacsha256_BYTES+            \
@@ -44,7 +44,7 @@
    /* pwdU_len */ sizeof(uint16_t))                    \
 
 #define OPAQUE_REGISTER_PUBLIC_LEN (                   \
-   /* beta */ crypto_core_ristretto255_BYTES+          \
+   /* Z */ crypto_core_ristretto255_BYTES+             \
    /* pkS */ crypto_scalarmult_BYTES)
 
 #define OPAQUE_REGISTER_SECRET_LEN (                   \

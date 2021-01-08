@@ -141,9 +141,26 @@ static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
   crypto_core_ristretto255_scalar_random(kU);
 }
 
-static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
-                        const uint8_t *info, const uint16_t info_len,
-                        const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t y[crypto_hash_sha512_BYTES]) {
+/**
+ * This function computes the OPRF output using input x, N, and domain separation
+ * tag info.
+ *
+ * This is the Finalize OPRF function defined in the RFC.
+ *
+ * @param [in] x - a value used to compute OPRF (for OPAQUE, this is pwdU, the
+ * user's password)
+ * @param [in] x_len - the length of param x in bytes
+ * @param [in] N - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Unblind
+ * @param [in] info - a domain separation tag
+ * @param [in] info_len - the length of param info in bytes
+ * @param [out] y - an OPRF output
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
+                         const uint8_t N[crypto_core_ristretto255_BYTES],
+                         const uint8_t *info, const uint16_t info_len,
+                         uint8_t y[crypto_hash_sha512_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
@@ -155,9 +172,9 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
   }
   crypto_hash_sha512_init(&state);
   // pwd
-  uint16_t size=htons(pwdU_len);
+  uint16_t size=htons(x_len);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
-  crypto_hash_sha512_update(&state, pwdU, pwdU_len);
+  crypto_hash_sha512_update(&state, x, x_len);
   // H0_k
   size=htons(crypto_core_ristretto255_BYTES);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
@@ -212,7 +229,8 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(N, sizeof N, "N");
 #endif
 
-  if(0!=prf_finalize(pwdU, pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(pwdU, pwdU_len, N, info, info_len, y)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -1246,7 +1264,8 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   if(-1==sodium_mlock(y,sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, info, info_len, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
@@ -1514,7 +1533,8 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   if(-1==sodium_mlock(y, sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, info, info_len, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }

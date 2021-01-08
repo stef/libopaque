@@ -26,8 +26,8 @@ typedef struct {
   uint8_t skS[crypto_scalarmult_SCALARBYTES];
   uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
-  uint32_t env_len;
-  uint8_t envelope[];
+  uint32_t envU_len;
+  uint8_t envU[];
 } __attribute((packed)) Opaque_UserRecord;
 
 static void _dump(const uint8_t *p, const size_t len, const char* msg) {
@@ -57,8 +57,8 @@ int main(void) {
   };
   _dump((uint8_t*) &cfg,sizeof cfg, "cfg ");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg.skU, cfg.pkU, cfg.pkS, cfg.idU, cfg.idS);
-  const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
-  unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
+  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
+  unsigned char rec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "sizeof(rec): %ld\n",sizeof(rec));
 
   // register user
@@ -73,7 +73,7 @@ int main(void) {
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
 
-  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
+  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
@@ -138,7 +138,7 @@ int main(void) {
     return 1;
   }
   // user commits its secrets
-  unsigned char rrec[OPAQUE_USER_RECORD_LEN+env_len];
+  unsigned char rrec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "\nopaque_FinalizeRequest\n");
   if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, &cfg, &ids, rrec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");

@@ -28,8 +28,8 @@ typedef struct {
   uint8_t skS[crypto_scalarmult_SCALARBYTES];
   uint8_t pkU[crypto_scalarmult_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
-  uint32_t env_len;
-  uint8_t envelope[];
+  uint32_t envU_len;
+  uint8_t envU[];
 } __attribute((packed)) Opaque_UserRecord;
 
 static char* type_params[] = {
@@ -211,12 +211,12 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   Opaque_PkgConfig *cfg=(Opaque_PkgConfig *) munit_parameters_get(params, "cfg");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
 
-  const uint32_t env_len = opaque_envelope_len(cfg, &ids);
-  unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
+  const uint32_t envU_len = opaque_envelope_len(cfg, &ids);
+  unsigned char rec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
 
   unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
+  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t pk[32];
   uint8_t authU[crypto_auth_hmacsha256_BYTES];

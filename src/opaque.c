@@ -128,7 +128,7 @@ typedef struct {
 } __attribute((packed)) CredentialExtension;
 
 static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
-                        const uint8_t *key, const uint16_t key_len,
+                        const uint8_t *info, const uint16_t info_len,
                         const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t y[crypto_hash_sha512_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
@@ -149,10 +149,10 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, N, crypto_core_ristretto255_BYTES);
   // info
-  if(key!=NULL && key_len>0) {
-    size=htons(key_len);
+  if(info!=NULL && info_len>0) {
+    size=htons(info_len);
     crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
-    crypto_hash_sha512_update(&state, key, key_len);
+    crypto_hash_sha512_update(&state, info, info_len);
   }
   const uint8_t DST[]="VOPRF06-Finalize-OPAQUE00";
   const uint8_t DST_size=strlen((const char*) DST);
@@ -167,7 +167,7 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
 
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                 const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
-                const uint8_t *key, const uint16_t key_len,
+                const uint8_t *info, const uint16_t info_len,
                 uint8_t y[crypto_hash_sha512_BYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
@@ -198,7 +198,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(N, sizeof N, "N");
 #endif
 
-  if(0!=prf_finalize(pwdU, pwdU_len, key, key_len, N, y)) {
+  if(0!=prf_finalize(pwdU, pwdU_len, info, info_len, N, y)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -826,7 +826,7 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
 int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
-                    const uint8_t *key, const uint16_t key_len,
+                    const uint8_t *info, const uint16_t info_len,
                     const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
                     const Opaque_Ids *ids,
@@ -856,7 +856,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   // rw := F_k_s (pw),
   uint8_t y[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(y,sizeof y)) return -1;
-  if(prf(pwdU, pwdU_len, rec->kU, key, key_len, y)!=0) {
+  if(prf(pwdU, pwdU_len, rec->kU, info, info_len, y)!=0) {
     sodium_munlock(y,sizeof y);
     return -1;
   }
@@ -1113,7 +1113,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 // (e) Outputs (sid, ssid, SK).
 int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
                               const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/],
-                              const uint8_t *key, const uint16_t key_len,
+                              const uint8_t *info, const uint16_t info_len,
                               const uint8_t pkS[crypto_scalarmult_BYTES],
                               const Opaque_PkgConfig *cfg,
                               const Opaque_App_Infos *infos,
@@ -1126,7 +1126,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 
 #ifdef TRACE
   dump(sec->pwdU,sec->pwdU_len, "session user finish pwdU ");
-  dump(key,key_len, "session user finish key ");
+  dump(info,info_len, "session user finish info ");
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN, "session user finish sec ");
   dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
 #endif
@@ -1172,7 +1172,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   if(-1==sodium_mlock(y,sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, y)) {
+  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
@@ -1238,8 +1238,8 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   sodium_munlock(rwdU, sizeof(rwdU));
 
   // mixing in things from the ietf cfrg spec
-  char info[crypto_hash_sha256_BYTES];
-  calc_info(info, sec->nonceU, resp->nonceS, ids);
+  char hkdf_info[crypto_hash_sha256_BYTES];
+  calc_info(hkdf_info, sec->nonceU, resp->nonceS, ids);
   Opaque_Keys keys;
   sodium_mlock(&keys,sizeof(keys));
 
@@ -1250,7 +1250,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   dump(cred.pkS,crypto_scalarmult_BYTES, "c->pkS ");
   dump(resp->X_s,crypto_scalarmult_BYTES, "sec->X_s ");
 #endif
-  if(0!=user_3dh(&keys, cred.skU, sec->x_u, cred.pkS, resp->X_s, info)) {
+  if(0!=user_3dh(&keys, cred.skU, sec->x_u, cred.pkS, resp->X_s, hkdf_info)) {
     sodium_munlock(&keys, sizeof(keys));
     sodium_munlock(&cred, sizeof cred);
     return -1;
@@ -1405,7 +1405,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
 // called FinalizeRequest in the ietf cfrg rfc draft
 int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
-                                    const uint8_t *key, const uint16_t key_len, // contributes to the final rwdU calculation as a key to the hash
+                                    const uint8_t *info, const uint16_t info_len, // contributes to the final rwdU calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
                                     const Opaque_Ids *ids,
                                     uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
@@ -1456,7 +1456,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   if(-1==sodium_mlock(y, sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, key, key_len, N, y)) {
+  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }

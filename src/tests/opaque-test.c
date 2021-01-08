@@ -41,8 +41,8 @@ static void _dump(const uint8_t *p, const size_t len, const char* msg) {
 int main(void) {
   uint8_t pwdU[]="simple guessable dictionary password";
   uint16_t pwdU_len=strlen((char*) pwdU);
-  uint8_t key[]="some optional key contributed to the opaque protocol";
-  uint16_t key_len=strlen((char*) key);
+  uint8_t info[]="some optional key contributed to the opaque protocol";
+  uint16_t info_len=strlen((char*) info);
   uint8_t export_key[crypto_hash_sha256_BYTES];
   uint8_t export_key_x[crypto_hash_sha256_BYTES];
   Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};
@@ -63,7 +63,7 @@ int main(void) {
 
   // register user
   fprintf(stderr, "\nopaque_Register\n");
-  if(0!=opaque_Register(pwdU, pwdU_len, key, key_len, NULL, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_Register(pwdU, pwdU_len, info, info_len, NULL, &cfg, &ids, rec, export_key)) {
     fprintf(stderr, "opaque_Register failed.\n");
     return 1;
   }
@@ -105,7 +105,7 @@ int main(void) {
   }
 
   //Opaque_App_Infos infos;
-  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, &cfg, NULL, &ids1, pk, authU, export_key_x)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, info, info_len, pkS, &cfg, NULL, &ids1, pk, authU, export_key_x)) {
     fprintf(stderr, "opaque_RecoverCredentials failed.\n");
     return 1;
   }
@@ -140,7 +140,7 @@ int main(void) {
   // user commits its secrets
   unsigned char rrec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "\nopaque_FinalizeRequest\n");
-  if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, &cfg, &ids, rrec, export_key)) {
+  if(0!=opaque_FinalizeRequest(usr_ctx, rpub, info, info_len, &cfg, &ids, rrec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");
     return 1;
   }
@@ -164,7 +164,7 @@ int main(void) {
   } else {
     pkS = NULL;
   }
-  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, &cfg, NULL, &ids1, pk, authU, export_key)) return 1;
+  if(0!=opaque_RecoverCredentials(resp, sec, info, info_len, pkS, &cfg, NULL, &ids1, pk, authU, export_key)) return 1;
   _dump(pk,32,"sk_u: ");
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 

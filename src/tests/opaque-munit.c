@@ -46,8 +46,8 @@ static char* pwdU_params[] = {
   NULL
 };
 
-static char* key_params[] = {
-  "some optional key contributed to the opaque protocol",
+static char* info_params[] = {
+  "some optional info contributed to the opaque protocol",
   "",
   NULL
 };
@@ -178,7 +178,7 @@ static char* cfg_params[]=
 
 static MunitParameterEnum init_params[] = {
   { "pwdU", pwdU_params },
-  { "key", key_params },
+  { "info", info_params },
   { "idU", idU_params },
   { "idS", idS_params },
   { "cfg", cfg_params },
@@ -199,8 +199,8 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   const TestType type = *((const TestType*)munit_parameters_get(params, "type"));
   const uint8_t *pwdU=(const uint8_t*) munit_parameters_get(params, "pwdU");
   const size_t pwdU_len=strlen((char*) pwdU);
-  const uint8_t *key=(const uint8_t*) munit_parameters_get(params, "key");;
-  size_t key_len=strlen((char*) key);
+  const uint8_t *info=(const uint8_t*) munit_parameters_get(params, "info");;
+  size_t info_len=strlen((char*) info);
   uint8_t export_key[crypto_hash_sha256_BYTES];
 
   Opaque_Ids ids={0, (uint8_t*) munit_parameters_get(params, "idU"),
@@ -252,7 +252,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   if(type==ServerInit || type==Server1kInit) {
     // register user
     fprintf(stderr,"\nopaque_Register\n");
-    if(0!=opaque_Register(pwdU, pwdU_len, key, key_len, skS, cfg, &ids, rec, export_key)) {
+    if(0!=opaque_Register(pwdU, pwdU_len, info, info_len, skS, cfg, &ids, rec, export_key)) {
       fprintf(stderr,"opaque_Register failed.\n");
       return MUNIT_FAIL;
     }
@@ -280,7 +280,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
     }
     // user commits its secrets
     fprintf(stderr,"\nopaque_FinalizeRequest\n");
-    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, key, key_len, cfg, &ids, rec, export_key)) {
+    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, info, info_len, cfg, &ids, rec, export_key)) {
       fprintf(stderr,"opaque_FinalizeRequest failed.\n");
       return MUNIT_FAIL;
     }
@@ -312,7 +312,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
     pkS = NULL;
   }
 
-  if(0!=opaque_RecoverCredentials(resp, sec, key, key_len, pkS, cfg, NULL, &ids1, pk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, info, info_len, pkS, cfg, NULL, &ids1, pk, authU, export_key)) {
     fprintf(stderr,"opaque_RecoverCredentials failed.\n");
     return MUNIT_FAIL;
   }

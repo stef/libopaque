@@ -127,11 +127,11 @@ typedef struct {
 
    @param [in] pwdU - the users password
    @param [in] pwdU_len - length of the users password
-   @param [in] key - a key to be used for domain separation in the
+   @param [in] info - a key to be used for domain separation in the
         final hash of the OPRF. if set to NULL then the default is
         "RFCXXXX" - TODO set XXXX to the real value when the rfc is
         published.
-   @param [in] key_len - length of the key, ignored if key is NULL
+   @param [in] info_len - length of the info, ignored if info is NULL
    @param [in] skS - in case of global server keys this is the servers
         private key, should be set to NULL if per/user keys are to be
         generated
@@ -148,7 +148,7 @@ typedef struct {
         encrypt/authenticate additional data.
    @return the function returns 0 if everything is correct
  */
-int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t *key, const uint16_t key_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t *info, const uint16_t info_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    This function initiates a new OPAQUE session, is the same as the
@@ -205,10 +205,10 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    @param [in] resp - the response sent from the server running opaque_CreateCredentialResponse()
    @param [in] sec - the private sec output of the client initiating
    this instantiation of this protocol using opaque_CreateCredentialRequest()
-   @param [in] key - an value to be used as key during the final hashing
+   @param [in] info - a value to be used as a key do during the final hashing
    of the OPRF, the rfc specifies this as 'RFCXXXX' but can be any other
    local secret amending the password typed in in the first step.
-   @param [in] key_len - the length of the previous param key
+   @param [in] info_len - the length of the previous param info
    @param [in] pkS - if cfg.pkS == NotPackaged pkS *must* be supplied here, otherwise it must be NULL
    @param [in] cfg - the configuration of the envelope secret and cleartext part
    @param [in] infos - various extra (unspecified) protocol information
@@ -224,7 +224,7 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t *key, const uint16_t key_len, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t *info, const uint16_t info_len, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Explicit User Authentication.
@@ -324,9 +324,9 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
    is run by the user, taking as input the context sec that was an
    output of the user running opaque_CreateRegistrationRequest(), and the
    output pub from the server of opaque_CreateRegistrationResponse().
-   The key parameter can be used as an extra contribution to the
+   The info parameter can be used as an extra contribution to the
    derivation of the rwdU by means of being used as a key to the final
-   hash, if not specified it uses the value specified by the rfc. The
+   hash. If not specified, it uses the value specified by the rfc. The
    result of this is the value rec which should be passed for the last
    step to the server.
 
@@ -334,10 +334,10 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
    should be sanitized after usage.
    @param [in] pub - response from the server running
    opaque_CreateRegistrationResponse()
-   @param [in] key - an value to be used as key during the final hashing
+   @param [in] info - a value to be used as a key during the final hashing
    of the OPRF, the rfc specifies this as 'RFCXXXX' but can be any other
    local secret amending the password typed in in the first step.
-   @param [in] key_len - the length of the previous param key
+   @param [in] info_len - the length of the previous param info
    @param [in] cfg - the configuration of the envelope secret and cleartext part
    @param [in] ids - if ids are to be packed in the envelope - as given by
    the cfg param
@@ -350,7 +350,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *info, const uint16_t info_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
 
 /**
    Final Registration step - server adds own info to the record to be stored.

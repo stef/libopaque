@@ -2,7 +2,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [master, ]
+    branches: [master]
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [master]
@@ -17,15 +17,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-      with:
-        # We must fetch at least the immediate parents so that if this is
-        # a pull request then we can checkout the head.
-        fetch-depth: 2
-
-    # If this run was triggered by a pull request event, then checkout
-    # the head of the pull request instead of the merge commit.
-    - run: git checkout HEAD^2
-      if: ${{ github.event_name == 'pull_request' }}
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -50,8 +41,8 @@ jobs:
        cd src
        git submodule update --init --recursive tests/munit
        sudo apt-get update
-       sudo apt-get install python libsodium-dev pkgconf
-       make bin libopaque.so tests/opaque
+       sudo apt-get install -y libsodium-dev pkgconf
+       make all test
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

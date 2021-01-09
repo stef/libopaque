@@ -324,7 +324,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
     return MUNIT_FAIL;
   }
 
-  printf("all ok\n");
+  printf("\n");
 
   return MUNIT_OK;
 }

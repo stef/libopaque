@@ -15,7 +15,7 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: libopaque.so tests
+all: libopaque.$(SOEXT) tests
 
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
 

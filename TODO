@@ -1,2 +1,4 @@
 * expose crypto_pwhash hardness params in the API
 * document API in the README
+* refactor: pwhash and hkdf could be added to prf_finalize
+* remove info (previously key) as a public parameter int he API

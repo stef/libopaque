@@ -35,6 +35,13 @@
 
 #define OPAQUE_HANDSHAKE_SECRETBYTES 32
 
+/**
+ * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
+ */
+static const uint8_t FINALIZE_INFO[] = "OPAQUE01";
+
+#define FINALIZE_INFO_LEN 8
+
 typedef struct {
   uint8_t skU[crypto_scalarmult_SCALARBYTES];
   uint8_t pkU[crypto_scalarmult_BYTES];
@@ -58,7 +65,7 @@ typedef struct {
 } __attribute((packed)) Opaque_UserSession;
 
 typedef struct {
-  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t M[crypto_core_ristretto255_BYTES];
@@ -76,7 +83,7 @@ typedef struct {
 } __attribute((packed)) Opaque_ServerSession;
 
 typedef struct {
-  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint16_t pwdU_len;
   uint8_t pwdU[];
 } Opaque_RegisterUserSec;
@@ -127,9 +134,40 @@ typedef struct {
   uint8_t data[1];
 } __attribute((packed)) CredentialExtension;
 
-static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
-                        const uint8_t *info, const uint16_t info_len,
-                        const uint8_t N[crypto_core_ristretto255_BYTES], uint8_t y[crypto_hash_sha512_BYTES]) {
+/**
+ * This function generates an OPRF private key.
+ *
+ * This is the KeyGen OPRF function defined in the RFC:
+ * > OPAQUE only requires an OPRF private key. We write (kU, _) = KeyGen() to denote
+ * > use of this function for generating secret key kU (and discarding the
+ * > corresponding public key).
+ *
+ * @param [out] kU - the per-user OPRF private key
+ */
+static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
+  crypto_core_ristretto255_scalar_random(kU);
+}
+
+/**
+ * This function computes the OPRF output using input x, N, and domain separation
+ * tag info.
+ *
+ * This is the Finalize OPRF function defined in the RFC.
+ *
+ * @param [in] x - a value used to compute OPRF (for OPAQUE, this is pwdU, the
+ * user's password)
+ * @param [in] x_len - the length of param x in bytes
+ * @param [in] N - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Unblind
+ * @param [in] info - a domain separation tag
+ * @param [in] info_len - the length of param info in bytes
+ * @param [out] y - an OPRF output
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
+                         const uint8_t N[crypto_core_ristretto255_BYTES],
+                         const uint8_t *info, const uint16_t info_len,
+                         uint8_t y[crypto_hash_sha512_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
@@ -141,9 +179,9 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
   }
   crypto_hash_sha512_init(&state);
   // pwd
-  uint16_t size=htons(pwdU_len);
+  uint16_t size=htons(x_len);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
-  crypto_hash_sha512_update(&state, pwdU, pwdU_len);
+  crypto_hash_sha512_update(&state, x, x_len);
   // H0_k
   size=htons(crypto_core_ristretto255_BYTES);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
@@ -167,7 +205,6 @@ static int prf_finalize(const uint8_t *pwdU, const uint16_t pwdU_len,
 
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                 const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
-                const uint8_t *info, const uint16_t info_len,
                 uint8_t y[crypto_hash_sha512_BYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
@@ -198,7 +235,8 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(N, sizeof N, "N");
 #endif
 
-  if(0!=prf_finalize(pwdU, pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(pwdU, pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, y)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -211,15 +249,30 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
   return 0;
 }
 
-// See https://libsodium.gitbook.io/doc/advanced/point-arithmetic/ristretto.
-static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_core_ristretto255_SCALARBYTES], uint8_t M[crypto_core_ristretto255_BYTES]) {
+/**
+ * This function converts input x into an element of the OPRF group, randomizes it
+ * by some scalar r, producing M, and outputs (r, M).
+ *
+ * This is the Blind OPRF function defined in the RFC.
+ *
+ * @param [in] x - the value to blind (for OPAQUE, this is pwdU, the user's
+ * password)
+ * @param [in] x_len - the length of param x in bytes
+ * @param [out] r - an OPRF scalar value used for randomization
+ * @param [out] M - a serialized OPRF group element, a byte array of fixed length,
+ * the blinded version of x, an input to oprf_Evaluate
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
+                      uint8_t r[crypto_core_ristretto255_SCALARBYTES],
+                      uint8_t M[crypto_core_ristretto255_BYTES]) {
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
   if(0!=sodium_mlock(h0,sizeof h0)) {
     return -1;
   }
-  crypto_hash_sha512(h0, pwdU, pwdU_len);
+  crypto_hash_sha512(h0, x, x_len);
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
@@ -247,6 +300,76 @@ static int blind(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t r[crypto_
 #ifdef TRACE
   dump(M, crypto_core_ristretto255_BYTES, "M");
 #endif
+  return 0;
+}
+
+/**
+ * This function evaluates input element M using private key k, yielding output
+ * element Z.
+ *
+ * This is the Evaluate OPRF function defined in the RFC.
+ *
+ * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
+ * key)
+ * @param [in] M - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
+ * password)
+ * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
+ * an input to oprf_Unblind
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
+                         const uint8_t M[crypto_core_ristretto255_BYTES],
+                         uint8_t Z[crypto_core_ristretto255_BYTES]) {
+  return crypto_scalarmult_ristretto255(Z, k, M);
+}
+
+/**
+ * This function removes random scalar r from Z, yielding output N.
+ *
+ * This is the Unblind OPRF function defined in the RFC.
+ *
+ * @param [in] r - an OPRF scalar value used for randomization in oprf_Blind
+ * @param [in] Z - a serialized OPRF group element, a byte array of fixed length,
+ * an output of oprf_Evaluate
+ * @param [out] N - a serialized OPRF group element with random scalar r removed,
+ * a byte array of fixed length, an input to oprf_Finalize
+ * @return The function returns 0 if everything is correct.
+ */
+static int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
+                        const uint8_t Z[crypto_core_ristretto255_BYTES],
+                        uint8_t N[crypto_core_ristretto255_BYTES]) {
+#ifdef TRACE
+  dump((uint8_t*) r, sizeof r, "r ");
+  dump((uint8_t*) Z, sizeof Z, "Z ");
+#endif
+
+  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
+  if(crypto_core_ristretto255_is_valid_point(Z) != 1) return -1;
+
+  // (b) Computes rw := H(pw, β^1/r );
+  // invert r = 1/r
+  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
+  if(-1==sodium_mlock(ir, sizeof ir)) return -1;
+  if (crypto_core_ristretto255_scalar_invert(ir, r) != 0) {
+    sodium_munlock(ir, sizeof ir);
+    return -1;
+  }
+#ifdef TRACE
+  dump((uint8_t*) ir, sizeof ir, "r^-1 ");
+#endif
+
+  // H0 = β^(1/r)
+  // beta^(1/r) = h(pwd)^k
+  if (crypto_scalarmult_ristretto255(N, ir, Z) != 0) {
+    sodium_munlock(ir, sizeof ir);
+    return -1;
+  }
+#ifdef TRACE
+  dump((uint8_t*) N, sizeof N, "N ");
+#endif
+
+  sodium_munlock(ir, sizeof ir);
   return 0;
 }
 
@@ -826,7 +949,6 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
 int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
-                    const uint8_t *info, const uint16_t info_len,
                     const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_PkgConfig *cfg,
                     const Opaque_Ids *ids,
@@ -851,12 +973,13 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(rec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(rec->kU);
 
   // rw := F_k_s (pw),
   uint8_t y[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(y,sizeof y)) return -1;
-  if(prf(pwdU, pwdU_len, rec->kU, info, info_len, y)!=0) {
+  if(prf(pwdU, pwdU_len, rec->kU, y)!=0) {
     sodium_munlock(y,sizeof y);
     return -1;
   }
@@ -962,7 +1085,8 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  if(0!=blind(pwdU, pwdU_len, sec->r, pub->M)) return -1;
+  // 1. (blind, M) = Blind(pwdU)
+  if(0!=oprf_Blind(pwdU, pwdU_len, sec->blind, pub->M)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
@@ -1030,7 +1154,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(resp->Z, rec->kU, pub->M) != 0) {
+  // 1. Z = Evaluate(DeserializeScalar(credentialFile.kU), request.data)
+  if (oprf_Evaluate(rec->kU, pub->M, resp->Z) != 0) {
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
@@ -1113,7 +1238,6 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 // (e) Outputs (sid, ssid, SK).
 int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
                               const uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/],
-                              const uint8_t *info, const uint16_t info_len,
                               const uint8_t pkS[crypto_scalarmult_BYTES],
                               const Opaque_PkgConfig *cfg,
                               const Opaque_App_Infos *infos,
@@ -1131,48 +1255,21 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
 #endif
 
-  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(resp->Z)!=1) return -1;
-
-  // (b) Computes rw := H(pw, β^1/r );
-  // r = 1/r
-  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
-  if(-1==sodium_mlock(ir,sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->r) != 0) {
-    sodium_munlock(ir,sizeof ir);
-    return -1;
-  }
-#ifdef TRACE
-  dump(sec->r,sizeof(sec->r), "session user finish r ");
-  dump(ir,sizeof(ir), "session user finish r^-1 ");
-#endif
-
-  // h0 = β^(1/r)
-  // beta^(1/r) = h(pwd)^k
   uint8_t N[crypto_core_ristretto255_BYTES];
-  if(-1==sodium_mlock(N,sizeof N)) {
-    sodium_munlock(ir,sizeof ir);
+  if(-1==sodium_mlock(N, sizeof N)) return -1;
+  // 1. N = Unblind(blind, response.data)
+  if(0!=oprf_Unblind(sec->blind, resp->Z, N)) {
+    sodium_munlock(N, sizeof N);
     return -1;
   }
-#ifdef TRACE
-  dump(resp->Z,sizeof(resp->Z), "session user finish Z ");
-#endif
-  if (crypto_scalarmult_ristretto255(N, ir, resp->Z) != 0) {
-    sodium_munlock(ir,sizeof ir);
-    sodium_munlock(N,sizeof N);
-    return -1;
-  }
-  sodium_munlock(ir,sizeof ir);
-#ifdef TRACE
-  dump(N,sizeof(N), "session user finish N ");
-#endif
 
   // rw = H(pw, β^(1/r))
   uint8_t y[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(y,sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
@@ -1321,7 +1418,8 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
   sec->pwdU_len = pwdU_len;
-  return blind(pwdU, pwdU_len, sec->r, M);
+  // 1. (blind, M) = Blind(pwdU)
+  return oprf_Blind(pwdU, pwdU_len, sec->blind, M);
 }
 
 // initUser: S
@@ -1338,10 +1436,12 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
   if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(sec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
+  // 2. Z = Evaluate(kU, request.data)
+  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
 #ifdef TRACE
@@ -1378,10 +1478,12 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
 
   // k_s ←_R Z_q
-  crypto_core_ristretto255_scalar_random(sec->kU);
+  // 1. (kU, _) = KeyGen()
+  oprf_KeyGen(sec->kU);
 
   // computes β := α^k_s
-  if (crypto_scalarmult_ristretto255(pub->Z, sec->kU, M) != 0) {
+  // 2. Z = Evaluate(kU, request.data)
+  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
 #ifdef TRACE
@@ -1405,7 +1507,6 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
 // called FinalizeRequest in the ietf cfrg rfc draft
 int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
-                                    const uint8_t *info, const uint16_t info_len, // contributes to the final rwdU calculation as a key to the hash
                                     const Opaque_PkgConfig *cfg,
                                     const Opaque_Ids *ids,
                                     uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
@@ -1423,40 +1524,20 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   memset(_rec,0,OPAQUE_USER_RECORD_LEN+envU_len);
 #endif
 
-  // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(pub->Z)!=1) return -1;
-
-  // (b) Computes rw := H(pw, β^1/r );
-  // invert r = 1/r
-  uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
-  if(-1==sodium_mlock(ir, sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->r) != 0) {
-    sodium_munlock(ir, sizeof ir);
-    return -1;
-  }
-
-  // H0 = β^(1/r)
-  // beta^(1/r) = h(pwd)^k
   uint8_t N[crypto_core_ristretto255_BYTES];
-  if(-1==sodium_mlock(N,sizeof N)) {
-    sodium_munlock(ir, sizeof ir);
-    return -1;
-  }
-  if (crypto_scalarmult_ristretto255(N, ir, pub->Z) != 0) {
-    sodium_munlock(ir, sizeof ir);
+  if(-1==sodium_mlock(N, sizeof N)) return -1;
+  // 1. N = Unblind(blind, response.data)
+  if(0!=oprf_Unblind(sec->blind, pub->Z, N)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }
-  sodium_munlock(ir, sizeof ir);
-#ifdef TRACE
-  dump((uint8_t*) N, sizeof N, "N ");
-#endif
 
   uint8_t y[crypto_hash_sha512_BYTES];
   if(-1==sodium_mlock(y, sizeof y)) {
     return -1;
   }
-  if(0!=prf_finalize(sec->pwdU, sec->pwdU_len, info, info_len, N, y)) {
+  // 2. y = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, y)) {
     sodium_munlock(N, sizeof N);
     return -1;
   }

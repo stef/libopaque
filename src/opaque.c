@@ -340,8 +340,8 @@ static int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                         const uint8_t Z[crypto_core_ristretto255_BYTES],
                         uint8_t N[crypto_core_ristretto255_BYTES]) {
 #ifdef TRACE
-  dump((uint8_t*) r, sizeof r, "r ");
-  dump((uint8_t*) Z, sizeof Z, "Z ");
+  dump((uint8_t*) r, crypto_core_ristretto255_SCALARBYTES, "r ");
+  dump((uint8_t*) Z, crypto_core_ristretto255_BYTES, "Z ");
 #endif
 
   // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
@@ -366,7 +366,7 @@ static int oprf_Unblind(const uint8_t r[crypto_core_ristretto255_SCALARBYTES],
     return -1;
   }
 #ifdef TRACE
-  dump((uint8_t*) N, sizeof N, "N ");
+  dump((uint8_t*) N, crypto_core_ristretto255_BYTES, "N ");
 #endif
 
   sodium_munlock(ir, sizeof ir);
@@ -1250,7 +1250,6 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 
 #ifdef TRACE
   dump(sec->pwdU,sec->pwdU_len, "session user finish pwdU ");
-  dump(info,info_len, "session user finish info ");
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN, "session user finish sec ");
   dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
 #endif

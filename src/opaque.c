@@ -58,7 +58,7 @@ typedef struct {
 } __attribute((packed)) Opaque_UserSession;
 
 typedef struct {
-  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t M[crypto_core_ristretto255_BYTES];
@@ -76,7 +76,7 @@ typedef struct {
 } __attribute((packed)) Opaque_ServerSession;
 
 typedef struct {
-  uint8_t r[crypto_core_ristretto255_SCALARBYTES];
+  uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint16_t pwdU_len;
   uint8_t pwdU[];
 } Opaque_RegisterUserSec;
@@ -962,7 +962,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  if(0!=blind(pwdU, pwdU_len, sec->r, pub->M)) return -1;
+  if(0!=blind(pwdU, pwdU_len, sec->blind, pub->M)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
@@ -1138,12 +1138,12 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   // r = 1/r
   uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
   if(-1==sodium_mlock(ir,sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->r) != 0) {
+  if (crypto_core_ristretto255_scalar_invert(ir, sec->blind) != 0) {
     sodium_munlock(ir,sizeof ir);
     return -1;
   }
 #ifdef TRACE
-  dump(sec->r,sizeof(sec->r), "session user finish r ");
+  dump(sec->blind,sizeof(sec->blind), "session user finish blind ");
   dump(ir,sizeof(ir), "session user finish r^-1 ");
 #endif
 
@@ -1321,7 +1321,7 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
   sec->pwdU_len = pwdU_len;
-  return blind(pwdU, pwdU_len, sec->r, M);
+  return blind(pwdU, pwdU_len, sec->blind, M);
 }
 
 // initUser: S
@@ -1430,7 +1430,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   // invert r = 1/r
   uint8_t ir[crypto_core_ristretto255_SCALARBYTES];
   if(-1==sodium_mlock(ir, sizeof ir)) return -1;
-  if (crypto_core_ristretto255_scalar_invert(ir, sec->r) != 0) {
+  if (crypto_core_ristretto255_scalar_invert(ir, sec->blind) != 0) {
     sodium_munlock(ir, sizeof ir);
     return -1;
   }

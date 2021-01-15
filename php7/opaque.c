@@ -112,20 +112,17 @@ PHP_FUNCTION(opaque_register) {
   char *idS;
   size_t idSlen;
 
-  char *key=NULL;
-  size_t keylen=0;
   char *sk=NULL;
   size_t sklen=0;
 
   zend_array *cfg_array;
 
-	ZEND_PARSE_PARAMETERS_START(4, 6)
+	ZEND_PARSE_PARAMETERS_START(4, 5)
 		Z_PARAM_STRING(pw, pwlen)
 		Z_PARAM_STRING(idU, idUlen)
 		Z_PARAM_STRING(idS, idSlen)
-        Z_PARAM_ARRAY_HT(cfg_array)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(key, keylen)
+      Z_PARAM_ARRAY_HT(cfg_array)
+	Z_PARAM_OPTIONAL
 		Z_PARAM_STRING(sk, sklen)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -146,7 +143,7 @@ PHP_FUNCTION(opaque_register) {
     const uint32_t env_len = get_env_len(&cfg, &ids);
     unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
 
-    if(0!=opaque_Register(pw, pwlen, key, keylen, sk, &cfg, &ids, rec, export_key)) return;
+    if(0!=opaque_Register(pw, pwlen, sk, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -246,18 +243,18 @@ PHP_FUNCTION(opaque_recover_credentials) {
   size_t resplen;
   char *sec;
   size_t seclen;
-  char *key=NULL;
-  size_t keylen=0;
+  char *pkS=NULL;
+  size_t pkSlen=0;
   zend_array *cfg_array;
   zend_array *infos_array=NULL;
 
-	ZEND_PARSE_PARAMETERS_START(3, 5)
+	ZEND_PARSE_PARAMETERS_START(3, 6)
 		Z_PARAM_STRING(resp, resplen)
 		Z_PARAM_STRING(sec, seclen)
-        Z_PARAM_ARRAY_HT(cfg_array)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(key, keylen)
-        Z_PARAM_ARRAY_HT(infos_array)
+      Z_PARAM_ARRAY_HT(cfg_array)
+   Z_PARAM_OPTIONAL
+      Z_PARAM_ARRAY_HT(infos_array)
+		Z_PARAM_STRING(pkS, pkSlen)
 	ZEND_PARSE_PARAMETERS_END();
 
     if(resplen<=OPAQUE_SERVER_SESSION_LEN) {
@@ -267,6 +264,11 @@ PHP_FUNCTION(opaque_recover_credentials) {
 
     if(seclen<=OPAQUE_USER_SESSION_SECRET_LEN) {
       php_error_docref(NULL, E_WARNING, "invalid sec param.");
+      return;
+    }
+
+    if(pkS && pkSlen!=crypto_scalarmult_BYTES) {
+      php_error_docref(NULL, E_WARNING, "invalid pkS param.");
       return;
     }
 
@@ -285,7 +287,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
     uint8_t authU[crypto_auth_hmacsha256_BYTES];
     uint8_t export_key[crypto_hash_sha256_BYTES];
 
-    if(0!=opaque_RecoverCredentials(resp, sec, key, keylen, &cfg, infos_p, &ids, sk, authU, export_key)) return;
+    if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids, sk, authU, export_key)) return;
 
     zend_array *ret = zend_new_array(5);
     zval zarr;
@@ -372,7 +374,6 @@ PHP_FUNCTION(opaque_create_registration_response) {
     }
 
     unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
-    printf("opaque_CreateRegistrationResponse\n");
     if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return;
 
     zend_array *ret = zend_new_array(2);
@@ -395,24 +396,21 @@ PHP_FUNCTION(opaque_finalize_request) {
   char *idS;
   size_t idSlen;
   zend_array *cfg_array;
-  char *key=NULL;
-  size_t keylen=0;
 
-	ZEND_PARSE_PARAMETERS_START(5, 6)
+	ZEND_PARSE_PARAMETERS_START(5, 5)
 		Z_PARAM_STRING(ctx, ctxlen)
 		Z_PARAM_STRING(rpub, rpublen)
 		Z_PARAM_STRING(idU, idUlen)
 		Z_PARAM_STRING(idS, idSlen)
-        Z_PARAM_ARRAY_HT(cfg_array)
-		Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(key, keylen)
+      Z_PARAM_ARRAY_HT(cfg_array)
+	Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
     if(ctxlen<=OPAQUE_REGISTER_USER_SEC_LEN) {
       php_error_docref(NULL, E_WARNING, "invalid ctx param.");
       return;
     }
-    if(rpublen<=OPAQUE_REGISTER_PUBLIC_LEN) {
+    if(rpublen!=OPAQUE_REGISTER_PUBLIC_LEN) {
       php_error_docref(NULL, E_WARNING, "invalid rpub param.");
       return;
     }
@@ -427,7 +425,7 @@ PHP_FUNCTION(opaque_finalize_request) {
     const uint32_t env_len = get_env_len(&cfg, &ids);
     unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
     uint8_t export_key[crypto_hash_sha256_BYTES];
-    if(0!=opaque_FinalizeRequest(ctx, rpub, key, keylen, &cfg, &ids, rec, export_key)) return;
+    if(0!=opaque_FinalizeRequest(ctx, rpub, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;

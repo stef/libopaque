@@ -25,7 +25,7 @@ infos=opaque.App_Infos()
 # password can be checked on the server for password rules
 # (e.g. occurence in common password lists), has the drawback that the
 # password is exposed to the server.
-rec, export_key0 = opaque.Register(pwd,cfg,ids,key=key)
+rec, export_key0 = opaque.Register(pwd,cfg,ids,skS=None)
 
 # user initiates a credential request
 pub, sec = opaque.CreateCredentialRequest(pwd)
@@ -34,7 +34,7 @@ pub, sec = opaque.CreateCredentialRequest(pwd)
 resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 
 # user recovers its credentials from the servers response
-sku, auth, export_key1, ids = opaque.RecoverCredentials(resp, sec, cfg, None, key=key)
+sku, auth, export_key1, ids = opaque.RecoverCredentials(resp, sec, cfg, None, pkS=None)
 
 # server authenticates user
 opaque.UserAuth(ctx, auth, None)
@@ -45,10 +45,12 @@ opaque.UserAuth(ctx, auth, None)
 ctx, alpha = opaque.CreateRegistrationRequest(pwd)
 
 # server responds to the registration request
+print("asdf")
 sec, pub = opaque.CreateRegistrationResponse(alpha)
+print("qwer")
 
 # user finalizes the registration using the response from the server
-rec, export_key3 = opaque.FinalizeRequest(ctx, pub, cfg, ids, key = key)
+rec, export_key3 = opaque.FinalizeRequest(ctx, pub, cfg, ids)
 
 # server finalizes the user record
 rec = opaque.StoreUserRecord(sec, rec)
@@ -60,7 +62,9 @@ pub, sec = opaque.CreateCredentialRequest(pwd)
 resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 
 # 3. user recovers its credentials from the server ressponse
-sku, auth, export_key4, ids = opaque.RecoverCredentials(resp, sec, cfg, None, key=key)
+sku, auth, export_key4, ids = opaque.RecoverCredentials(resp, sec, cfg, None, pkS=None)
 
 # 4. server authenicates user
 opaque.UserAuth(ctx, auth, None)
+
+print("test ok")

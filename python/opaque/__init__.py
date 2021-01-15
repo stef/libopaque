@@ -200,12 +200,7 @@ def get_envlen(cfg, ids):
 #
 #  @param [in] pw - the users password
 #  @param [in] pwlen - length of the users password
-#  @param [in] key - a key to be used for domain separation in the
-#       final hash of the OPRF. if set to NULL then the default is
-#       "RFCXXXX" - TODO set XXXX to the real value when the rfc is
-#       published.
-#  @param [in] key_len - length of the key, ignored if key is NULL
-#  @param [in] sk - in case of global server keys this is the servers
+#  @param [in] skS - in case of global server keys this is the servers
 #       private key, should be set to NULL if per/user keys are to be
 #       generated
 #  @param [in] cfg - configuration of the opaque envelope, see
@@ -220,8 +215,9 @@ def get_envlen(cfg, ids):
 #       protected) memory for an extra_key that can be used to
 #       encrypt/authenticate additional data.
 #  @return the function returns 0 if everything is correct
-#int opaque_Register(const uint8_t *pw, const uint16_t pwlen, const uint8_t *key, const uint16_t key_len, const uint8_t sk[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
-def Register(pwd, cfg, ids, key=None, sk=None):
+# int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+
+def Register(pwd, cfg, ids, skS=None):
     if not pwd:
         raise ValueError("invalid parameter")
 
@@ -230,7 +226,7 @@ def Register(pwd, cfg, ids, key=None, sk=None):
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+env_len)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
 
-    __check(opaquelib.opaque_Register(pwd, len(pwd), key, len(key) if key else 0, sk, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
+    __check(opaquelib.opaque_Register(pwd, len(pwd), skS, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
     return (rec.raw, export_key.raw)
 
 #  This function initiates a new OPAQUE session, is the same as the
@@ -314,8 +310,8 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
 #  @param [out] export_key - key used to encrypt/authenticate extra
 #  material not stored directly in the envelope
 #  @return the function returns 0 if the protocol is executed correctly
-#int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t auth[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
-def RecoverCredentials(resp, sec, cfg, infos, key=None):
+#int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+def RecoverCredentials(resp, sec, cfg, infos, pkS=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
     if len(resp) <= OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
@@ -331,7 +327,7 @@ def RecoverCredentials(resp, sec, cfg, infos, key=None):
     ids.idS = ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
     ids.idS_len=1024
 
-    __check(opaquelib.opaque_RecoverCredentials(resp, sec, key, len(key) if key else 0, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids), sk, auth, export_key))
+    __check(opaquelib.opaque_RecoverCredentials(resp, sec, pkS, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids), sk, auth, export_key))
     return sk.raw, auth.raw, export_key.raw, ids
 
 #  Explicit User Authentication.
@@ -373,17 +369,18 @@ def UserAuth(ctx, auth, infos):
 #  step 3 of this registration protocol and the value alpha should be
 #  passed to the server.
 #
-#  @param [in] pw - the users password
-#  @param [in] pwlen - length of the users password
-#  @param [out] ctx - a secret context needed for the 3rd step in this
+#  @param [in] pwdU - the users password
+#  @param [in] pwdU_len - length of the users password
+#  @param [out] sec - a secret context needed for the 3rd step in this
 #  registration protocol - this needs to be protected and sanitized
 #  after usage.
-#  @param [out] alpha - the blinded hashed password as per the OPRF,
+#  @param [out] M - the blinded hashed password as per the OPRF,
 #  this needs to be sent to the server together with any other
 #  important and implementation specific info such as user/client id,
 #  envelope configuration etc.
 #  @return the function returns 0 if everything is correct.
-# int opaque_CreateRegistrationRequest(const uint8_t *pw, const uint16_t pwlen, uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen], uint8_t *alpha);
+# int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]);
+
 def CreateRegistrationRequest(pwd):
     if not pwd:
         raise ValueError("invalid parameter")
@@ -402,12 +399,13 @@ def CreateRegistrationRequest(pwd):
 #  function also outputs a value pub which needs to be passed to the
 #  user.
 #
-#  @param [in] alpha - the blinded password as per the OPRF.
+#  @param [in] M - the blinded password as per the OPRF.
 #  @param [out] sec - the private key and the OPRF secret of the server.
 #  @param [out] pub - the evaluated OPRF and pubkey of the server to
 #  be passed to the client into opaque_private_init_usr_respond()
 #  @return the function returns 0 if everything is correct.
-#int opaque_CreateRegistrationResponse(const uint8_t *alpha, uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+#int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+
 def CreateRegistrationResponse(alpha):
     if not alpha:
         raise ValueError("invalid parameter")
@@ -417,13 +415,14 @@ def CreateRegistrationResponse(alpha):
     pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
     __check(opaquelib.opaque_CreateRegistrationResponse(alpha, sec, pub))
     return sec.raw, pub.raw
+
 #  This function is essentially the same as
 #  CreateRegistrationResponse(), except this function does not
 #  generate a per-user long-term key, but instead expects the servers
 #  to supply a long-term pubkey as a parameter, this might be one
 #  unique global key, or it might be a per-user key derived from a
 #  server secret.
-#int opaque_Create1kRegistrationResponse(const uint8_t *alpha, const uint8_t pk[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+#int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
 def Create1kRegistrationResponse(alpha, pk):
     if None in  (alpha, pk):
         raise ValueError("invalid parameter")
@@ -468,7 +467,9 @@ def Create1kRegistrationResponse(alpha, pk):
 #
 #  @return the function returns 0 if everything is correct.
 #int opaque_FinalizeRequest(const uint8_t *ctx, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const uint8_t *key, const uint16_t key_len, const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN], uint8_t export_key[crypto_hash_sha256_BYTES]);
-def FinalizeRequest(ctx, pub, cfg, ids, key=None):
+#int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+
+def FinalizeRequest(ctx, pub, cfg, ids):
     if None in (ctx, pub, cfg, ids):
         raise ValueError("invalid parameter")
     if len(pub) != OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pub param")
@@ -477,9 +478,8 @@ def FinalizeRequest(ctx, pub, cfg, ids, key=None):
     env_len = get_envlen(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+env_len)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
-    __check(opaquelib.opaque_FinalizeRequest(ctx, pub, key, len(key) if key else 0, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
+    __check(opaquelib.opaque_FinalizeRequest(ctx, pub, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
     return rec.raw, export_key.raw
-
 
 #  Final Registration step - server adds own info to the record to be stored.
 #

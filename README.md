@@ -75,5 +75,13 @@ To use these macros, specify the `DEFINES` Makefile variable when calling
 
 ```
 $ make DEFINES='-DTRACE -DNORANDOM' clean libopaque.so tests
-$ LD_LIBRARY_PATH=. ./tests/opaque
+$ LD_LIBRARY_PATH=. ./tests/opaque-test
+```
+
+As a shortcut, calling `make debug` also sets these variables. This code block
+is equivalent to the one above:
+
+```
+$ make clean debug
+$ LD_LIBRARY_PATH=. ./tests/opaque-test
 ```

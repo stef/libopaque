@@ -17,6 +17,9 @@ endif
 
 all: libopaque.$(SOEXT) tests
 
+debug: DEFINES=-DTRACE -DNORANDOM
+debug: all
+
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
@@ -54,4 +57,4 @@ clean:
 		tests/opaque-test \
 		tests/opaque-test.exe
 
-.PHONY: all clean install test
+.PHONY: all clean debug install test

@@ -172,26 +172,6 @@ class PkgConfig(ctypes.Structure):
                              # envelope
     ]
 
-#  helper function calculating the length of the two parts of the envelope
-#
-#  based on the config and the length of the id[U|S] returns the size
-#  for the SecEnv or the ClrEnv portion of the envelope
-#
-#  @param [in] cfg - the configuration of the envelope secret and cleartext part
-#  @param [in] ids - if ids are to be packed in the envelope - as given by
-#  the cfg param
-#  @param [in] type - InSecEnv|InClrEnv - calling with NotPackaged is useless
-#
-#  @return the function returns the size of the envelope part specified in the param type.
-#size_t package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type);
-def package_len(cfg, ids, type):
-    return opaquelib.opaque_package_len(ctypes.pointer(cfg), ctypes.pointer(ids), type)
-
-def get_envlen(cfg, ids):
-    ClrEnv_len = package_len(cfg, ids, InClrEnv)
-    SecEnv_len = package_len(cfg, ids, InSecEnv)
-    return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len
-
 #  This function implements the storePwdFile function from the paper
 #  it is not specified by the RFC. This function runs on the server
 #  and creates a new output record rec of secret key material. The
@@ -519,3 +499,23 @@ def Store1kUserRecord(sec, sk, rec):
 
     opaquelib.opaque_StoreUserRecord(sec, sk, rec)
     return rec
+
+#  helper function calculating the length of the two parts of the envelope
+#
+#  based on the config and the length of the id[U|S] returns the size
+#  for the SecEnv or the ClrEnv portion of the envelope
+#
+#  @param [in] cfg - the configuration of the envelope secret and cleartext part
+#  @param [in] ids - if ids are to be packed in the envelope - as given by
+#  the cfg param
+#  @param [in] type - InSecEnv|InClrEnv - calling with NotPackaged is useless
+#
+#  @return the function returns the size of the envelope part specified in the param type.
+#size_t package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type);
+def package_len(cfg, ids, type):
+    return opaquelib.opaque_package_len(ctypes.pointer(cfg), ctypes.pointer(ids), type)
+
+def get_envlen(cfg, ids):
+    ClrEnv_len = package_len(cfg, ids, InClrEnv)
+    SecEnv_len = package_len(cfg, ids, InSecEnv)
+    return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len

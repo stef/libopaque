@@ -1408,37 +1408,18 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // called CreateRegistrationResponse in the ietf cfrg rfc draft
 int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
-  Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
-
-  // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
-
-  // k_s ←_R Z_q
-  // 1. (kU, _) = KeyGen()
-  oprf_KeyGen(sec->kU);
-
-  // computes β := α^k_s
-  // 2. Z = Evaluate(kU, request.data)
-  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
-    return -1;
-  }
-#ifdef TRACE
-  dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
-#endif
-
   // p_s ←_R Z_q
   randombytes(sec->skS, crypto_scalarmult_SCALARBYTES); // random server long-term key
 #ifdef TRACE
   dump((uint8_t*) sec->skS, sizeof sec->skS, "skS ");
 #endif
-
+  uint8_t pkS[crypto_scalarmult_BYTES];
+  if(-1==sodium_mlock(pkS, sizeof pkS)) return -1;
   // P_s := g^p_s
-  crypto_scalarmult_base(pub->pkS, sec->skS);
-#ifdef TRACE
-  dump((uint8_t*) pub->pkS, sizeof pub->pkS, "pkS ");
-#endif
-
-  return 0;
+  crypto_scalarmult_base(pkS, sec->skS);
+  int result = opaque_Create1kRegistrationResponse(M, pkS, _sec, _pub);
+  sodium_munlock(pkS, sizeof pkS);
+  return result;
 }
 
 // same function as opaque_CreateRegistrationResponse() but does not generate a long-term server keypair
@@ -1572,14 +1553,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
 // called StoreUserRecord in the ietf cfrg rfc draft
 void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
-  Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
-
-  memcpy(rec->kU, sec->kU, sizeof rec->kU);
-  memcpy(rec->skS, sec->skS, sizeof rec->skS);
-  crypto_scalarmult_base(rec->pkS, rec->skS);
-#ifdef TRACE
-  dump((uint8_t*) rec, OPAQUE_USER_RECORD_LEN, "user rec ");
-#endif
+  return opaque_Store1kUserRecord(_sec, sec->skS, _rec);
 }
 
 void opaque_Store1kUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]) {

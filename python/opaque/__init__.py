@@ -295,10 +295,6 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
 #  @param [in] resp - the response sent from the server running opaque_session_srv()
 #  @param [in] sec - the private sec output of the client initiating
 #  this instantiation of this protocol using opaque_session_usr_start()
-#  @param [in] key - an value to be used as key during the final hashing
-#  of the OPRF, the rfc specifies this as 'RFCXXXX' but can be any other
-#  local secret amending the password typed in in the first step.
-#  @param [in] key_len - the length of the previous param key
 #  @param [in] cfg - the configuration of the envelope secret and cleartext part
 #  @param [in] infos - various extra (unspecified) protocol information
 #  as recommended by the rfc
@@ -451,10 +447,6 @@ def Create1kRegistrationResponse(alpha, pk):
 #  should be sanitized after usage.
 #  @param [in] pub - response from the server running
 #  opaque_private_init_srv_respond()
-#  @param [in] key - an value to be used as key during the final hashing
-#  of the OPRF, the rfc specifies this as 'RFCXXXX' but can be any other
-#  local secret amending the password typed in in the first step.
-#  @param [in] key_len - the length of the previous param key
 #  @param [in] cfg - the configuration of the envelope secret and cleartext part
 #  @param [in] ids - if ids are to be packed in the envelope - as given by
 #  the cfg param

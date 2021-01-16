@@ -61,8 +61,8 @@ OPAQUE_SERVER_SESSION_LEN = (
     crypto_auth_hmacsha256_BYTES+             # auth
     sizeof(c_uint32))                         # envU_len
 OPAQUE_REGISTER_USER_SEC_LEN = (
-    crypto_scalarmult_BYTES+                  # r
-    sizeof(c_size_t))                         # pwdU_len
+    crypto_core_ristretto255_SCALARBYTES+     # r
+    sizeof(c_uint16))                         # pwdU_len
 OPAQUE_REGISTER_PUBLIC_LEN = (
     crypto_core_ristretto255_BYTES+           # Z
     crypto_scalarmult_BYTES)                  # pkS

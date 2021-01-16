@@ -48,6 +48,11 @@ jobs:
        sudo apt-get install -y python3-pip
        pip3 install pysodium
        LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
+       cd ../../php7
+       sudo apt-get install -y php php-dev
+       phpize
+       LIBOPAQUE_CFLAGS='-I ../src' LIBOPAQUE_LIBS='-lopaque' ./configure
+       LD_LIBRARY_PATH=../src TEST_PHP_ARGS=-q make EXTRA_CFLAGS=-I../src EXTRA_LDFLAGS=-L../src test
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

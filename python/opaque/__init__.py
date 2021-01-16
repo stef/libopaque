@@ -201,7 +201,7 @@ def Register(pwd, cfg, ids, skS=None):
     if not pwd:
         raise ValueError("invalid parameter")
 
-    env_len = get_envlen(cfg, ids)
+    env_len = envelope_len(cfg, ids)
 
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+env_len)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
@@ -255,7 +255,7 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
     if len(pub) != OPAQUE_USER_SESSION_PUBLIC_LEN: raise ValueError("invalid pub param")
     if len(rec) <= OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
 
-    env_len = get_envlen(cfg, ids)
+    env_len = envelope_len(cfg, ids)
     resp = ctypes.create_string_buffer(OPAQUE_SERVER_SESSION_LEN+env_len)
     sk = ctypes.create_string_buffer(32)
     ctx = ctypes.create_string_buffer(OPAQUE_SERVER_AUTH_CTX_LEN)
@@ -447,7 +447,7 @@ def FinalizeRequest(ctx, pub, cfg, ids):
     if len(pub) != OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pub param")
     if len(ctx) <= OPAQUE_REGISTER_USER_SEC_LEN: raise ValueError("invalid ctx param")
 
-    env_len = get_envlen(cfg, ids)
+    env_len = envelope_len(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+env_len)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
     __check(opaquelib.opaque_FinalizeRequest(ctx, pub, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
@@ -527,7 +527,5 @@ def package_len(cfg, ids, type):
 #
 #  @return the function returns the size of the envelope.
 #size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids);
-def get_envlen(cfg, ids):
-    ClrEnv_len = package_len(cfg, ids, InClrEnv)
-    SecEnv_len = package_len(cfg, ids, InSecEnv)
-    return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len
+def envelope_len(cfg, ids):
+    return opaquelib.opaque_envelope_len(ctypes.pointer(cfg), ctypes.pointer(ids))

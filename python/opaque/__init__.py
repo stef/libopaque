@@ -60,15 +60,15 @@ OPAQUE_SERVER_SESSION_LEN = (
     OPAQUE_NONCE_BYTES+                       # nonceS
     crypto_auth_hmacsha256_BYTES+             # auth
     sizeof(c_uint32))                         # envU_len
+OPAQUE_REGISTER_USER_SEC_LEN = (
+    crypto_scalarmult_BYTES+                  # r
+    sizeof(c_size_t))                         # pwdU_len
 OPAQUE_REGISTER_PUBLIC_LEN = (
     crypto_core_ristretto255_BYTES+           # Z
     crypto_scalarmult_BYTES)                  # pkS
 OPAQUE_REGISTER_SECRET_LEN = (
     crypto_scalarmult_SCALARBYTES+            # skS
     crypto_core_ristretto255_SCALARBYTES)     # kU
-OPAQUE_REGISTER_USER_SEC_LEN = (
-    crypto_scalarmult_BYTES+                  # r
-    sizeof(c_size_t))                         # pwdU_len
 OPAQUE_SERVER_AUTH_CTX_LEN = (
     crypto_auth_hmacsha256_KEYBYTES +         # km3
     crypto_hash_sha256_STATEBYTES)            # xcript_state

@@ -1,5 +1,5 @@
 --TEST--
-opaque_test6() Basic test
+opaque_test2() Basic test
 --SKIPIF--
 <?php
 if (!extension_loaded('opaque')) {

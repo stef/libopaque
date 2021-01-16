@@ -17,10 +17,13 @@ endif
 
 all: libopaque.$(SOEXT) tests
 
+debug: DEFINES=-DTRACE -DNORANDOM
+debug: all
+
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared $(CFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS)
+	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS)
 
 tests/opaque-test$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
 	$(CC) $(CFLAGS) -o tests/opaque-test$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)
@@ -54,4 +57,4 @@ clean:
 		tests/opaque-test \
 		tests/opaque-test.exe
 
-.PHONY: all clean install test
+.PHONY: all clean debug install test

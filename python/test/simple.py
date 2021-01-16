@@ -3,7 +3,6 @@
 import opaque
 
 pwd=b"simple guessable dictionary password"
-key=b"some optional key contributed to the opaque protocol"
 
 # wrap the IDs into an opaque.Ids struct:
 ids=opaque.Ids("user", "server")
@@ -45,9 +44,7 @@ opaque.UserAuth(ctx, auth, None)
 ctx, alpha = opaque.CreateRegistrationRequest(pwd)
 
 # server responds to the registration request
-print("asdf")
 sec, pub = opaque.CreateRegistrationResponse(alpha)
-print("qwer")
 
 # user finalizes the registration using the response from the server
 rec, export_key3 = opaque.FinalizeRequest(ctx, pub, cfg, ids)

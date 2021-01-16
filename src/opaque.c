@@ -38,9 +38,9 @@
 /**
  * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
  */
-static const uint8_t FINALIZE_INFO[] = "OPAQUE01";
+static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
 
-#define FINALIZE_INFO_LEN 8
+#define OPAQUE_FINALIZE_INFO_LEN 8
 
 typedef struct {
   uint8_t skU[crypto_scalarmult_SCALARBYTES];
@@ -262,7 +262,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // 2. rwdU = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(pwdU, pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(pwdU, pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -1271,7 +1271,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
     return -1;
   }
   // 2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU,sizeof rwdU);
     return -1;
@@ -1497,7 +1497,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
     return -1;
   }
   // 2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, FINALIZE_INFO, FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU, sizeof(rwdU));
     return -1;

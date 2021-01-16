@@ -39,39 +39,39 @@ else:
 OPAQUE_NONCE_BYTES = 32
 OPAQUE_ENVELOPE_META_LEN = (2*crypto_hash_sha256_BYTES + 2*sizeof(c_uint16))
 OPAQUE_USER_RECORD_LEN = (
-    crypto_core_ristretto255_SCALARBYTES+     # k_s
-    crypto_scalarmult_SCALARBYTES+            # p_s
-    crypto_scalarmult_BYTES+                  # P_u
-    crypto_scalarmult_BYTES+                  # P_s
-    sizeof(c_uint32))                         # env_len
+    crypto_core_ristretto255_SCALARBYTES+     # kU
+    crypto_scalarmult_SCALARBYTES+            # skS
+    crypto_scalarmult_BYTES+                  # pkU
+    crypto_scalarmult_BYTES+                  # pkS
+    sizeof(c_uint32))                         # envU_len
 OPAQUE_USER_SESSION_PUBLIC_LEN = (
-    crypto_core_ristretto255_BYTES+           # alpha
+    crypto_core_ristretto255_BYTES+           # M
     crypto_scalarmult_BYTES+                  # X_u
     OPAQUE_NONCE_BYTES)                       # nonceU
 OPAQUE_USER_SESSION_SECRET_LEN = (
     crypto_core_ristretto255_SCALARBYTES+     # r
     crypto_scalarmult_SCALARBYTES+            # x_u
     OPAQUE_NONCE_BYTES+                       # nonceU
-    crypto_core_ristretto255_BYTES+           # alpha
-    sizeof(c_uint16))                         # pw_len
+    crypto_core_ristretto255_BYTES+           # M
+    sizeof(c_uint16))                         # pwdU_len
 OPAQUE_SERVER_SESSION_LEN = (
-    crypto_core_ristretto255_BYTES+           # beta
+    crypto_core_ristretto255_BYTES+           # Z
     crypto_scalarmult_BYTES+                  # X_s
     OPAQUE_NONCE_BYTES+                       # nonceS
     crypto_auth_hmacsha256_BYTES+             # auth
-    sizeof(c_uint32))                         # env_len
+    sizeof(c_uint32))                         # envU_len
 OPAQUE_REGISTER_PUBLIC_LEN = (
-    crypto_core_ristretto255_BYTES+           # beta
-    crypto_scalarmult_BYTES)                  # P_s
+    crypto_core_ristretto255_BYTES+           # Z
+    crypto_scalarmult_BYTES)                  # pkS
 OPAQUE_REGISTER_SECRET_LEN = (
-    crypto_scalarmult_SCALARBYTES+            # p_s
-    crypto_core_ristretto255_SCALARBYTES)     # k_s
+    crypto_scalarmult_SCALARBYTES+            # skS
+    crypto_core_ristretto255_SCALARBYTES)     # kU
 OPAQUE_REGISTER_USER_SEC_LEN = (
     crypto_scalarmult_BYTES+                  # r
-    sizeof(c_size_t))
+    sizeof(c_size_t))                         # pwdU_len
 OPAQUE_SERVER_AUTH_CTX_LEN = (
-    crypto_auth_hmacsha256_KEYBYTES +
-    crypto_hash_sha256_STATEBYTES)
+    crypto_auth_hmacsha256_KEYBYTES +         # km3
+    crypto_hash_sha256_STATEBYTES)            # xcript_state
 
 def __check(code):
     if code != 0:

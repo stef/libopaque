@@ -21,13 +21,13 @@
    /* envU_len */ sizeof(uint32_t))
 
 #define OPAQUE_USER_SESSION_PUBLIC_LEN (               \
-   /* M */  crypto_core_ristretto255_BYTES+            \
-   /* X_u */    crypto_scalarmult_BYTES+               \
+   /* M */ crypto_core_ristretto255_BYTES+             \
+   /* X_u */ crypto_scalarmult_BYTES+                  \
    /* nonceU */ OPAQUE_NONCE_BYTES)
 
 #define OPAQUE_USER_SESSION_SECRET_LEN (               \
-   /* r */      crypto_core_ristretto255_SCALARBYTES+  \
-   /* x_u */    crypto_scalarmult_SCALARBYTES+         \
+   /* r */ crypto_core_ristretto255_SCALARBYTES+       \
+   /* x_u */ crypto_scalarmult_SCALARBYTES+            \
    /* nonceU */ OPAQUE_NONCE_BYTES+                    \
    /* M */  crypto_core_ristretto255_BYTES+            \
    /* pwdU_len */ sizeof(uint16_t))
@@ -41,7 +41,7 @@
 
 #define OPAQUE_REGISTER_USER_SEC_LEN (                 \
    /* r */ crypto_core_ristretto255_SCALARBYTES+       \
-   /* pwdU_len */ sizeof(uint16_t))                    \
+   /* pwdU_len */ sizeof(uint16_t))
 
 #define OPAQUE_REGISTER_PUBLIC_LEN (                   \
    /* Z */ crypto_core_ristretto255_BYTES+             \
@@ -51,9 +51,9 @@
    /* skS */ crypto_scalarmult_SCALARBYTES+            \
    /* kU */ crypto_core_ristretto255_SCALARBYTES)
 
-#define OPAQUE_SERVER_AUTH_CTX_LEN ( \
-  crypto_auth_hmacsha256_KEYBYTES +  \
-  sizeof(crypto_hash_sha256_state))
+#define OPAQUE_SERVER_AUTH_CTX_LEN (                   \
+   /* km3 */ crypto_auth_hmacsha256_KEYBYTES+          \
+   /* xcript_state */ sizeof(crypto_hash_sha256_state))
 
 /**
    struct to store the IDs of the user/server.

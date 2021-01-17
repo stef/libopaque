@@ -84,7 +84,7 @@ class Ids(ctypes.Structure):
                 ('idS_len', c_uint16),              # length of idS, needed for binary ids
                 ('idS', ctypes.c_char_p)]           # pointer to the id of the server in the opaque protocol
 
-    def __init__(self, ids=None, idu=None):
+    def __init__(self, idu=None, ids=None):
         super().__init__()
         if idu:
             self.idU=idu.encode("utf8")
@@ -290,7 +290,7 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
 #  material not stored directly in the envelope
 #  @return the function returns 0 if the protocol is executed correctly
 #int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
-def RecoverCredentials(resp, sec, cfg, infos, pkS=None):
+def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
     if len(resp) <= OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
@@ -300,14 +300,34 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None):
     authU = ctypes.create_string_buffer(crypto_auth_hmacsha256_BYTES)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
 
-    ids = Ids()
-    ids.idU = ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
-    ids.idU_len=1024
-    ids.idS = ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
-    ids.idS_len=1024
+    if cfg.pkS == NotPackaged and not pkS:
+        raise ValueError("pkS cannot be None if cfg.pkS is NotPackaged.")
 
-    __check(opaquelib.opaque_RecoverCredentials(resp, sec, pkS, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids), sk, authU, export_key))
-    return sk.raw, authU.raw, export_key.raw, ids
+    ids1 = Ids()
+    if cfg.idU == NotPackaged:
+        if not ids:
+            raise ValueError("ids cannot be None if cfg.idU is NotPackaged.")
+        if not ids.idU:
+            raise ValueError("ids.idU cannot be None if cfg.idU is NotPackaged.")
+        ids1.idU=ids.idU
+        ids1.idU_len=ids.idU_len
+    else:
+        ids1.idU=ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
+        ids1.idU_len=1024
+
+    if cfg.idS == NotPackaged:
+        if not ids:
+            raise ValueError("ids cannot be None if cfg.idS is NotPackaged.")
+        if not ids.idS:
+            raise ValueError("ids.idU cannot be None if cfg.idS is NotPackaged.")
+        ids1.idS=ids.idS
+        ids1.idS_len=ids.idS_len
+    else:
+        ids1.idS=ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
+        ids1.idS_len=1024
+
+    __check(opaquelib.opaque_RecoverCredentials(resp, sec, pkS, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids1), sk, authU, export_key))
+    return sk.raw, authU.raw, export_key.raw, ids1
 
 #  Explicit User Authentication.
 #
@@ -414,7 +434,7 @@ def Create1kRegistrationResponse(M, pkS):
     if None in  (M, pkS):
         raise ValueError("invalid parameter")
     if len(M) != 32: raise ValueError("invalid M param")
-    if len(pkS) != pkS: raise ValueError("invalid pkS param")
+    if len(pkS) != crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_SECRET_LEN)
     pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
@@ -522,7 +542,7 @@ def Store1kUserRecord(sec, skS, rec):
     if len(skS) != crypto_scalarmult_SCALARBYTES: raise ValueError("invalid skS param")
     if len(rec) <= OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
 
-    opaquelib.opaque_StoreUserRecord(sec, skS, rec)
+    opaquelib.opaque_Store1kUserRecord(sec, skS, rec)
     return rec
 
 #  This helper function calculates the length of one part, either the secret

@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+import ctypes
 import opaque
+import pysodium
+from pysodium import (crypto_scalarmult_BYTES, crypto_scalarmult_SCALARBYTES)
 
 pwdU=b"simple guessable dictionary password"
 
@@ -73,5 +76,39 @@ assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the regis
 assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
 assert export_key==export_key1, "export_key must equal export_key1."
 assert sk==sk1, "sk must equal sk1."
+
+def register_with_global_server_key():
+    pwdU=b"simple guessable dictionary password"
+    cfg=opaque.PkgConfig()
+    cfg.skU=opaque.NotPackaged
+    cfg.pkU=opaque.NotPackaged
+    cfg.pkS=opaque.NotPackaged
+    cfg.idU=opaque.NotPackaged
+    cfg.idS=opaque.NotPackaged
+    ids=opaque.Ids("user", "server")
+    infos=opaque.App_Infos()
+    skS=pysodium.randombytes(crypto_scalarmult_SCALARBYTES);
+    # Uncomment the following if you compiled libopaque with -DNORANDOM -DTRACE and
+    # want the same output as register_with_global_server_key in
+    # src/tests/opaque-test.c. Also see a_randombytes in src/common.c.
+    #skS=ctypes.create_string_buffer(crypto_scalarmult_SCALARBYTES)
+    #for i in range(0, 32):
+    #    ctypes.memset(ctypes.addressof(skS) + i, i, 1)
+    pkS=pysodium.crypto_scalarmult_curve25519_base(skS);
+
+    secU, M = opaque.CreateRegistrationRequest(pwdU)
+    secS, pub = opaque.Create1kRegistrationResponse(M, pkS)
+    rec, export_key = opaque.FinalizeRequest(secU, pub, cfg, ids)
+    rec = opaque.Store1kUserRecord(secS, skS, rec)
+    pub, secU = opaque.CreateCredentialRequest(pwdU)
+    resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
+    sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS, ids)
+    opaque.UserAuth(secS, authU, None)
+    assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
+    assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
+    assert export_key==export_key1, "export_key must equal export_key1."
+    assert sk==sk1, "sk must equal sk1."
+
+register_with_global_server_key()
 
 print("test ok")

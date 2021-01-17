@@ -290,21 +290,21 @@ PHP_FUNCTION(opaque_recover_credentials) {
 }
 
 PHP_FUNCTION(opaque_user_auth) {
-  char *ctx;
-  size_t ctx_len;
+  char *sec;
+  size_t sec_len;
   char *authU;
   size_t authU_len;
   zend_array *infos_array=NULL;
 
 	ZEND_PARSE_PARAMETERS_START(2, 3)
-		Z_PARAM_STRING(ctx, ctx_len)
+		Z_PARAM_STRING(sec, sec_len)
 		Z_PARAM_STRING(authU, authU_len)
 		Z_PARAM_OPTIONAL
         Z_PARAM_ARRAY_HT(infos_array)
 	ZEND_PARSE_PARAMETERS_END();
 
-    if(ctx_len!=OPAQUE_SERVER_AUTH_CTX_LEN) {
-      php_error_docref(NULL, E_WARNING, "invalid ctx param.");
+    if(sec_len!=OPAQUE_SERVER_AUTH_CTX_LEN) {
+      php_error_docref(NULL, E_WARNING, "invalid sec param.");
       return;
     }
     if(authU_len!=crypto_auth_hmacsha256_BYTES) {
@@ -316,7 +316,7 @@ PHP_FUNCTION(opaque_user_auth) {
 
     zval zbool;
 
-    if(0!=opaque_UserAuth(ctx, authU, infos_p))
+    if(0!=opaque_UserAuth(sec, authU, infos_p))
       RETURN_FALSE;
     RETURN_TRUE;
 }
@@ -504,7 +504,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_recover_credentials, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_user_auth, 0)
-	ZEND_ARG_INFO(0, ctx)
+	ZEND_ARG_INFO(0, sec)
 	ZEND_ARG_INFO(0, authU)
 	ZEND_ARG_INFO(0, infos_array)
 ZEND_END_ARG_INFO()

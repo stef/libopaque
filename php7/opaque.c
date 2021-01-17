@@ -93,12 +93,9 @@ static Opaque_App_Infos * get_infos(Opaque_App_Infos *infos, const zend_array *i
   return ret;
 }
 
-/* {{{ string opaque_register( [ string $var ] )
- */
+/* {{{ */
+
 PHP_FUNCTION(opaque_register) {
-
-  // register user
-
   char *pw;
   size_t pwlen;
   char *idU;
@@ -149,7 +146,6 @@ PHP_FUNCTION(opaque_register) {
 }
 
 PHP_FUNCTION(opaque_create_credential_request) {
-  // create credential request
   char *pw;
   size_t pwlen;
 
@@ -172,7 +168,6 @@ PHP_FUNCTION(opaque_create_credential_request) {
 }
 
 PHP_FUNCTION(opaque_create_credential_response) {
-  // create credential request
   char *pub;
   size_t publen;
   char *rec;
@@ -232,7 +227,6 @@ PHP_FUNCTION(opaque_create_credential_response) {
 }
 
 PHP_FUNCTION(opaque_recover_credentials) {
-  // create credential request
   char *resp;
   size_t resplen;
   char *sec;
@@ -296,7 +290,6 @@ PHP_FUNCTION(opaque_recover_credentials) {
 }
 
 PHP_FUNCTION(opaque_user_auth) {
-  // create credential request
   char *ctx;
   size_t ctxlen;
   char *authU;
@@ -329,7 +322,6 @@ PHP_FUNCTION(opaque_user_auth) {
 }
 
 PHP_FUNCTION(opaque_create_registration_request) {
-  // register user
   char *pw;
   size_t pwlen;
 
@@ -353,7 +345,6 @@ PHP_FUNCTION(opaque_create_registration_request) {
 }
 
 PHP_FUNCTION(opaque_create_registration_response) {
-  // register user
   char *alpha;
   size_t alphalen;
 
@@ -380,7 +371,6 @@ PHP_FUNCTION(opaque_create_registration_response) {
 }
 
 PHP_FUNCTION(opaque_finalize_request) {
-  // create credential request
   char *ctx;
   size_t ctxlen;
   char *rpub;
@@ -431,7 +421,6 @@ PHP_FUNCTION(opaque_finalize_request) {
 }
 
 PHP_FUNCTION(opaque_store_user_record) {
-  // register user
   char *rsec;
   size_t rseclen;
   char *rec;
@@ -459,7 +448,7 @@ PHP_FUNCTION(opaque_store_user_record) {
     RETURN_STR(retval);
 }
 
-/* }}}*/
+/* }}} */
 
 /* {{{ PHP_RINIT_FUNCTION
  */

@@ -1,5 +1,5 @@
 --TEST--
-opaque_test2() Basic test
+opaque_test2() One-step Registration
 --SKIPIF--
 <?php
 if (!extension_loaded('opaque')) {

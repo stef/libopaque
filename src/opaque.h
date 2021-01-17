@@ -183,7 +183,6 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    set to NULL
    @return the function returns 0 if everything is correct
  */
-
 int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], uint8_t *sk, uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
 
 /**
@@ -315,11 +314,6 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
    is run by the user, taking as input the context sec that was an
    output of the user running opaque_CreateRegistrationRequest(), and the
    output pub from the server of opaque_CreateRegistrationResponse().
-   The info parameter can be used as an extra contribution to the
-   derivation of the rwdU by means of being used as a key to the final
-   hash. If not specified, it uses the value specified by the rfc. The
-   result of this is the value rec which should be passed for the last
-   step to the server.
 
    @param [in] sec - output from opaque_CreateRegistrationRequest(),
    should be sanitized after usage.

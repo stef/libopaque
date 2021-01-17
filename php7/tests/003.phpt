@@ -27,11 +27,15 @@ $resp=$r[0];
 $sk=$r[1];
 $ctx=$r[2];
 $r=opaque_recover_credentials($resp, $sec, $cfg);
-$sk=$r[0];
+$sk1=$r[0];
 $authU=$r[1];
-$export_key=$r[2];
+$export_key1=$r[2];
 $idU=$r[3];
 $idS=$r[4];
+assert("user" == $idU);
+assert("server" == $idS);
+assert($export_key == $export_key1);
+assert($sk == $sk1);
 var_dump(opaque_user_auth($ctx, $authU));
 ?>
 --EXPECT--

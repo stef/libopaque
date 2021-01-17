@@ -103,8 +103,8 @@ PHP_FUNCTION(opaque_register) {
   char *idS;
   size_t idS_len;
 
-  char *sk=NULL;
-  size_t sk_len=0;
+  char *skS=NULL;
+  size_t skS_len=0;
 
   zend_array *cfg_array;
 
@@ -114,7 +114,7 @@ PHP_FUNCTION(opaque_register) {
 		Z_PARAM_STRING(idS, idS_len)
       Z_PARAM_ARRAY_HT(cfg_array)
 	Z_PARAM_OPTIONAL
-		Z_PARAM_STRING(sk, sk_len)
+		Z_PARAM_STRING(skS, skS_len)
 	ZEND_PARSE_PARAMETERS_END();
 
     Opaque_Ids ids={.idU_len=idU_len,.idU=idU,.idS_len=idS_len,.idS=idS};
@@ -125,8 +125,8 @@ PHP_FUNCTION(opaque_register) {
       return;
     }
 
-    if(sk!=NULL && sk_len!=crypto_scalarmult_SCALARBYTES) {
-      php_error_docref(NULL, E_WARNING, "invalid sk size, must be 32B.");
+    if(skS!=NULL && skS_len!=crypto_scalarmult_SCALARBYTES) {
+      php_error_docref(NULL, E_WARNING, "invalid skS size, must be 32B.");
       return;
     }
 
@@ -134,7 +134,7 @@ PHP_FUNCTION(opaque_register) {
     const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
 
-    if(0!=opaque_Register(pwdU, pwdU_len, sk, &cfg, &ids, rec, export_key)) return;
+    if(0!=opaque_Register(pwdU, pwdU_len, skS, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -479,7 +479,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_register, 0)
 	ZEND_ARG_INFO(0, idU)
 	ZEND_ARG_INFO(0, idS)
 	ZEND_ARG_INFO(0, cfg_array)
-	ZEND_ARG_INFO(0, sk)
+	ZEND_ARG_INFO(0, skS)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_credential_request, 0)

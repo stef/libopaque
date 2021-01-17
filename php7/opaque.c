@@ -236,7 +236,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
   zend_array *cfg_array;
   zend_array *infos_array=NULL;
 
-	ZEND_PARSE_PARAMETERS_START(3, 6)
+	ZEND_PARSE_PARAMETERS_START(3, 5)
 		Z_PARAM_STRING(resp, resp_len)
 		Z_PARAM_STRING(sec, sec_len)
       Z_PARAM_ARRAY_HT(cfg_array)
@@ -500,6 +500,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_recover_credentials, 0)
 	ZEND_ARG_INFO(0, sec)
 	ZEND_ARG_INFO(0, cfg_array)
 	ZEND_ARG_INFO(0, infos_array)
+	ZEND_ARG_INFO(0, pkS)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_user_auth, 0)

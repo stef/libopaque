@@ -371,10 +371,10 @@ PHP_FUNCTION(opaque_create_registration_response) {
 }
 
 PHP_FUNCTION(opaque_finalize_request) {
-  char *ctx;
-  size_t ctx_len;
-  char *rpub;
-  size_t rpub_len;
+  char *sec;
+  size_t sec_len;
+  char *pub;
+  size_t pub_len;
   char *idU;
   size_t idU_len;
   char *idS;
@@ -382,20 +382,20 @@ PHP_FUNCTION(opaque_finalize_request) {
   zend_array *cfg_array;
 
 	ZEND_PARSE_PARAMETERS_START(5, 5)
-		Z_PARAM_STRING(ctx, ctx_len)
-		Z_PARAM_STRING(rpub, rpub_len)
+		Z_PARAM_STRING(sec, sec_len)
+		Z_PARAM_STRING(pub, pub_len)
 		Z_PARAM_STRING(idU, idU_len)
 		Z_PARAM_STRING(idS, idS_len)
       Z_PARAM_ARRAY_HT(cfg_array)
 	Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    if(ctx_len<=OPAQUE_REGISTER_USER_SEC_LEN) {
-      php_error_docref(NULL, E_WARNING, "invalid ctx param.");
+    if(sec_len<=OPAQUE_REGISTER_USER_SEC_LEN) {
+      php_error_docref(NULL, E_WARNING, "invalid sec param.");
       return;
     }
-    if(rpub_len!=OPAQUE_REGISTER_PUBLIC_LEN) {
-      php_error_docref(NULL, E_WARNING, "invalid rpub param.");
+    if(pub_len!=OPAQUE_REGISTER_PUBLIC_LEN) {
+      php_error_docref(NULL, E_WARNING, "invalid pub param.");
       return;
     }
 
@@ -409,7 +409,7 @@ PHP_FUNCTION(opaque_finalize_request) {
     const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
     uint8_t export_key[crypto_hash_sha256_BYTES];
-    if(0!=opaque_FinalizeRequest(ctx, rpub, &cfg, &ids, rec, export_key)) return;
+    if(0!=opaque_FinalizeRequest(sec, pub, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -518,8 +518,8 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_response, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_finalize_request, 0)
-	ZEND_ARG_INFO(0, ctx)
-	ZEND_ARG_INFO(0, rpub)
+	ZEND_ARG_INFO(0, sec)
+	ZEND_ARG_INFO(0, pub)
 	ZEND_ARG_INFO(0, idU)
 	ZEND_ARG_INFO(0, idS)
 	ZEND_ARG_INFO(0, cfg_array)

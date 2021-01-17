@@ -9,13 +9,13 @@ if (!extension_loaded('opaque')) {
 --FILE--
 <?php
 $r=opaque_create_registration_request("simple guessable dictionary password");
-$alpha = $r[0];
-$ctx = $r[1];
-$r=opaque_create_registration_response($alpha);
+$M = $r[0];
+$secU = $r[1];
+$r=opaque_create_registration_response($M);
 $rsec = $r[0];
 $rpub = $r[1];
 $cfg = [opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv];
-$r=opaque_finalize_request($ctx, $rpub, "user", "server", $cfg);
+$r=opaque_finalize_request($secU, $rpub, "user", "server", $cfg);
 $rrec = $r[0];
 $export_key = $r[1];
 $rec = opaque_store_user_record($rsec, $rrec);

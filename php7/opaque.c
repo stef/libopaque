@@ -330,16 +330,16 @@ PHP_FUNCTION(opaque_create_registration_request) {
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    uint8_t alpha[crypto_core_ristretto255_BYTES];
-    uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
+    uint8_t M[crypto_core_ristretto255_BYTES];
+    uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
 
-    if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, ctx, alpha)) return;
+    if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, sec, M)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
     ZVAL_ARR(&zarr, ret);
-    add_next_index_stringl(&zarr,alpha, sizeof(alpha));
-    add_next_index_stringl(&zarr,ctx, sizeof(ctx));       // sensitive
+    add_next_index_stringl(&zarr,M, sizeof(M));
+    add_next_index_stringl(&zarr,sec, sizeof(sec));       // sensitive
 
     RETVAL_ARR(ret);
 }

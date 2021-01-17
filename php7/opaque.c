@@ -421,20 +421,20 @@ PHP_FUNCTION(opaque_finalize_request) {
 }
 
 PHP_FUNCTION(opaque_store_user_record) {
-  char *rsec;
-  size_t rsec_len;
+  char *sec;
+  size_t sec_len;
   char *rec;
   size_t rec_len;
   zend_string *retval;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
-		Z_PARAM_STRING(rsec, rsec_len)
+		Z_PARAM_STRING(sec, sec_len)
 		Z_PARAM_STRING(rec, rec_len)
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    if(rsec_len!=OPAQUE_REGISTER_SECRET_LEN) {
-      php_error_docref(NULL, E_WARNING, "invalid rsec param.");
+    if(sec_len!=OPAQUE_REGISTER_SECRET_LEN) {
+      php_error_docref(NULL, E_WARNING, "invalid sec param.");
       return;
     }
     if(rec_len<=OPAQUE_USER_RECORD_LEN) {
@@ -442,7 +442,7 @@ PHP_FUNCTION(opaque_store_user_record) {
       return;
     }
 
-    opaque_StoreUserRecord(rsec, rec);
+    opaque_StoreUserRecord(sec, rec);
 
     retval = zend_string_init(rec, rec_len, 0);
     RETURN_STR(retval);
@@ -526,8 +526,8 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_finalize_request, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_store_user_record, 0)
-	ZEND_ARG_INFO(0, rsec)
-	ZEND_ARG_INFO(0, rrec)
+	ZEND_ARG_INFO(0, sec)
+	ZEND_ARG_INFO(0, rec)
 ZEND_END_ARG_INFO()
 /* }}} */
 

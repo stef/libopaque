@@ -96,8 +96,8 @@ static Opaque_App_Infos * get_infos(Opaque_App_Infos *infos, const zend_array *i
 /* {{{ */
 
 PHP_FUNCTION(opaque_register) {
-  char *pw;
-  size_t pwlen;
+  char *pwdU;
+  size_t pwdU_len;
   char *idU;
   size_t idUlen;
   char *idS;
@@ -109,7 +109,7 @@ PHP_FUNCTION(opaque_register) {
   zend_array *cfg_array;
 
 	ZEND_PARSE_PARAMETERS_START(4, 5)
-		Z_PARAM_STRING(pw, pwlen)
+		Z_PARAM_STRING(pwdU, pwdU_len)
 		Z_PARAM_STRING(idU, idUlen)
 		Z_PARAM_STRING(idS, idSlen)
       Z_PARAM_ARRAY_HT(cfg_array)
@@ -134,7 +134,7 @@ PHP_FUNCTION(opaque_register) {
     const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
 
-    if(0!=opaque_Register(pw, pwlen, sk, &cfg, &ids, rec, export_key)) return;
+    if(0!=opaque_Register(pwdU, pwdU_len, sk, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -146,17 +146,17 @@ PHP_FUNCTION(opaque_register) {
 }
 
 PHP_FUNCTION(opaque_create_credential_request) {
-  char *pw;
-  size_t pwlen;
+  char *pwdU;
+  size_t pwdU_len;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STRING(pw, pwlen)
+		Z_PARAM_STRING(pwdU, pwdU_len)
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+    uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
 
-    if(0!=opaque_CreateCredentialRequest(pw, pwlen, sec, pub)) return;
+    if(0!=opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -322,18 +322,18 @@ PHP_FUNCTION(opaque_user_auth) {
 }
 
 PHP_FUNCTION(opaque_create_registration_request) {
-  char *pw;
-  size_t pwlen;
+  char *pwdU;
+  size_t pwdU_len;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STRING(pw, pwlen)
+		Z_PARAM_STRING(pwdU, pwdU_len)
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
     uint8_t alpha[crypto_core_ristretto255_BYTES];
-    uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwlen];
+    uint8_t ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
 
-    if(0!=opaque_CreateRegistrationRequest(pw, pwlen, ctx, alpha)) return;
+    if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, ctx, alpha)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -475,7 +475,7 @@ PHP_MINFO_FUNCTION(opaque)
 /* {{{ arginfo
  */
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_register, 0)
-	ZEND_ARG_INFO(0, pw)
+	ZEND_ARG_INFO(0, pwdU)
 	ZEND_ARG_INFO(0, idU)
 	ZEND_ARG_INFO(0, idS)
 	ZEND_ARG_INFO(0, cfg_array)
@@ -483,7 +483,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_register, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_credential_request, 0)
-	ZEND_ARG_INFO(0, pw)
+	ZEND_ARG_INFO(0, pwdU)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_credential_response, 0)
@@ -509,7 +509,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_user_auth, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_request, 0)
-	ZEND_ARG_INFO(0, pw)
+	ZEND_ARG_INFO(0, pwdU)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_response, 0)

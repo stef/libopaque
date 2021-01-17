@@ -72,6 +72,7 @@ OPAQUE_REGISTER_SECRET_LEN = (
 OPAQUE_SERVER_AUTH_CTX_LEN = (
     crypto_auth_hmacsha256_KEYBYTES +         # km3
     crypto_hash_sha256_STATEBYTES)            # xcript_state
+OPAQUE_SHARED_SECRETBYTES = 32
 
 def __check(code):
     if code != 0:
@@ -253,11 +254,11 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
     if None in (pub, rec):
         raise ValueError("invalid parameter")
     if len(pub) != OPAQUE_USER_SESSION_PUBLIC_LEN: raise ValueError("invalid pub param")
-    if len(rec) <= OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
-
     envU_len = envelope_len(cfg, ids)
+    if len(rec) != OPAQUE_USER_RECORD_LEN+envU_len: raise ValueError("invalid rec param")
+
     resp = ctypes.create_string_buffer(OPAQUE_SERVER_SESSION_LEN+envU_len)
-    sk = ctypes.create_string_buffer(32)
+    sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
     sec = ctypes.create_string_buffer(OPAQUE_SERVER_AUTH_CTX_LEN)
     __check(opaquelib.opaque_CreateCredentialResponse(pub, rec, ctypes.pointer(ids), ctypes.pointer(infos) if infos else None, resp, sk, sec))
     return resp.raw, sk.raw, sec.raw
@@ -296,7 +297,7 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
     if len(resp) <= OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
     if len(sec) <= OPAQUE_USER_SESSION_SECRET_LEN: raise ValueError("invalid sec param")
 
-    sk = ctypes.create_string_buffer(32)
+    sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
     authU = ctypes.create_string_buffer(crypto_auth_hmacsha256_BYTES)
     export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
 
@@ -346,6 +347,8 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
 def UserAuth(sec, authU, infos):
     if None in (sec, authU):
         raise ValueError("invalid parameter")
+    if len(sec) != OPAQUE_SERVER_AUTH_CTX_LEN: raise ValueError("invalid sec param")
+    if len(authU) != crypto_auth_hmacsha256_BYTES: raise ValueError("invalid authU param")
 
     __check(opaquelib.opaque_UserAuth(sec, authU, ctypes.pointer(infos) if infos else None))
 
@@ -381,7 +384,7 @@ def CreateRegistrationRequest(pwdU):
         raise ValueError("invalid parameter")
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_USER_SEC_LEN+len(pwdU))
-    M = ctypes.create_string_buffer(32)
+    M = ctypes.create_string_buffer(crypto_core_ristretto255_BYTES)
     opaquelib.opaque_CreateRegistrationRequest(pwdU, len(pwdU), sec, M)
     return sec.raw, M.raw
 
@@ -401,7 +404,7 @@ def CreateRegistrationRequest(pwdU):
 def CreateRegistrationResponse(M):
     if not M:
         raise ValueError("invalid parameter")
-    if len(M) != 32: raise ValueError("invalid M param")
+    if len(M) != crypto_core_ristretto255_BYTES: raise ValueError("invalid M param")
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_SECRET_LEN)
     pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
@@ -433,7 +436,7 @@ def CreateRegistrationResponse(M):
 def Create1kRegistrationResponse(M, pkS):
     if None in  (M, pkS):
         raise ValueError("invalid parameter")
-    if len(M) != 32: raise ValueError("invalid M param")
+    if len(M) != crypto_core_ristretto255_BYTES: raise ValueError("invalid M param")
     if len(pkS) != crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_SECRET_LEN)
@@ -468,8 +471,8 @@ def Create1kRegistrationResponse(M, pkS):
 def FinalizeRequest(sec, pub, cfg, ids):
     if None in (sec, pub, cfg, ids):
         raise ValueError("invalid parameter")
-    if len(pub) != OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pub param")
     if len(sec) <= OPAQUE_REGISTER_USER_SEC_LEN: raise ValueError("invalid sec param")
+    if len(pub) != OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pub param")
 
     envU_len = envelope_len(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+envU_len)

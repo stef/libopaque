@@ -93,12 +93,6 @@ static Opaque_App_Infos * get_infos(Opaque_App_Infos *infos, const zend_array *i
   return ret;
 }
 
-static uint32_t get_env_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids) {
-    const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
-    const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
-    return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
-}
-
 /* {{{ string opaque_register( [ string $var ] )
  */
 PHP_FUNCTION(opaque_register) {
@@ -140,7 +134,7 @@ PHP_FUNCTION(opaque_register) {
     }
 
     uint8_t export_key[crypto_hash_sha256_BYTES];
-    const uint32_t env_len = get_env_len(&cfg, &ids);
+    const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
 
     if(0!=opaque_Register(pw, pwlen, sk, &cfg, &ids, rec, export_key)) return;
@@ -213,7 +207,7 @@ PHP_FUNCTION(opaque_create_credential_response) {
       return;
     }
 
-    const uint32_t env_len = get_env_len(&cfg, &ids);
+    const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     if(reclen!=OPAQUE_USER_RECORD_LEN+env_len) {
       php_error_docref(NULL, E_WARNING, "invalid rec param.");
       return;
@@ -422,7 +416,7 @@ PHP_FUNCTION(opaque_finalize_request) {
       return;
     }
 
-    const uint32_t env_len = get_env_len(&cfg, &ids);
+    const uint32_t env_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
     uint8_t export_key[crypto_hash_sha256_BYTES];
     if(0!=opaque_FinalizeRequest(ctx, rpub, &cfg, &ids, rec, export_key)) return;

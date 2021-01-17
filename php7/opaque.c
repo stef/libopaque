@@ -345,27 +345,27 @@ PHP_FUNCTION(opaque_create_registration_request) {
 }
 
 PHP_FUNCTION(opaque_create_registration_response) {
-  char *alpha;
-  size_t alpha_len;
+  char *M;
+  size_t M_len;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
-		Z_PARAM_STRING(alpha, alpha_len)
+		Z_PARAM_STRING(M, M_len)
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    if(alpha_len!=crypto_core_ristretto255_BYTES) {
-      php_error_docref(NULL, E_WARNING, "invalid alpha param.");
+    if(M_len!=crypto_core_ristretto255_BYTES) {
+      php_error_docref(NULL, E_WARNING, "invalid M param.");
       return;
     }
 
-    uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
-    if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return;
+    uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], pub[OPAQUE_REGISTER_PUBLIC_LEN];
+    if(0!=opaque_CreateRegistrationResponse(M, sec, pub)) return;
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
     ZVAL_ARR(&zarr, ret);
-    add_next_index_stringl(&zarr,rsec, sizeof(rsec));       // sensitive
-    add_next_index_stringl(&zarr,rpub, sizeof(rpub));
+    add_next_index_stringl(&zarr,sec, sizeof(sec));       // sensitive
+    add_next_index_stringl(&zarr,pub, sizeof(pub));
 
     RETVAL_ARR(ret);
 }
@@ -514,7 +514,7 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_request, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_response, 0)
-	ZEND_ARG_INFO(0, alpha)
+	ZEND_ARG_INFO(0, M)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_finalize_request, 0)

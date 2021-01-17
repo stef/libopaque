@@ -9,6 +9,9 @@
 #include "php_opaque.h"
 #include "opaque.h"
 
+/* See src/opaque.c. */
+#define OPAQUE_SHARED_SECRETBYTES 32
+
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() \
@@ -211,7 +214,7 @@ PHP_FUNCTION(opaque_create_credential_response) {
     Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
 
     uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
-    uint8_t sk[32];
+    uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
     uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
 
     if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, infos_p, resp, sk, sec)) return;
@@ -271,7 +274,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
 
     Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
 
-    uint8_t sk[32];
+    uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
     uint8_t authU[crypto_auth_hmacsha256_BYTES];
     uint8_t export_key[crypto_hash_sha256_BYTES];
 

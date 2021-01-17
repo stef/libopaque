@@ -212,16 +212,16 @@ PHP_FUNCTION(opaque_create_credential_response) {
 
     uint8_t resp[OPAQUE_SERVER_SESSION_LEN+env_len];
     uint8_t sk[32];
-    uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
+    uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
 
-    if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, infos_p, resp, sk, ctx)) return;
+    if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, infos_p, resp, sk, sec)) return;
 
     zend_array *ret = zend_new_array(3);
     zval zarr;
     ZVAL_ARR(&zarr, ret);
     add_next_index_stringl(&zarr,resp, sizeof(resp));
     add_next_index_stringl(&zarr,sk, sizeof(sk));      // sensitive
-    add_next_index_stringl(&zarr,ctx, sizeof(ctx));    // sensitive
+    add_next_index_stringl(&zarr,sec, sizeof(sec));    // sensitive
 
     RETVAL_ARR(ret);
 }

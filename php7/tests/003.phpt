@@ -20,13 +20,13 @@ $rrec = $r[0];
 $export_key = $r[1];
 $rec = opaque_store_user_record($rsec, $rrec);
 $r=opaque_create_credential_request("simple guessable dictionary password");
-$sec = $r[0];
+$secU = $r[0];
 $pub = $r[1];
 $r=opaque_create_credential_response($pub, $rec, "user", "server", $cfg);
 $resp=$r[0];
 $sk=$r[1];
-$ctx=$r[2];
-$r=opaque_recover_credentials($resp, $sec, $cfg);
+$secS=$r[2];
+$r=opaque_recover_credentials($resp, $secU, $cfg);
 $sk1=$r[0];
 $authU=$r[1];
 $export_key1=$r[2];
@@ -36,7 +36,7 @@ assert("user" == $idU);
 assert("server" == $idS);
 assert($export_key == $export_key1);
 assert($sk == $sk1);
-var_dump(opaque_user_auth($ctx, $authU));
+var_dump(opaque_user_auth($secS, $authU));
 ?>
 --EXPECT--
 bool(true)

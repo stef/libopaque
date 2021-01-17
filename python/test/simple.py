@@ -2,7 +2,7 @@
 
 import opaque
 
-pwd=b"simple guessable dictionary password"
+pwdU=b"simple guessable dictionary password"
 
 # wrap the IDs into an opaque.Ids struct:
 ids=opaque.Ids("user", "server")
@@ -24,44 +24,54 @@ infos=opaque.App_Infos()
 # password can be checked on the server for password rules
 # (e.g. occurence in common password lists), has the drawback that the
 # password is exposed to the server.
-rec, export_key0 = opaque.Register(pwd,cfg,ids,skS=None)
+rec, export_key = opaque.Register(pwdU, cfg, ids, skS=None)
 
 # user initiates a credential request
-pub, sec = opaque.CreateCredentialRequest(pwd)
+pub, secU = opaque.CreateCredentialRequest(pwdU)
 
 # server responds to credential request
-resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
+resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 
 # user recovers its credentials from the servers response
-sku, auth, export_key1, ids = opaque.RecoverCredentials(resp, sec, cfg, None, pkS=None)
+sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS=None)
 
 # server authenticates user
-opaque.UserAuth(ctx, auth, None)
+opaque.UserAuth(secS, authU, None)
+
+assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
+assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
+assert export_key==export_key1, "export_key must equal export_key1."
+assert sk==sk1, "sk must equal sk1."
 
 # registering as specified in the ietf cfrg draft
 
 # user create a registration request
-ctx, alpha = opaque.CreateRegistrationRequest(pwd)
+secU, M = opaque.CreateRegistrationRequest(pwdU)
 
 # server responds to the registration request
-sec, pub = opaque.CreateRegistrationResponse(alpha)
+secS, pub = opaque.CreateRegistrationResponse(M)
 
 # user finalizes the registration using the response from the server
-rec, export_key3 = opaque.FinalizeRequest(ctx, pub, cfg, ids)
+rec, export_key = opaque.FinalizeRequest(secU, pub, cfg, ids)
 
 # server finalizes the user record
-rec = opaque.StoreUserRecord(sec, rec)
+rec = opaque.StoreUserRecord(secS, rec)
 
 # same steps as above, 1. user initiates credential request
-pub, sec = opaque.CreateCredentialRequest(pwd)
+pub, secU = opaque.CreateCredentialRequest(pwdU)
 
 # 2. server responds to credential request
-resp, sks, ctx = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
+resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 
 # 3. user recovers its credentials from the server ressponse
-sku, auth, export_key4, ids = opaque.RecoverCredentials(resp, sec, cfg, None, pkS=None)
+sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS=None)
 
 # 4. server authenicates user
-opaque.UserAuth(ctx, auth, None)
+opaque.UserAuth(secS, authU, None)
+
+assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
+assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
+assert export_key==export_key1, "export_key must equal export_key1."
+assert sk==sk1, "sk must equal sk1."
 
 print("test ok")

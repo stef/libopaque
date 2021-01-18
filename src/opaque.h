@@ -175,7 +175,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    @param [in] infos - various extra (unspecified) protocol information as recommended by the rfc.
    @param [out] resp - servers response to be sent to the client where
    it is used as input into opaque_RecoverCredentials() - caller must allocate including envU_len: e.g.:
-   unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
    @param [out] sk - the shared secret established between the user & server
    @param [out] sec - the current context necessary for the explicit
    authentication of the user in opaque_UserAuth(). This

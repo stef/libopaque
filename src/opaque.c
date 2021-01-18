@@ -240,7 +240,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
-  unsigned char H0[crypto_core_ristretto255_BYTES];
+  uint8_t H0[crypto_core_ristretto255_BYTES];
   sodium_mlock(H0,sizeof H0);
   crypto_core_ristretto255_from_hash(H0, h0);
   sodium_munlock(h0,sizeof h0);
@@ -249,7 +249,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // H0 ^ k
-  unsigned char N[crypto_core_ristretto255_BYTES];
+  uint8_t N[crypto_core_ristretto255_BYTES];
   sodium_mlock(N,sizeof N);
   if (crypto_scalarmult_ristretto255(N, kU, H0) != 0) {
     sodium_munlock(H0,sizeof H0);
@@ -298,7 +298,7 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
-  unsigned char H0[crypto_core_ristretto255_BYTES];
+  uint8_t H0[crypto_core_ristretto255_BYTES];
   if(0!=sodium_mlock(H0,sizeof H0)) {
     sodium_munlock(h0,sizeof h0);
     return -1;

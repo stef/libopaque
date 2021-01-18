@@ -49,7 +49,7 @@ int register_with_global_server_key(const uint8_t *pwdU,
   uint8_t rsecU[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
   uint8_t M[crypto_core_ristretto255_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
-  unsigned char rsecS[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
+  uint8_t rsecS[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   Opaque_PkgConfig cfg={
                         .skU = NotPackaged,
                         .pkU = NotPackaged,
@@ -57,11 +57,11 @@ int register_with_global_server_key(const uint8_t *pwdU,
                         .idS = NotPackaged,
                         .idU = NotPackaged,
   };
-  unsigned char rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
   uint8_t export_key[crypto_hash_sha256_BYTES], export_key1[crypto_hash_sha256_BYTES];
   uint8_t skS[crypto_scalarmult_SCALARBYTES];
-  unsigned char secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES], sk1[OPAQUE_SHARED_SECRETBYTES];
   uint8_t secS[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
   uint8_t authU[crypto_auth_hmacsha256_BYTES];
@@ -106,7 +106,7 @@ int main(void) {
   _dump((uint8_t*) &cfg,sizeof cfg, "cfg ");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg.skU, cfg.pkU, cfg.pkS, cfg.idU, cfg.idS);
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  unsigned char rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "sizeof(rec): %ld\n",sizeof(rec));
 
   // register user
@@ -117,11 +117,11 @@ int main(void) {
   }
 
   // initiate login
-  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
 
-  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
@@ -179,14 +179,14 @@ int main(void) {
     return 1;
   }
   // server responds
-  unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
+  uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   fprintf(stderr, "\nopaque_CreateRegistrationResponse\n");
   if(0!=opaque_CreateRegistrationResponse(M, rsec, rpub)) {
     fprintf(stderr, "opaque_CreateRegistrationResponse failed.\n");
     return 1;
   }
   // user commits its secrets
-  unsigned char rrec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rrec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "\nopaque_FinalizeRequest\n");
   if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &cfg, &ids, rrec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");

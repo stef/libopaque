@@ -16,7 +16,7 @@ void a_randombytes(void* const buf, const size_t len) {
   for(i=0;i<len;i++) ((uint8_t*)buf)[i]=i&0xff;
 }
 
-void a_randomscalar(unsigned char* buf) {
+void a_randomscalar(uint8_t* buf) {
   uint8_t tmp[64];
   a_randombytes(tmp, 64);
   crypto_core_ristretto255_scalar_reduce(buf, tmp);

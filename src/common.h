@@ -15,7 +15,7 @@ void dump(const uint8_t *p, const size_t len, const char* msg);
 
 #ifdef NORANDOM
 void a_randombytes(void* const buf, const size_t len);
-void a_randomscalar(unsigned char* buf);
+void a_randomscalar(uint8_t* buf);
 #define crypto_core_ristretto255_scalar_random a_randomscalar
 #define randombytes a_randombytes
 #endif

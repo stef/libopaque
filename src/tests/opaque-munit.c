@@ -203,11 +203,11 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
 
   const uint32_t envU_len = opaque_envelope_len(cfg, &ids);
-  unsigned char rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
 
-  unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  unsigned char resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t pk[32];
   uint8_t authU[crypto_auth_hmacsha256_BYTES];
@@ -255,7 +255,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
       return MUNIT_FAIL;
     }
     // server responds
-    unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
+    uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
     if(type==Private1kInit) {
       fprintf(stderr,"\nopaque_Create1kRegistrationResponse\n");
       if(0!=opaque_Create1kRegistrationResponse(M, pkS, rsec, rpub)) {

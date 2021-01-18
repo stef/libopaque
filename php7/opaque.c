@@ -141,7 +141,7 @@ PHP_FUNCTION(opaque_register) {
 
     uint8_t export_key[crypto_hash_sha256_BYTES];
     const uint32_t env_len = get_env_len(&cfg, &ids);
-    unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
+    uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
 
     if(0!=opaque_Register(pw, pwlen, sk, &cfg, &ids, rec, export_key)) return;
 
@@ -164,7 +164,7 @@ PHP_FUNCTION(opaque_create_credential_request) {
 		Z_PARAM_OPTIONAL
 	ZEND_PARSE_PARAMETERS_END();
 
-    unsigned char sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
+    uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwlen], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
 
     if(0!=opaque_CreateCredentialRequest(pw, pwlen, sec, pub)) return;
 
@@ -221,7 +221,7 @@ PHP_FUNCTION(opaque_create_credential_response) {
 
     Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
 
-    unsigned char resp[OPAQUE_SERVER_SESSION_LEN+env_len];
+    uint8_t resp[OPAQUE_SERVER_SESSION_LEN+env_len];
     uint8_t sk[32];
     uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
 
@@ -272,7 +272,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
       return;
     }
 
-    unsigned char idU[1024], idS[1024];
+    uint8_t idU[1024], idS[1024];
     Opaque_Ids ids={.idU_len=sizeof(idU),.idU=idU,.idS_len=sizeof(idS),.idS=idS};
 
     Opaque_PkgConfig cfg;
@@ -373,7 +373,7 @@ PHP_FUNCTION(opaque_create_registration_response) {
       return;
     }
 
-    unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
+    uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
     if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return;
 
     zend_array *ret = zend_new_array(2);
@@ -423,7 +423,7 @@ PHP_FUNCTION(opaque_finalize_request) {
     }
 
     const uint32_t env_len = get_env_len(&cfg, &ids);
-    unsigned char rec[OPAQUE_USER_RECORD_LEN+env_len];
+    uint8_t rec[OPAQUE_USER_RECORD_LEN+env_len];
     uint8_t export_key[crypto_hash_sha256_BYTES];
     if(0!=opaque_FinalizeRequest(ctx, rpub, &cfg, &ids, rec, export_key)) return;
 

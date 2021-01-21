@@ -35,6 +35,12 @@
 
 #define OPAQUE_HANDSHAKE_SECRETBYTES 32
 
+#if (defined VOPRF_TEST_VEC_1 || defined VOPRF_TEST_VEC_2)
+#define VOPRF_TEST_VEC 1
+#undef TRACE
+#undef NORANDOM
+#endif
+
 /**
  * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
  */
@@ -288,6 +294,9 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                       uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                       uint8_t M[crypto_core_ristretto255_BYTES]) {
+#ifdef VOPRF_TEST_VEC
+  dump(pw, pwlen, "input");
+#endif
   // sets α := (H^0(pw))^r
   // hash x with H^0
   uint8_t h0[crypto_core_ristretto255_HASHBYTES];
@@ -298,6 +307,9 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
 #ifdef TRACE
   dump(h0, sizeof h0, "h0");
 #endif
+  //dst="VOPRF06-HashToGroup-") + \x0 + htons(1)
+  //dst=dst+len(dst)/*1byte*/
+  //zpad= \x0 * 128
   uint8_t H0[crypto_core_ristretto255_BYTES];
   if(0!=sodium_mlock(H0,sizeof H0)) {
     sodium_munlock(h0,sizeof h0);
@@ -308,8 +320,28 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
 #ifdef TRACE
   dump(H0,sizeof H0, "H0 ");
 #endif
+
   // U picks r
+#ifdef VOPRF_TEST_VEC_1
+  unsigned char rtest[] = {
+  0x5e, 0xd8, 0x95, 0x20, 0x6b, 0xfc, 0x53, 0x31, 0x6d, 0x30, 0x7b, 0x23,
+  0xe4, 0x6e, 0xcc, 0x66, 0x23, 0xaf, 0xb3, 0x08, 0x6d, 0xa7, 0x41, 0x89,
+  0xa4, 0x16, 0x01, 0x2b, 0xe0, 0x37, 0xe5, 0x0b
+  };
+  unsigned int rtest_len = 32;
+  memcpy(r,rtest,rtest_len);
+#elif VOPRF_TEST_VEC_2
+  unsigned char rtest[] = {
+    0xed, 0x83, 0x66, 0xfe, 0xb6, 0xb1, 0xd0, 0x5d, 0x1f, 0x46, 0xac, 0xb7,
+    0x27, 0x06, 0x1e, 0x43, 0xaa, 0xdf, 0xaf, 0xe9, 0xc1, 0x0e, 0x5a, 0x64,
+    0xe7, 0x51, 0x8d, 0x63, 0xe3, 0x26, 0x35, 0x03
+  };
+  unsigned int rtest_len = 32;
+  memcpy(r,rtest,rtest_len);
+#else
   crypto_core_ristretto255_scalar_random(r);
+#endif
+
 #ifdef TRACE
   dump(r, crypto_core_ristretto255_SCALARBYTES, "r");
 #endif
@@ -319,6 +351,9 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
     return -1;
   }
   sodium_munlock(H0,sizeof H0);
+#ifdef VOPRF_TEST_VEC
+  dump(alpha, 32,  "blinded");
+#endif
 #ifdef TRACE
   dump(M, crypto_core_ristretto255_BYTES, "M");
 #endif
@@ -996,7 +1031,25 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // k_s ←_R Z_q
   // 1. (kU, _) = KeyGen()
+#ifdef VOPRF_TEST_VEC_1
+  unsigned char rtest[] = {
+    0x86, 0xbd, 0x5e, 0xea, 0xbf, 0x29, 0xa8, 0x7c, 0xb4, 0xa5, 0xc7, 0x20,
+    0x7c, 0xb3, 0xad, 0xe5, 0x29, 0x7e, 0x65, 0xf9, 0xb7, 0x4c, 0x97, 0x9b,
+    0xd3, 0x55, 0x18, 0x91, 0xf4, 0xb2, 0x15, 0x15
+  };
+  unsigned int rtest_len = 32;
+  memcpy(sec->k_s,rtest,rtest_len);
+#elif VOPRF_TEST_VEC_2
+  unsigned char rtest[] = {
+    0x06, 0x3b, 0x91, 0xa1, 0x2e, 0x7c, 0xbb, 0x98, 0xdf, 0xeb, 0x75, 0xd8,
+    0xa7, 0xee, 0xb8, 0x3a, 0xac, 0xf9, 0xfd, 0x6d, 0xf7, 0xe0, 0xb4, 0x19,
+    0x74, 0x66, 0xfb, 0x77, 0xa2, 0x7f, 0xa6, 0x31
+  };
+  unsigned int rtest_len = 32;
+  memcpy(sec->k_s,rtest,rtest_len);
+#else
   oprf_KeyGen(rec->kU);
+#endif
 #ifdef TRACE
   dump(_rec, OPAQUE_USER_RECORD_LEN+envU_len, "kU\nplain user rec ");
 #endif

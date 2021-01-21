@@ -280,7 +280,7 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
 #  @param [in] cfg - the configuration of the envelope secret and cleartext part
 #  @param [in] infos - various extra (unspecified) protocol information
 #  as recommended by the rfc
-#  @param [out] ids - if ids were packed in the envelope - as given by
+#  @param [in/out] ids - if ids were packed in the envelope - as given by
 #  the cfg param -, they are returned in this struct - if either
 #  cfg.idS or cfg.idU is NotPackaged, then the according value must be
 #  set in this struct before calling opaque_RecoverCredentials

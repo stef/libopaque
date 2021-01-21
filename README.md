@@ -21,7 +21,8 @@ make
 The API is described in the header file:
 [`src/opaque.h`](https://github.com/stef/libopaque/blob/master/src/opaque.h).
 
-The library implements the OPAQUE protocol with the following deviations:
+The library implements the OPAQUE protocol with the following deviations from
+the origianl paper:
 
 0. It does not implement any persistence/lookup functionality.
 1. Instead of HMQV (which is patented), it implements a Triple-DH.

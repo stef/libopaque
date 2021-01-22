@@ -19,8 +19,15 @@
 */
 
 #include "opaque.h"
-#include "common.h"
 #include <arpa/inet.h>
+
+#if (defined VOPRF_TEST_VEC_1 || defined VOPRF_TEST_VEC_2)
+#define VOPRF_TEST_VEC 1
+#undef TRACE
+#undef NORANDOM
+#endif
+
+#include "common.h"
 
 #ifndef HAVE_SODIUM_HKDF
 #include "aux/crypto_kdf_hkdf_sha256.h"
@@ -38,9 +45,16 @@
 /**
  * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
  */
-static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
-
-#define OPAQUE_FINALIZE_INFO_LEN 8
+#ifdef VOPRF_TEST_VEC
+    static const uint8_t OPAQUE_FINALIZE_INFO[] = {
+    0x4f, 0x50, 0x52, 0x46, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x76, 0x65,
+    0x63, 0x74, 0x6f, 0x72, 0x73
+    };
+    #define OPAQUE_FINALIZE_INFO_LEN sizeof(OPAQUE_FINALIZE_INFO)
+#else
+    static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
+    #define OPAQUE_FINALIZE_INFO_LEN 8
+#endif
 
 typedef struct {
   uint8_t skU[crypto_scalarmult_SCALARBYTES];
@@ -145,7 +159,17 @@ typedef struct {
  * @param [out] kU - the per-user OPRF private key
  */
 static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
+#ifdef VOPRF_TEST_VEC
+  unsigned char rtest[] = {
+    0xc6, 0x04, 0xc7, 0x85, 0xad, 0xa7, 0x0d, 0x77, 0xa5, 0x25, 0x6a, 0xe2,
+    0x17, 0x67, 0xde, 0x8c, 0x33, 0x04, 0x11, 0x52, 0x37, 0xd2, 0x62, 0x13,
+    0x4f, 0x5e, 0x46, 0xe5, 0x12, 0xcf, 0x8e, 0x03
+  };
+  unsigned int rtest_len = 32;
+  memcpy(kU,rtest,rtest_len);
+#else
   crypto_core_ristretto255_scalar_random(kU);
+#endif
 }
 
 /**
@@ -192,8 +216,12 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
     crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
     crypto_hash_sha512_update(&state, info, info_len);
   }
+#ifdef VOPRF_TEST_VEC
+  const uint8_t DST[]="VOPRF06-Finalize-\x00\x00\x01";
+#else
   const uint8_t DST[]="VOPRF06-Finalize-OPAQUE00";
-  const uint8_t DST_size=strlen((const char*) DST);
+#endif
+  const uint8_t DST_size=sizeof DST -1;
   size=htons(DST_size);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, DST, DST_size);
@@ -206,6 +234,9 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   crypto_hash_sha512_final(&state, y);
   sodium_munlock(&state, sizeof state);
 
+#ifdef VOPRF_TEST_VEC
+  dump((uint8_t*) y, sizeof y, "output ");
+#endif
 #ifdef TRACE
   dump((uint8_t*) y, sizeof y, "y ");
 #endif
@@ -229,23 +260,166 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   return 0;
 }
 
+/* expand_loop
+ 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
+ */
+static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i, const uint8_t *dst_prime, const uint8_t dst_prime_len, uint8_t *b_ii) {
+  uint8_t xored[crypto_hash_sha512_BYTES];
+  unsigned j;
+  for(j=0;j<sizeof xored;j++) xored[j]=b_0[j]^b_i[j];
+  // 8.  b_1 = H(b_0 || I2OSP(1, 1) || DST_prime)
+  crypto_hash_sha512_state state;
+  crypto_hash_sha512_init(&state);
+  crypto_hash_sha512_update(&state, xored, sizeof xored);
+  crypto_hash_sha512_update(&state,(uint8_t*) &i, 1);
+  crypto_hash_sha512_update(&state, dst_prime, dst_prime_len);
+  crypto_hash_sha512_final(&state, b_ii);
+}
+
+/*
+ * expand_message_xmd(msg, DST, len_in_bytes)
+ * as defined by https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/blob/master/draft-irtf-cfrg-hash-to-curve.md#expand_message_xmd-hashtofield-expand-xmd
+ *
+ * Parameters:
+ * - H, a hash function (see requirements above).
+ * - b_in_bytes, b / 8 for b the output size of H in bits.
+ *   For example, for b = 256, b_in_bytes = 32.
+ * - r_in_bytes, the input block size of H, measured in bytes (see
+ *   discussion above). For example, for SHA-256, r_in_bytes = 64.
+ *
+ * Input:
+ * - msg, a byte string.
+ * - DST, a byte string of at most 255 bytes.
+ *   See below for information on using longer DSTs.
+ * - len_in_bytes, the length of the requested output in bytes.
+ *
+ * Output:
+ * - uniform_bytes, a byte string.
+ *
+ * Steps:
+ * 1.  ell = ceil(len_in_bytes / b_in_bytes)
+ * 2.  ABORT if ell > 255
+ * 3.  DST_prime = DST || I2OSP(len(DST), 1)
+ * 4.  Z_pad = I2OSP(0, r_in_bytes)
+ * 5.  l_i_b_str = I2OSP(len_in_bytes, 2)
+ * 6.  msg_prime = Z_pad || msg || l_i_b_str || I2OSP(0, 1) || DST_prime
+ * 7.  b_0 = H(msg_prime)
+ * 8.  b_1 = H(b_0 || I2OSP(1, 1) || DST_prime)
+ * 9.  for i in (2, ..., ell):
+ * 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
+ * 11. uniform_bytes = b_1 || ... || b_ell
+ * 12. return substr(uniform_bytes, 0, len_in_bytes)
+ */
+static int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, const uint8_t len_in_bytes, uint8_t *uniform_bytes) {
+  // 1.  ell = ceil(len_in_bytes / b_in_bytes)
+  const uint8_t ell = (len_in_bytes + crypto_hash_sha512_BYTES-1) / crypto_hash_sha512_BYTES;
+  // 2.  ABORT if ell > 255
+  if(ell>255) return -1;
+  // 3.  DST_prime = DST || I2OSP(len(DST), 1)
+  uint8_t dst_prime[dst_len+1];
+  memcpy(dst_prime, dst, dst_len);
+  dst_prime[dst_len] = dst_len;
+#ifdef TRACE
+  dump(dst_prime, sizeof dst_prime, "dst_prime");
+#endif
+  // 4.  Z_pad = I2OSP(0, r_in_bytes)
+  //const uint8_t r_in_bytes = 128; // for sha512
+  uint8_t z_pad[128 /*r_in_bytes*/] = {0}; // supress gcc error: variable-sized object may not be initialized
+#ifdef TRACE
+  dump(z_pad, sizeof z_pad, "z_pad");
+#endif
+  // 5.  l_i_b_str = I2OSP(len_in_bytes, 2)
+  const uint16_t l_i_b = htons(len_in_bytes);
+  const uint8_t *l_i_b_str = (uint8_t*) &l_i_b;
+  // 6.  msg_prime = Z_pad || msg || l_i_b_str || I2OSP(0, 1) || DST_prime
+  uint8_t msg_prime[sizeof z_pad + msg_len + sizeof l_i_b + 1 + sizeof dst_prime],
+    *ptr = msg_prime;
+  memcpy(ptr, z_pad, sizeof z_pad);
+  ptr += sizeof z_pad;
+  memcpy(ptr, msg, msg_len);
+  ptr += msg_len;
+  memcpy(ptr, l_i_b_str, sizeof l_i_b);
+  ptr += sizeof l_i_b;
+  *ptr = 0;
+  ptr++;
+  memcpy(ptr, dst_prime, sizeof dst_prime);
+#ifdef TRACE
+  dump(msg_prime, sizeof msg_prime, "msg_prime");
+#endif
+  // 7.  b_0 = H(msg_prime)
+  uint8_t b_0[crypto_hash_sha512_BYTES];
+  crypto_hash_sha512(b_0, msg_prime, sizeof msg_prime);
+  // 8.  b_1 = H(b_0 || I2OSP(1, 1) || DST_prime)
+  uint8_t b_i[crypto_hash_sha512_BYTES];
+  crypto_hash_sha512_state state;
+  crypto_hash_sha512_init(&state);
+  crypto_hash_sha512_update(&state, b_0, sizeof b_0);
+  crypto_hash_sha512_update(&state,(uint8_t*) &"\x01", 1);
+  crypto_hash_sha512_update(&state, dst_prime, sizeof dst_prime);
+  crypto_hash_sha512_final(&state, b_i);
+  // 9.  for i in (2, ..., ell):
+  unsigned left = len_in_bytes;
+  uint8_t *out = uniform_bytes;
+  unsigned clen = (left>sizeof b_i)?sizeof b_i:left;
+  memcpy(out, b_i, clen);
+  out+=clen;
+  left-=clen;
+  int i;
+  uint8_t b_ii[crypto_hash_sha512_BYTES];
+  for(i=2;i<=ell;i+=2) {
+    // 11. uniform_bytes = b_1 || ... || b_ell
+    // 12. return substr(uniform_bytes, 0, len_in_bytes)
+    // 10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
+    expand_loop(b_0, b_i, i, dst_prime, sizeof dst_prime, b_ii);
+    clen = (left>sizeof b_ii)?sizeof b_ii:left;
+    memcpy(out, b_ii, clen);
+    out+=clen;
+    left-=clen;
+    // unrolled next iteration so we don't have to swap b_i and b_ii
+    expand_loop(b_0, b_ii, i+1, dst_prime, sizeof dst_prime, b_i);
+    clen = (left>sizeof b_i)?sizeof b_i:left;
+    memcpy(out, b_i, clen);
+    out+=clen;
+    left-=clen;
+  }
+  return 0;
+}
+
+/* hash-to-ristretto255 - as defined by  https://github.com/cfrg/draft-irtf-cfrg-hash-to-curve/blob/master/draft-irtf-cfrg-hash-to-curve.md#hashing-to-ristretto255-appx-ristretto255
+ * Steps:
+ * -1. context-string = \x0 + htons(1) // contextString = I2OSP(modeBase(==0), 1) || I2OSP(suite.ID(==1), 2)
+ * 0. dst="VOPRF06-HashToGroup-" + context-string (==\x00\x00\x01)
+ * 1. uniform_bytes = expand_message(msg, DST, 64)
+ * 2. P = ristretto255_map(uniform_bytes)
+ * 3. return P
+ */
+static int voprf_hash_to_ristretto255(const uint8_t *msg, uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
+  const uint8_t dst[] = "VOPRF06-HashToGroup-\x00\x00\x01";
+  const uint8_t dst_len = (sizeof dst) - 1;
+  uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
+  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) return -1;
+#if (defined TRACE || defined VOPRF_TEST_VEC)
+  dump(uniform_bytes, sizeof uniform_bytes, "uniform_bytes");
+#endif
+  crypto_core_ristretto255_from_hash(p, uniform_bytes);
+#if (defined TRACE || defined VOPRF_TEST_VEC)
+  dump(p, crypto_core_ristretto255_BYTES, "hashed-to-curve");
+#endif
+  return 0;
+}
+
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                 const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
                 uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
-  uint8_t h0[crypto_core_ristretto255_HASHBYTES];
-  sodium_mlock(h0,sizeof h0);
-  // hash pwd with H0
-  crypto_hash_sha512(h0, pwdU, pwdU_len);
-#ifdef TRACE
-  dump(h0, sizeof h0, "h0");
-#endif
   uint8_t H0[crypto_core_ristretto255_BYTES];
-  sodium_mlock(H0,sizeof H0);
-  crypto_core_ristretto255_from_hash(H0, h0);
-  sodium_munlock(h0,sizeof h0);
+  if(0!=sodium_mlock(H0,sizeof H0)) {
+    return -1;
+  }
+  // sets α := (H^0(pw))^r
+  if(0!=voprf_hash_to_ristretto255(pwdU, pwdU_len, H0)) return -1;
 #ifdef TRACE
-  dump(H0, sizeof H0, "H0");
+  dump(H0,sizeof H0, "H0 ");
 #endif
 
   // H0 ^ k
@@ -288,28 +462,40 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                       uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                       uint8_t M[crypto_core_ristretto255_BYTES]) {
-  // sets α := (H^0(pw))^r
-  // hash x with H^0
-  uint8_t h0[crypto_core_ristretto255_HASHBYTES];
-  if(0!=sodium_mlock(h0,sizeof h0)) {
-    return -1;
-  }
-  crypto_hash_sha512(h0, x, x_len);
-#ifdef TRACE
-  dump(h0, sizeof h0, "h0");
+#ifdef VOPRF_TEST_VEC
+  dump(x, x_len, "input");
 #endif
   uint8_t H0[crypto_core_ristretto255_BYTES];
   if(0!=sodium_mlock(H0,sizeof H0)) {
-    sodium_munlock(h0,sizeof h0);
     return -1;
   }
-  crypto_core_ristretto255_from_hash(H0, h0);
-  sodium_munlock(h0,sizeof h0);
+  // sets α := (H^0(pw))^r
+  if(0!=voprf_hash_to_ristretto255(x, x_len, H0)) return -1;
 #ifdef TRACE
   dump(H0,sizeof H0, "H0 ");
 #endif
+
   // U picks r
+#ifdef VOPRF_TEST_VEC_1
+  unsigned char rtest[] = {
+  0x5e, 0xd8, 0x95, 0x20, 0x6b, 0xfc, 0x53, 0x31, 0x6d, 0x30, 0x7b, 0x23,
+  0xe4, 0x6e, 0xcc, 0x66, 0x23, 0xaf, 0xb3, 0x08, 0x6d, 0xa7, 0x41, 0x89,
+  0xa4, 0x16, 0x01, 0x2b, 0xe0, 0x37, 0xe5, 0x0b
+  };
+  unsigned int rtest_len = 32;
+  memcpy(r,rtest,rtest_len);
+#elif VOPRF_TEST_VEC_2
+  unsigned char rtest[] = {
+    0xed, 0x83, 0x66, 0xfe, 0xb6, 0xb1, 0xd0, 0x5d, 0x1f, 0x46, 0xac, 0xb7,
+    0x27, 0x06, 0x1e, 0x43, 0xaa, 0xdf, 0xaf, 0xe9, 0xc1, 0x0e, 0x5a, 0x64,
+    0xe7, 0x51, 0x8d, 0x63, 0xe3, 0x26, 0x35, 0x03
+  };
+  unsigned int rtest_len = 32;
+  memcpy(r,rtest,rtest_len);
+#else
   crypto_core_ristretto255_scalar_random(r);
+#endif
+
 #ifdef TRACE
   dump(r, crypto_core_ristretto255_SCALARBYTES, "r");
 #endif
@@ -319,6 +505,9 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
     return -1;
   }
   sodium_munlock(H0,sizeof H0);
+#ifdef VOPRF_TEST_VEC
+  dump(M, crypto_core_ristretto255_BYTES, "blinded");
+#endif
 #ifdef TRACE
   dump(M, crypto_core_ristretto255_BYTES, "M");
 #endif
@@ -996,7 +1185,17 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // k_s ←_R Z_q
   // 1. (kU, _) = KeyGen()
+#ifdef VOPRF_TEST_VEC
+  unsigned char rtest[] = {
+    0xc6, 0x04, 0xc7, 0x85, 0xad, 0xa7, 0x0d, 0x77, 0xa5, 0x25, 0x6a, 0xe2,
+    0x17, 0x67, 0xde, 0x8c, 0x33, 0x04, 0x11, 0x52, 0x37, 0xd2, 0x62, 0x13,
+    0x4f, 0x5e, 0x46, 0xe5, 0x12, 0xcf, 0x8e, 0x03
+  };
+  unsigned int rtest_len = 32;
+  memcpy(rec->kU,rtest,rtest_len);
+#else
   oprf_KeyGen(rec->kU);
+#endif
 #ifdef TRACE
   dump(_rec, OPAQUE_USER_RECORD_LEN+envU_len, "kU\nplain user rec ");
 #endif
@@ -1161,6 +1360,9 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
+#ifdef VOPRF_TEST_VEC
+  dump(resp->Z, sizeof resp->Z, "EvaluationElement");
+#endif
 
   // X_s := g^x_s;
   crypto_scalarmult_base(resp->X_s, x_s);
@@ -1445,6 +1647,9 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
+#ifdef VOPRF_TEST_VEC
+  dump(pub->Z, sizeof pub->Z, "EvaluationElement");
+#endif
 #ifdef TRACE
   dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
 #endif

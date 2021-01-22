@@ -8,7 +8,7 @@
 //#define TRACE 1
 //#define NORANDOM 1
 
-#ifdef TRACE
+#if (defined TRACE || defined VOPRF_TEST_VEC)
 #include <stdio.h>
 void dump(const uint8_t *p, const size_t len, const char* msg);
 #endif

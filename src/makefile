@@ -20,7 +20,7 @@ all: libopaque.$(SOEXT) tests
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
 
-tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
+tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT) tests/opaque-tv1$(EXT) tests/opaque-tv2$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS)
@@ -30,6 +30,21 @@ tests/opaque-test$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
 
 tests/opaque-munit$(EXT): tests/opaque-munit.c libopaque.$(SOEXT)
 	$(CC) $(CFLAGS) -o tests/opaque-munit$(EXT) tests/munit/munit.c tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
+
+common-v.o: common.c
+	$(CC) $(CFLAGS) -DVOPRF_TEST_VEC -o $@ -c $<
+
+opaque-tv1.o: opaque.c
+	$(CC) $(CFLAGS) -DVOPRF_TEST_VEC_1 -o $@ -c $<
+
+tests/opaque-tv1$(EXT): tests/opaque-testvectors.c opaque-tv1.o common-v.o
+	$(CC) $(CFLAGS) -DVOPRF_TEST_VEC_1 -o $@ tests/opaque-testvectors.c common-v.o $(EXTRA_OBJECTS) opaque-tv1.o $(LDFLAGS)
+
+opaque-tv2.o: opaque.c
+	$(CC) $(CFLAGS) -DVOPRF_TEST_VEC_2 -o $@ -c $<
+
+tests/opaque-tv2$(EXT): tests/opaque-testvectors.c opaque-tv2.o common-v.o
+	$(CC) $(CFLAGS) -DVOPRF_TEST_VEC_2 -o $@ tests/opaque-testvectors.c common-v.o $(EXTRA_OBJECTS) opaque-tv2.o $(LDFLAGS)
 
 test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-test$(EXT)

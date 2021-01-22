@@ -1,6 +1,6 @@
 #include "common.h"
 
-#ifdef TRACE
+#if (defined TRACE || defined VOPRF_TEST_VEC)
 void dump(const uint8_t *p, const size_t len, const char* msg) {
   size_t i;
   fprintf(stderr,"%s ",msg);

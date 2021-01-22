@@ -45,9 +45,16 @@
 /**
  * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
  */
-static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
-
-#define OPAQUE_FINALIZE_INFO_LEN 8
+#ifdef VOPRF_TEST_VEC
+    static const uint8_t OPAQUE_FINALIZE_INFO[] = {
+    0x4f, 0x50, 0x52, 0x46, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x76, 0x65,
+    0x63, 0x74, 0x6f, 0x72, 0x73
+    };
+    #define OPAQUE_FINALIZE_INFO_LEN sizeof(OPAQUE_FINALIZE_INFO)
+#else
+    static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
+    #define OPAQUE_FINALIZE_INFO_LEN 8
+#endif
 
 typedef struct {
   uint8_t skU[crypto_scalarmult_SCALARBYTES];
@@ -152,7 +159,17 @@ typedef struct {
  * @param [out] kU - the per-user OPRF private key
  */
 static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
+#ifdef VOPRF_TEST_VEC
+  unsigned char rtest[] = {
+    0xc6, 0x04, 0xc7, 0x85, 0xad, 0xa7, 0x0d, 0x77, 0xa5, 0x25, 0x6a, 0xe2,
+    0x17, 0x67, 0xde, 0x8c, 0x33, 0x04, 0x11, 0x52, 0x37, 0xd2, 0x62, 0x13,
+    0x4f, 0x5e, 0x46, 0xe5, 0x12, 0xcf, 0x8e, 0x03
+  };
+  unsigned int rtest_len = 32;
+  memcpy(kU,rtest,rtest_len);
+#else
   crypto_core_ristretto255_scalar_random(kU);
+#endif
 }
 
 /**
@@ -199,8 +216,12 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
     crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
     crypto_hash_sha512_update(&state, info, info_len);
   }
+#ifdef VOPRF_TEST_VEC
+  const uint8_t DST[]="VOPRF06-Finalize-\x00\x00\x01";
+#else
   const uint8_t DST[]="VOPRF06-Finalize-OPAQUE00";
-  const uint8_t DST_size=strlen((const char*) DST);
+#endif
+  const uint8_t DST_size=sizeof DST -1;
   size=htons(DST_size);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, DST, DST_size);
@@ -213,6 +234,9 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   crypto_hash_sha512_final(&state, y);
   sodium_munlock(&state, sizeof state);
 
+#ifdef VOPRF_TEST_VEC
+  dump((uint8_t*) y, sizeof y, "output ");
+#endif
 #ifdef TRACE
   dump((uint8_t*) y, sizeof y, "y ");
 #endif
@@ -1161,19 +1185,11 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // k_s ←_R Z_q
   // 1. (kU, _) = KeyGen()
-#ifdef VOPRF_TEST_VEC_1
+#ifdef VOPRF_TEST_VEC
   unsigned char rtest[] = {
-    0x86, 0xbd, 0x5e, 0xea, 0xbf, 0x29, 0xa8, 0x7c, 0xb4, 0xa5, 0xc7, 0x20,
-    0x7c, 0xb3, 0xad, 0xe5, 0x29, 0x7e, 0x65, 0xf9, 0xb7, 0x4c, 0x97, 0x9b,
-    0xd3, 0x55, 0x18, 0x91, 0xf4, 0xb2, 0x15, 0x15
-  };
-  unsigned int rtest_len = 32;
-  memcpy(rec->kU,rtest,rtest_len);
-#elif VOPRF_TEST_VEC_2
-  unsigned char rtest[] = {
-    0x06, 0x3b, 0x91, 0xa1, 0x2e, 0x7c, 0xbb, 0x98, 0xdf, 0xeb, 0x75, 0xd8,
-    0xa7, 0xee, 0xb8, 0x3a, 0xac, 0xf9, 0xfd, 0x6d, 0xf7, 0xe0, 0xb4, 0x19,
-    0x74, 0x66, 0xfb, 0x77, 0xa2, 0x7f, 0xa6, 0x31
+    0xc6, 0x04, 0xc7, 0x85, 0xad, 0xa7, 0x0d, 0x77, 0xa5, 0x25, 0x6a, 0xe2,
+    0x17, 0x67, 0xde, 0x8c, 0x33, 0x04, 0x11, 0x52, 0x37, 0xd2, 0x62, 0x13,
+    0x4f, 0x5e, 0x46, 0xe5, 0x12, 0xcf, 0x8e, 0x03
   };
   unsigned int rtest_len = 32;
   memcpy(rec->kU,rtest,rtest_len);
@@ -1344,6 +1360,9 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
     sodium_munlock(x_s, sizeof x_s);
     return -1;
   }
+#ifdef VOPRF_TEST_VEC
+  dump(resp->Z, sizeof resp->Z, "EvaluationElement");
+#endif
 
   // X_s := g^x_s;
   crypto_scalarmult_base(resp->X_s, x_s);
@@ -1628,6 +1647,9 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
   if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
     return -1;
   }
+#ifdef VOPRF_TEST_VEC
+  dump(pub->Z, sizeof pub->Z, "EvaluationElement");
+#endif
 #ifdef TRACE
   dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
 #endif

@@ -56,19 +56,19 @@ int main(void) {
   unsigned char rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) return 1;
 
-  //unsigned char rrec[OPAQUE_USER_RECORD_LEN+input_len];
-  //uint8_t export_key[crypto_hash_sha256_BYTES];
-  //Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};
-  //ids.idU_len = strlen((char*) ids.idU);
-  //ids.idS_len = strlen((char*) ids.idS);
-  //Opaque_PkgConfig cfg={
-  //                      .skU = InSecEnv,
-  //                      .pkU = InSecEnv,
-  //                      .pkS = InSecEnv,
-  //                      .idS = InSecEnv,
-  //                      .idU = InSecEnv,
-  //};
-  //if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &cfg, &ids, rrec, export_key)) return 1;
+  unsigned char rrec[OPAQUE_USER_RECORD_LEN+input_len];
+  uint8_t export_key[crypto_hash_sha256_BYTES];
+  Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};
+  ids.idU_len = strlen((char*) ids.idU);
+  ids.idS_len = strlen((char*) ids.idS);
+  Opaque_PkgConfig cfg={
+                        .skU = InSecEnv,
+                        .pkU = InSecEnv,
+                        .pkS = InSecEnv,
+                        .idS = InSecEnv,
+                        .idU = InSecEnv,
+  };
+  if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &cfg, &ids, rrec, export_key)) return 1;
 
   return 0;
 }

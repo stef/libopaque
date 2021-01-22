@@ -236,48 +236,6 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   return 0;
 }
 
-static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
-                const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
-                uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
-  // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
-  uint8_t h0[crypto_core_ristretto255_HASHBYTES];
-  sodium_mlock(h0,sizeof h0);
-  // hash pwd with H0
-  crypto_hash_sha512(h0, pwdU, pwdU_len);
-#ifdef TRACE
-  dump(h0, sizeof h0, "h0");
-#endif
-  uint8_t H0[crypto_core_ristretto255_BYTES];
-  sodium_mlock(H0,sizeof H0);
-  crypto_core_ristretto255_from_hash(H0, h0);
-  sodium_munlock(h0,sizeof h0);
-#ifdef TRACE
-  dump(H0, sizeof H0, "H0");
-#endif
-
-  // H0 ^ k
-  uint8_t N[crypto_core_ristretto255_BYTES];
-  sodium_mlock(N,sizeof N);
-  if (crypto_scalarmult_ristretto255(N, kU, H0) != 0) {
-    sodium_munlock(H0,sizeof H0);
-    sodium_munlock(N,sizeof N);
-    return -1;
-  }
-  sodium_munlock(H0,sizeof H0);
-#ifdef TRACE
-  dump(N, sizeof N, "N");
-#endif
-
-  // 2. rwdU = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(pwdU, pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
-    sodium_munlock(N,sizeof N);
-    return -1;
-  }
-  sodium_munlock(N,sizeof N);
-
-  return 0;
-}
-
 /* expand_loop
  10.    b_i = H(strxor(b_0, b_(i - 1)) || I2OSP(i, 1) || DST_prime)
  */
@@ -423,6 +381,43 @@ static int voprf_hash_to_ristretto255(const uint8_t *msg, uint8_t msg_len, uint8
 #if (defined TRACE || defined VOPRF_TEST_VEC)
   dump(p, crypto_core_ristretto255_BYTES, "hashed-to-curve");
 #endif
+  return 0;
+}
+
+static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
+                const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
+                uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
+  // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
+  uint8_t H0[crypto_core_ristretto255_BYTES];
+  if(0!=sodium_mlock(H0,sizeof H0)) {
+    return -1;
+  }
+  // sets α := (H^0(pw))^r
+  if(0!=voprf_hash_to_ristretto255(pwdU, pwdU_len, H0)) return -1;
+#ifdef TRACE
+  dump(H0,sizeof H0, "H0 ");
+#endif
+
+  // H0 ^ k
+  uint8_t N[crypto_core_ristretto255_BYTES];
+  sodium_mlock(N,sizeof N);
+  if (crypto_scalarmult_ristretto255(N, kU, H0) != 0) {
+    sodium_munlock(H0,sizeof H0);
+    sodium_munlock(N,sizeof N);
+    return -1;
+  }
+  sodium_munlock(H0,sizeof H0);
+#ifdef TRACE
+  dump(N, sizeof N, "N");
+#endif
+
+  // 2. rwdU = Finalize(pwdU, N, "OPAQUE01")
+  if(0!=oprf_Finalize(pwdU, pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
+    sodium_munlock(N,sizeof N);
+    return -1;
+  }
+  sodium_munlock(N,sizeof N);
+
   return 0;
 }
 

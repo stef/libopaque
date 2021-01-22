@@ -22,7 +22,7 @@ The API is described in the header file:
 [`src/opaque.h`](https://github.com/stef/libopaque/blob/master/src/opaque.h).
 
 The library implements the OPAQUE protocol with the following deviations from
-the origianl paper:
+the original paper:
 
 0. It does not implement any persistence/lookup functionality.
 1. Instead of HMQV (which is patented), it implements a Triple-DH.
@@ -30,10 +30,9 @@ the origianl paper:
 3. It additionally implements a variant where U secrets never hit S
    unprotected.
 
-For more information, see the IETF CFRG specification at
-https://github.com/cfrg/draft-irtf-cfrg-opaque/blob/master/draft-irtf-cfrg-opaque.md,
-the original paper
-([`doc/opaque.pdf`](https://github.com/stef/libopaque/blob/master/doc/opaque.pdf))
+For more information, see the
+[IETF CFRG specification](https://github.com/cfrg/draft-irtf-cfrg-opaque/blob/master/draft-irtf-cfrg-opaque.md),
+the [original paper](https://github.com/stef/libopaque/blob/master/doc/opaque.pdf)
 and the
 [`src/tests/opaque-test.c`](https://github.com/stef/libopaque/blob/master/src/tests/opaque-test.c)
 example file.

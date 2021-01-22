@@ -9,8 +9,14 @@
 #include <stdlib.h>
 #include <sodium.h>
 
+/**
+ * sk is a shared secret. In opaque.h, we do not report its byte size. We
+ * centralize its size here so that if the algorithm to calculate sk changes, we
+ * can just change it in one place.
+ */
+#define OPAQUE_SHARED_SECRETBYTES 32
+#define OPAQUE_HANDSHAKE_SECRETBYTES 32
 #define OPAQUE_NONCE_BYTES 32
-
 #define OPAQUE_ENVELOPE_META_LEN (2*crypto_hash_sha256_BYTES + 2*sizeof(uint16_t))
 
 #define OPAQUE_USER_RECORD_LEN (                       \

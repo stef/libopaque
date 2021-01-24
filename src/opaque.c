@@ -187,7 +187,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
   //                                              htons(len(info))||info||
-  //                                              htons(len("VOPRF06-Finalize-OPAQUE00"))||"VOPRF06-Finalize-OPAQUE00")
+  //                                              htons(len("VOPRF06-Finalize-\x00\x00\x01"))||"VOPRF06-Finalize-\x00\x00\x01")
   crypto_hash_sha512_state state;
   if(-1==sodium_mlock(&state,sizeof state)) {
     return -1;
@@ -207,11 +207,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
     crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
     crypto_hash_sha512_update(&state, info, info_len);
   }
-#ifdef VOPRF_TEST_VEC
   const uint8_t DST[]="VOPRF06-Finalize-\x00\x00\x01";
-#else
-  const uint8_t DST[]="VOPRF06-Finalize-OPAQUE00";
-#endif
   const uint8_t DST_size=sizeof DST -1;
   size=htons(DST_size);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
@@ -820,7 +816,12 @@ static int user_3dh(Opaque_Keys *keys,
   return 0;
 }
 
-// enveloping function as specified in the ietf cfrg draft https://tools.ietf.org/html/draft-krawczyk-cfrg-opaque-06#section-4
+// enveloping function as formerly specified in the ietf cfrg draft https://tools.ietf.org/html/draft-krawczyk-cfrg-opaque-06#section-4
+// todo implement draft envelope specification in case cfg is:
+// base mode: cfg.skU = inSecEnv, cfg.pkS = inClrEnv, others notPackages
+// customIdentifier mode: cfg.skU = inSecEnv, cfg.pkS = inClrEnv, cfg.id[US] = inClrEnv
+// in other cases keep the old code? we should support all cfg variations.
+// although pkU might be dropped altogether as it can be always derived from skU
 static int opaque_envelope(const uint8_t rwdU[crypto_secretbox_KEYBYTES],
                      const uint8_t *SecEnv, const size_t SecEnv_len,
                      const uint8_t *ClrEnv, const size_t ClrEnv_len,

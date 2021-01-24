@@ -48,6 +48,8 @@ tests/opaque-tv2$(EXT): tests/opaque-testvectors.c opaque-tv2.o common-v.o
 
 test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-test$(EXT)
+	LD_LIBRARY_PATH=. ./tests/opaque-tv1$(EXT)
+	LD_LIBRARY_PATH=. ./tests/opaque-tv2$(EXT)
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h
@@ -70,6 +72,10 @@ clean:
 		tests/opaque-munit \
 		tests/opaque-munit.exe \
 		tests/opaque-test \
-		tests/opaque-test.exe
+		tests/opaque-test.exe \
+		tests/opaque-tv1 \
+		tests/opaque-tv1.exe \
+		tests/opaque-tv2 \
+		tests/opaque-tv2.exe
 
 .PHONY: all clean debug install test

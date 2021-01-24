@@ -48,8 +48,8 @@ tests/opaque-tv2$(EXT): tests/opaque-testvectors.c opaque-tv2.o common-v.o
 
 test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-test$(EXT)
-	LD_LIBRARY_PATH=. ./tests/opaque-tv1$(EXT)
-	LD_LIBRARY_PATH=. ./tests/opaque-tv2$(EXT)
+	./tests/opaque-tv1$(EXT)
+	./tests/opaque-tv2$(EXT)
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h

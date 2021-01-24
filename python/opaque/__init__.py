@@ -36,6 +36,7 @@ if sodium_version_check(1,0,19):
 else:
     from pysodium import crypto_auth_hmacsha256_BYTES as crypto_auth_hmacsha256_KEYBYTES
 
+OPAQUE_SHARED_SECRETBYTES = 32
 OPAQUE_NONCE_BYTES = 32
 OPAQUE_ENVELOPE_META_LEN = (2*crypto_hash_sha256_BYTES + 2*sizeof(c_uint16))
 OPAQUE_USER_RECORD_LEN = (
@@ -72,7 +73,6 @@ OPAQUE_REGISTER_SECRET_LEN = (
 OPAQUE_SERVER_AUTH_CTX_LEN = (
     crypto_auth_hmacsha256_KEYBYTES +         # km3
     crypto_hash_sha256_STATEBYTES)            # xcript_state
-OPAQUE_SHARED_SECRETBYTES = 32
 
 def __check(code):
     if code != 0:

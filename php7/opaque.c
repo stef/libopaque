@@ -10,9 +10,6 @@
 #include "opaque.h"
 #include "common.h"
 
-/* See src/opaque.c. */
-#define OPAQUE_SHARED_SECRETBYTES 32
-
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
 #define ZEND_PARSE_PARAMETERS_NONE() \

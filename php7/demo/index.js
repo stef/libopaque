@@ -1,0 +1,1 @@
+../../js/demo/public/index.js

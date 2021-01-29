@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>libopaque.js Demo</title>
+  </head>
+  <body>
+    <form action="#">
+      <label for="id">Username</label>
+      <input type="text" placeholder="Enter Username" name="id" required />
+      <label for="pw">Password</label>
+      <input type="password" placeholder="Enter Password" name="pw" required />
+      <button type="submit" name="register">Register</button>
+      <button type="submit" name="login">Login</button>
+      <br />
+      <input type="radio" name="register-type" value="with-password" />
+      <label for="with-password"
+        >Register by sending your password to the server.</label
+      ><br />
+      <input
+        type="radio"
+        name="register-type"
+        value="without-password"
+        checked
+      />
+      <label for="without-password"
+        >Register without sending your password to the server.</label
+      ><br />
+      <input type="radio" name="register-type" value="with-global-server-key" />
+      <label for="with-global-server-key"
+        >Register without sending your password to the server and by using a
+        global server key.</label
+      >
+    </form>
+    <pre></pre>
+    <script async src="index.js"></script>
+  </body>
+</html>

@@ -39,9 +39,9 @@ jobs:
 
     - run: |
        cd src
-       git submodule update --init --recursive tests/munit
        sudo apt-get update
-       sudo apt-get install -y libsodium-dev pkgconf
+       sudo apt-get install -y libsodium-dev pkgconf # build-essential git
+       git submodule update --init --recursive tests/munit
        make debug test # Test a debug build.
        make clean all test # Test a production build.
        cd ../python/test

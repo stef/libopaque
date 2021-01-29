@@ -1,0 +1,201 @@
+"use strict";
+
+// https://expressjs.com/en/starter/hello-world.html
+const express = require("express");
+const path = require("path");
+const app = express();
+const port = 8080;
+const opaque = require("../dist/libopaque.js");
+const users = {};
+const credentialSecrets = {};
+const registerSecrets = {};
+
+(async () => {
+  await opaque.ready;
+
+  const cfg = {
+    skU: opaque.NotPackaged,
+    pkU: opaque.NotPackaged,
+    pkS: opaque.InSecEnv,
+    idS: opaque.NotPackaged,
+    idU: opaque.NotPackaged,
+  };
+  const idS = "server";
+  const infos = {
+    info1: null,
+    info2: null,
+    einfo2: null,
+    info3: null,
+    einfo3: null,
+  };
+  const pkS = opaque.hexToUint8Array(
+    "8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f"
+  );
+  const skS = opaque.hexToUint8Array(
+    "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  );
+
+  // https://expressjs.com/en/starter/static-files.html
+  app.use(express.static(path.join(__dirname, "public")));
+
+  // https://expressjs.com/en/api.html#express.urlencoded
+  // https://stackoverflow.com/questions/4295782/how-to-process-post-data-in-node-js
+  // https://stackoverflow.com/questions/25471856/express-throws-error-as-body-parser-deprecated-undefined-extended
+  app.use(express.urlencoded({ extended: true }));
+
+  app.post("/register-with-password", (req, res) => {
+    try {
+      console.log(req.body);
+      const pwdU = req.body.pw;
+      const skS = null;
+      const idU = req.body.id;
+      // registration = { rec, export_key }
+      const registration = opaque.register({
+        pwdU,
+        skS,
+        cfg,
+        ids: { idS, idU },
+      });
+      // Allow registration to go through to prevent user-enumeration attacks.
+      if (!users[idU]) users[idU] = registration;
+      // else The user is already registered.
+      res.json({});
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/request-credentials", (req, res) => {
+    try {
+      console.log(req.body);
+      const pub = opaque.hexToUint8Array(req.body.request);
+      const idU = req.body.id;
+
+      const rec = users[idU] ? users[idU].rec : null;
+      if (!rec) {
+        res.json({ error: "Requesting credentials for the user failed." });
+        return;
+      }
+
+      const { resp, sk, sec } = opaque.createCredentialResponse({
+        pub,
+        rec,
+        cfg,
+        ids: { idS, idU },
+        infos,
+      });
+      credentialSecrets[idU] = sec;
+
+      const response = { response: opaque.uint8ArrayToHex(resp) };
+      if (cfg.pkS === opaque.NotPackaged) {
+        const { pkS: _pkS } = opaque.getServerPublicKeyFromUserRecord({ rec });
+        response.pkS = opaque.uint8ArrayToHex(_pkS);
+      }
+      res.json(response);
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/authorize", (req, res) => {
+    try {
+      console.log(req.body);
+      const sec = credentialSecrets[req.body.id];
+      delete credentialSecrets[req.body.id];
+      const authU = opaque.hexToUint8Array(req.body.auth);
+      res.json(
+        opaque.userAuth({
+          sec,
+          authU,
+          infos,
+        })
+      );
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/register-without-password", (req, res) => {
+    try {
+      console.log(req.body);
+      const idU = req.body.id;
+      const request = opaque.hexToUint8Array(req.body.request);
+      const response = opaque.createRegistrationResponse({ M: request });
+      registerSecrets[idU] = response.sec;
+      res.json({ response: opaque.uint8ArrayToHex(response.pub) });
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/store-user-record", (req, res) => {
+    try {
+      console.log(req.body);
+      const idU = req.body.id;
+      const sec = registerSecrets[idU];
+      delete registerSecrets[idU];
+      const rec = opaque.hexToUint8Array(req.body.rec);
+      const userRec = opaque.storeUserRecord({ sec, rec });
+      // Allow registration to go through to prevent user-enumeration attacks.
+      if (!users[idU]) users[idU] = userRec;
+      // else The user is already registered.
+      res.json(true);
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/register-with-global-server-key", (req, res) => {
+    try {
+      console.log(req.body);
+      const idU = req.body.id;
+      const request = opaque.hexToUint8Array(req.body.request);
+      const response = opaque.create1kRegistrationResponse({
+        M: request,
+        pkS,
+      });
+      registerSecrets[idU] = response.sec;
+      res.json({
+        response: opaque.uint8ArrayToHex(response.pub),
+        type: "global-server-key",
+      });
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.post("/store-user-record-using-global-server-key", (req, res) => {
+    try {
+      console.log(req.body);
+      const idU = req.body.id;
+      const sec = registerSecrets[idU];
+      delete registerSecrets[idU];
+      const rec = opaque.hexToUint8Array(req.body.rec);
+      const userRec = opaque.store1kUserRecord({
+        sec,
+        skS,
+        rec,
+      });
+      // Allow registration to go through to prevent user-enumeration attacks.
+      if (!users[idU]) users[idU] = userRec;
+      // else The user is already registered.
+      res.json(true);
+    } catch (e) {
+      console.error(e);
+      res.json({ error: e.message });
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`);
+  });
+})().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

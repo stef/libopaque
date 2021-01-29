@@ -1,3 +1,6 @@
 [submodule "src/tests/munit"]
 	path = src/tests/munit
 	url = https://github.com/nemequ/munit.git
+[submodule "js/libsodium.js"]
+	path = js/libsodium.js
+	url = https://github.com/jedisct1/libsodium.js

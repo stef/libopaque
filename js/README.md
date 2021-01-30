@@ -1,30 +1,45 @@
 # libopaque.js
 
-## Overview
-
-The OPAQUE asymmetric password-authenticated key exchange (PAKE) protocol library
+The OPAQUE asymmetric password-authenticated key exchange protocol library
 ([libopaque](https://github.com/stef/libopaque)) compiled to WebAssembly and
 pure JavaScript using [Emscripten](https://github.com/kripken/emscripten).
 
+## Overview
+
+libopaque implements the
+[OPAQUE protocol](https://github.com/cfrg/draft-irtf-cfrg-opaque) as proposed
+by the Internet Engineering Task Force (IETF) Crypto Forum Research Group
+(CFRG).
+
+The OPAQUE protocol is a secure asymmetric password-authenticated key exchange
+(aPAKE) that supports mutual authentication in a client-server setting without
+reliance on PKI and with security against pre-computation attacks upon server
+compromise. In addition, the protocol provides forward secrecy and the ability
+to hide the password from the server, even during password registration.
+
 ## Installation
 
-The [dist](https://github.com/stef/libopaque/tree/master/js/dist) directory
+The [`dist`](https://github.com/stef/libopaque/tree/master/js/dist) directory
 contains pre-built scripts. Copy one of the files to your application:
 
-- [libopaque.js](https://github.com/stef/libopaque/tree/master/js/dist/libopaque.js)
+- [`libopaque.js`](https://github.com/stef/libopaque/tree/master/js/dist/libopaque.js)
   is a minified single-file script that you can include in webpages.
-- [libopaque.debug.js](https://github.com/stef/libopaque/tree/master/js/dist/libopaque.debug.js)
-  is a non-minified version of `libopaque.js` useful for debuggin.
+- [`libopaque.debug.js`](https://github.com/stef/libopaque/tree/master/js/dist/libopaque.debug.js)
+  is a non-minified version of `libopaque.js` useful for debugging.
 
 libopaque.js is also available on npm:
-
-- [libopaque](https://www.npmjs.com/package/libopaque)
+[libopaque](https://www.npmjs.com/package/libopaque).
 
 ### Usage
 
-On the server side, see demo/app.js for example usage.
+On the server side, see
+[`demo/app.js`](https://github.com/stef/libopaque/tree/master/js/demo/app.js)
+for example usage.
 
-On the client side, see demo/public/index.js and demo/public/index-worker.js
+On the client side, see
+[`demo/public/index.js`](https://github.com/stef/libopaque/tree/master/js/demo/public/index.js)
+and
+[`demo/public/index-worker.js`](https://github.com/stef/libopaque/tree/master/js/demo/public/index-worker.js)
 for example usage.
 
 ### Compilation

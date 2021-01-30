@@ -2,10 +2,37 @@
   "name": "libopaque",
   "version": "0.0.0",
   "description": "The OPAQUE asymmetric password-authenticated key exchange (PAKE) protocol library (libopaque) compiled to WebAssembly and pure JavaScript using Emscripten",
+  "keywords": [
+    "ake",
+    "apake",
+    "authenticated-key-exchange",
+    "crypto",
+    "ietf-cfrg",
+    "libopaque",
+    "libsodium",
+    "pake",
+    "opaque",
+    "password",
+    "password-ake",
+    "password-authenticated-key-exchange",
+    "sodium"
+  ],
+  "homepage": "https://github.com/stef/libopaque/tree/master/js",
+  "bugs": {
+    "url": "https://github.com/stef/libopaque/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stef/libopaque/tree/master/js"
+  },
   "license": "GPLv3",
-  "author": "Stefan Marsiske <pyopaque@ctrlc.hu>",
+  "author": "Stefan Marsiske (@stef)",
   "contributors": [
-    "Chris Topher <c@creemama.com>"
+    "Chris Topher (@creemama)"
+  ],
+  "main": "dist/libopaque.js",
+  "files": [
+    "dist"
   ],
   "scripts": {
     "babel": "babel --out-file dist/libopaque.debug.js dist/libopaque.debug.js"

@@ -42,6 +42,21 @@ and
 [`demo/public/index-worker.js`](https://github.com/stef/libopaque/tree/master/js/demo/public/index-worker.js)
 for example usage.
 
+### Running the Demo
+
+```sh
+$ # cd to this directory.
+$ docker run -it --publish 8080:8080 --rm \
+  --name libopaque-demo \
+  --user node \
+  --volume "$(pwd)/..":/home/node/src \
+  --workdir /home/node/src/js/demo \
+  creemama/node-no-yarn:lts-alpine \
+  sh -c 'npm install && node app.js'
+$ # Navigate to http://localhost:8080 in a browser.
+$ docker stop libopaque-demo
+```
+
 ### Compilation
 
 If you want to compile the files yourself, you need the following dependencies
@@ -59,8 +74,8 @@ following is an example build using Docker:
 ```sh
 $ # cd to this directory.
 $ docker run -it --rm \
-  --volume $(pwd)/..:/src \
+  --volume "$(pwd)/..":/src \
   --workdir /src/js \
   emscripten/emsdk:1.40.1 \
-  sh -c "apt-get update && apt-get install pkgconf uncrustify && make"
+  sh -c 'apt update && apt install pkgconf uncrustify && make'
 ```

@@ -1,0 +1,30 @@
+name: "Build and test JavaScript bindings"
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [master]
+
+jobs:
+  build:
+    name: Build and test JavaScript bindings
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - run: |
+       cd js
+       sudo apt install -y libsodium-dev nodejs pkgconf python3-pip uncrustify # build-essential git
+       git clone https://github.com/emscripten-core/emsdk.git # https://emscripten.org/docs/getting_started/downloads.html
+       cd emsdk
+       ./emsdk install 1.40.1
+       ./emsdk activate 1.40.1
+       source ./emsdk_env.sh
+       cd ..
+       make
+       rm -rf emsdk # We do not want to format emsdk.
+       make format test

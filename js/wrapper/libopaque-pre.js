@@ -1381,20 +1381,15 @@
   function exposeLibopaque(exports) {
     "use strict";
     var Module = exports;
-
-    let resolveFunction, rejectFunction;
-    const readyPromise = new Promise((resolve, reject) => {
-      resolveFunction = resolve;
-      rejectFunction = reject;
-    });
-
-    Module["ready"] = readyPromise;
-
-    if (Module["postRun"]) {
-      if (typeof Module["postRun"] == "function")
-        Module["postRun"] = [Module["postRun"]];
-      Module["postRun"].push(resolveFunction);
-      Module["postRun"].push(wrapLibrary);
-    } else {
-      Module["postRun"] = [resolveFunction, wrapLibrary];
-    }
+    var _Module = Module;
+    Module.ready = new Promise(function (resolve, reject) {
+      var Module = _Module;
+      Module.onAbort = reject;
+      Module.onRuntimeInitialized = function () {
+        try {
+          wrapLibrary(Module);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      };

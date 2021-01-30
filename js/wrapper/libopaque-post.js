@@ -1,3 +1,4 @@
+    });
     // https://github.com/jedisct1/libsodium.js/blob/master/wrapper/libsodium-post.js
     if (
       typeof process === "object" &&

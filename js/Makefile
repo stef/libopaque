@@ -203,9 +203,9 @@ format:
 	printf "demo/public/libopaque.js\ndist\nlibsodium.js" >> .prettierignore
 	# Make the syntax valid for partial JavaScript files.
 	cat wrapper/libopaque-pre.js >> wrapper/libopaque-pre.tmp
-	printf "}})();" >> wrapper/libopaque-pre.tmp
+	printf "});}})();" >> wrapper/libopaque-pre.tmp
 	mv wrapper/libopaque-pre.tmp wrapper/libopaque-pre.js
-	printf "(function (root) {\n  function placeholder() {\n" >> wrapper/libopaque-post.tmp
+	printf "(function(){{(function(){\"use strict\";\n" >> wrapper/libopaque-post.tmp
 	cat wrapper/libopaque-post.js >> wrapper/libopaque-post.tmp
 	rm wrapper/libopaque-post.js
 	mv wrapper/libopaque-post.tmp wrapper/libopaque-post.js
@@ -213,8 +213,9 @@ format:
 	# Remove the last two lines of libopaque-pre.js.
 	sed -i '$$d' wrapper/libopaque-pre.js
 	sed -i '$$d' wrapper/libopaque-pre.js
+	sed -i '$$d' wrapper/libopaque-pre.js
 	# Remove the first two lines of libopaque-post.js.
-	sed -i '1d;2d' wrapper/libopaque-post.js
+	sed -i '1d;2d;3d;4d' wrapper/libopaque-post.js
 	rm .prettierignore
 	uncrustify -c uncrustify.cfg --no-backup wrapper/opaquejs.c wrapper/opaquejs.h
 

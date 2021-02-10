@@ -8,7 +8,6 @@
 #include "ext/standard/info.h"
 #include "php_opaque.h"
 #include "opaque.h"
-#include "common.h"
 
 /* For compatibility with older PHP versions */
 #ifndef ZEND_PARSE_PARAMETERS_NONE
@@ -67,28 +66,13 @@ static Opaque_App_Infos * get_infos(Opaque_App_Infos *infos, const zend_array *i
   if(infos_array==NULL) return NULL;
 
   if((x=get_infostr(infos_array, 0))) {
-    infos->info1 = Z_STRVAL(*x);
-    infos->info1_len = Z_STRLEN(*x);
+    infos->info = Z_STRVAL(*x);
+    infos->info_len = Z_STRLEN(*x);
     ret = infos;
   }
   if((x=get_infostr(infos_array, 1))) {
-    infos->info2 = Z_STRVAL(*x);
-    infos->info2_len = Z_STRLEN(*x);
-    ret = infos;
-  }
-  if((x=get_infostr(infos_array, 2))) {
-    infos->einfo2 = Z_STRVAL(*x);
-    infos->einfo2_len = Z_STRLEN(*x);
-    ret = infos;
-  }
-  if((x=get_infostr(infos_array, 3))) {
-    infos->info3 = Z_STRVAL(*x);
-    infos->info3_len = Z_STRLEN(*x);
-    ret = infos;
-  }
-  if((x=get_infostr(infos_array, 4))) {
-    infos->einfo3 = Z_STRVAL(*x);
-    infos->einfo3_len = Z_STRLEN(*x);
+    infos->einfo = Z_STRVAL(*x);
+    infos->einfo_len = Z_STRLEN(*x);
     ret = infos;
   }
   return ret;
@@ -329,11 +313,10 @@ PHP_FUNCTION(opaque_user_auth) {
   size_t authU_len;
   zend_array *infos_array=NULL;
 
-	ZEND_PARSE_PARAMETERS_START(2, 3)
+	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_STRING(sec, sec_len)
 		Z_PARAM_STRING(authU, authU_len)
 		Z_PARAM_OPTIONAL
-        Z_PARAM_ARRAY_HT(infos_array)
 	ZEND_PARSE_PARAMETERS_END();
 
     if(sec_len!=OPAQUE_SERVER_AUTH_CTX_LEN) {
@@ -345,11 +328,9 @@ PHP_FUNCTION(opaque_user_auth) {
       return;
     }
 
-    Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
-
     zval zbool;
 
-    if(0!=opaque_UserAuth(sec, authU, infos_p))
+    if(0!=opaque_UserAuth(sec, authU))
       RETURN_FALSE;
     RETURN_TRUE;
 }
@@ -629,7 +610,6 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_user_auth, 0)
 	ZEND_ARG_INFO(0, sec)
 	ZEND_ARG_INFO(0, authU)
-	ZEND_ARG_INFO(0, infos_array)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_request, 0)

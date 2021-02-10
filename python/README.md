@@ -35,10 +35,10 @@ cfg.idS=opaque.InClrEnv        # The server's ID is plaintext.
 ```
 
 ### `App_Infos`
-The IETF CFRG draft mentions a bunch of `?info*` parameters that can
+The IETF CFRG draft mentions `info` and `einfo` parameters that can
 be used to be bound into the session:
 ```python
-infos=opaque.App_Infos(info1="1", info2="2", einfo2="e2", info3="3", einfo3="e3")
+infos=opaque.App_Infos(info="1", einfo="e")
 ```
 
 ## 1-step registration
@@ -167,9 +167,8 @@ This step is only needed if there is no encrypted channel setup
 towards the server using the shared secret.
 
 ```python
-opaque.UserAuth(secS, authU, infos)
+opaque.UserAuth(secS, authU)
 ```
 
  - `secS` contains sensitive data and should be disposed securely after usage in this step.
  - `authU` comes from the user running the previous step.
- - `infos` is an optional `App_Infos` struct.

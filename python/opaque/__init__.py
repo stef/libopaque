@@ -100,50 +100,26 @@ class Ids(ctypes.Structure):
 #   session-specific parameters to the current session.
 class App_Infos(ctypes.Structure):
     _fields_ = [
-        ('info1',ctypes.c_char_p),
-        ('info1_len', c_size_t),
-        ('info2',ctypes.c_char_p),
-        ('info2_len', c_size_t),
-        ('einfo2',ctypes.c_char_p),
-        ('einfo2_len', c_size_t),
-        ('info3',ctypes.c_char_p),
-        ('info3_len', c_size_t),
-        ('einfo3',ctypes.c_char_p),
-        ('einfo3_len', c_size_t),
+        ('info',ctypes.c_char_p),
+        ('info_len', c_size_t),
+        ('einfo',ctypes.c_char_p),
+        ('einfo_len', c_size_t),
     ]
 
-    def __init__(self, info1=None, info2=None, einfo2=None, info3=None, einfo3=None):
+    def __init__(self, info=None, einfo=None):
         super().__init__()
-        if info1:
-            self.info1=info1.encode("utf8")
-            self.info1_len=len(self.info1)
+        if info:
+            self.info=info.encode("utf8")
+            self.info_len=len(self.info)
         else:
-            self.info1=None
-            self.info1_len=0
-        if info2:
-            self.info2=info2.encode("utf8")
-            self.info2_len=len(self.info2)
+            self.info=None
+            self.info_len=0
+        if einfo:
+            self.einfo=einfo.encode("utf8")
+            self.einfo_len=len(self.einfo)
         else:
-            self.info2=None
-            self.info2_len=0
-        if einfo2:
-            self.einfo2=einfo2.encode("utf8")
-            self.einfo2_len=len(self.einfo2)
-        else:
-            self.einfo2=None
-            self.einfo2_len=0
-        if info3:
-            self.info3=info3.encode("utf8")
-            self.info3_len=len(self.info3)
-        else:
-            self.info3=None
-            self.info3_len=0
-        if einfo3:
-            self.einfo3=einfo3.encode("utf8")
-            self.einfo3_len=len(self.einfo3)
-        else:
-            self.einfo3=None
-            self.einfo3_len=0
+            self.einfo=None
+            self.einfo_len=0
 
 # enum to define the handling of various fields packed in the opaque envelope
 NotPackaged = 0
@@ -340,7 +316,7 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
 #  @param [in] sec - the context returned by opaque_CreateCredentialResponse()
 #  @param [in] authU is the authentication token sent by the user.
 #  @return the function returns 0 if the hmac verifies correctly.
-#int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
+#int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
 def UserAuth(sec, authU):
     if None in (sec, authU):
         raise ValueError("invalid parameter")

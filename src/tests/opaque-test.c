@@ -78,7 +78,7 @@ int register_with_global_server_key(const uint8_t *pwdU,
   if(0!=opaque_CreateCredentialRequest(pwdU, pwdU_len, secU, pub)) return 1;
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, secS)) return 1;
   if(0!=opaque_RecoverCredentials(resp, secU, pkS, &cfg, NULL, &ids1, sk1, authU, export_key1)) return 1;
-  if(0!=opaque_UserAuth(secS, authU, NULL)) return 1;
+  if(0!=opaque_UserAuth(secS, authU)) return 1;
   assert(ids.idU_len==ids1.idU_len);
   assert(ids.idS_len==ids1.idS_len);
   assert(0==memcmp(ids.idU, ids1.idU, ids.idU_len));
@@ -162,7 +162,7 @@ int main(void) {
   assert(sodium_memcmp(export_key,export_key_x,sizeof export_key)==0);
 
   fprintf(stderr, "\nopaque_UserAuth\n");
-  if(-1==opaque_UserAuth(ctx, authU, NULL)) {
+  if(-1==opaque_UserAuth(ctx, authU)) {
     fprintf(stderr, "failed authenticating user\n");
     return 1;
   }
@@ -218,7 +218,7 @@ int main(void) {
 
   // authenticate both parties:
 
-  if(-1==opaque_UserAuth(ctx, authU, NULL)) {
+  if(-1==opaque_UserAuth(ctx, authU)) {
     fprintf(stderr, "failed authenticating user\n");
     return 1;
   }

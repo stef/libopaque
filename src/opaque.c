@@ -108,7 +108,6 @@ typedef struct {
   uint8_t km2[crypto_auth_hmacsha256_KEYBYTES];
   uint8_t km3[crypto_auth_hmacsha256_KEYBYTES];
   uint8_t ke2[OPAQUE_HANDSHAKE_SECRETBYTES];
-  uint8_t ke3[OPAQUE_HANDSHAKE_SECRETBYTES];
 } __attribute((packed)) Opaque_Keys;
 
 /**
@@ -627,15 +626,12 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
   hkdf_expand_label(keys->km3, handshake_secret, "client mac", NULL, crypto_auth_hmacsha256_KEYBYTES);
   //Ke2 = HKDF-Expand-Label(handshake_secret, "server enc", "", key_length)
   hkdf_expand_label(keys->ke2, handshake_secret, "server enc", NULL, OPAQUE_HANDSHAKE_SECRETBYTES);
-  //Ke3 = HKDF-Expand-Label(handshake_secret, "client enc", "", key_length)
-  hkdf_expand_label(keys->ke3, handshake_secret, "client enc", NULL, OPAQUE_HANDSHAKE_SECRETBYTES);
   sodium_munlock(handshake_secret, sizeof handshake_secret);
 #ifdef TRACE
   dump(keys->sk, OPAQUE_SHARED_SECRETBYTES, "keys->sk");
   dump(keys->km2, crypto_auth_hmacsha256_KEYBYTES, "keys->km2");
   dump(keys->km3, crypto_auth_hmacsha256_KEYBYTES, "keys->km3");
   dump(keys->ke2, OPAQUE_HANDSHAKE_SECRETBYTES, "keys->ke2");
-  dump(keys->ke3, OPAQUE_HANDSHAKE_SECRETBYTES, "keys->ke3");
 #endif
 }
 
@@ -687,9 +683,8 @@ static void get_xcript(uint8_t xcript[crypto_hash_sha256_BYTES],
                        const uint8_t *envu, const size_t envu_len,
                        const uint8_t nonceS[OPAQUE_NONCE_BYTES],
                        const uint8_t epubs[crypto_scalarmult_BYTES],
-                       const Opaque_App_Infos *infos,
-                       const int use_info3) {
-  // OPRF1, nonceU, info1*, IdU*, ePubU, OPRF2, EnvU, nonceS, info2*, ePubS, Einfo2*, info3*, Einfo3*
+                       const Opaque_App_Infos *infos) {
+  // OPRF1, nonceU, info*, IdU*, ePubU, OPRF2, EnvU, nonceS, ePubS, Einfo*
   crypto_hash_sha256_state state;
   crypto_hash_sha256_init(&state);
 
@@ -709,24 +704,17 @@ static void get_xcript(uint8_t xcript[crypto_hash_sha256_BYTES],
 
   crypto_hash_sha256_update(&state, oprf1, crypto_core_ristretto255_BYTES);
   crypto_hash_sha256_update(&state, nonceU, OPAQUE_NONCE_BYTES);
-  if(infos!=NULL && infos->info1!=NULL) crypto_hash_sha256_update(&state, infos->info1, infos->info1_len);
+  if(infos!=NULL && infos->info!=NULL) crypto_hash_sha256_update(&state, infos->info, infos->info_len);
   crypto_hash_sha256_update(&state, epubu, crypto_scalarmult_BYTES);
   crypto_hash_sha256_update(&state, oprf2, crypto_core_ristretto255_BYTES);
   crypto_hash_sha256_update(&state, envu, envu_len);
   crypto_hash_sha256_update(&state, nonceS, OPAQUE_NONCE_BYTES);
-  if(infos!=NULL && infos->info2!=NULL) crypto_hash_sha256_update(&state, infos->info2, infos->info2_len);
   crypto_hash_sha256_update(&state, epubs, crypto_scalarmult_BYTES);
-  if(infos!=NULL) {
-    if(infos->einfo2!=NULL) crypto_hash_sha256_update(&state, infos->einfo2, infos->einfo2_len);
-    if(use_info3!=0) {
-      if(infos->info3!=NULL) crypto_hash_sha256_update(&state, infos->info3, infos->info3_len);
-      if(infos->einfo3!=NULL) crypto_hash_sha256_update(&state, infos->einfo3, infos->einfo3_len);
-    }
-  }
+  if(infos!=NULL && infos->einfo!=NULL) crypto_hash_sha256_update(&state, infos->einfo, infos->einfo_len);
 
   // preserve xcript hash state for server so it does not have to
   // remember/recalc the xcript so far when authenticating the client
-  if(xcript_state && (!infos || !(infos->einfo3 || infos->info3))) {
+  if(xcript_state) {
     memcpy(xcript_state, &state, sizeof state);
   }
   crypto_hash_sha256_final(&state, xcript);
@@ -744,9 +732,9 @@ static void get_xcript_srv(uint8_t xcript[crypto_hash_sha256_BYTES],
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
   if(sec!=NULL)
-    get_xcript(xcript, &sec->xcript_state, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, &sec->xcript_state, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos);
   else
-    get_xcript(xcript, NULL, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos, 0);
+    get_xcript(xcript, NULL, pub->M, pub->nonceU, pub->X_u, resp->Z, (uint8_t*) &resp->envU, resp->envU_len, resp->nonceS, resp->X_s, infos);
 }
 
 static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
@@ -754,9 +742,8 @@ static void get_xcript_usr(uint8_t xcript[crypto_hash_sha256_BYTES],
                            const Opaque_ServerSession *resp,
                            const uint8_t *env,
                            const uint8_t X_u[crypto_scalarmult_BYTES],
-                           const Opaque_App_Infos *infos,
-                           const int use_info3) {
-  get_xcript(xcript, 0, sec->M, sec->nonceU, X_u, resp->Z, env, resp->envU_len, resp->nonceS, resp->X_s, infos, use_info3);
+                           const Opaque_App_Infos *infos) {
+  get_xcript(xcript, 0, sec->M, sec->nonceU, X_u, resp->Z, env, resp->envU_len, resp->nonceS, resp->X_s, infos);
 }
 
 // implements server end of triple-dh
@@ -1529,7 +1516,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   uint8_t xcript[crypto_hash_sha256_BYTES];
   uint8_t X_u[crypto_scalarmult_BYTES];
   crypto_scalarmult_base(X_u, sec->x_u);
-  get_xcript_usr(xcript, sec, resp, env, X_u, infos, 0);
+  get_xcript_usr(xcript, sec, resp, env, X_u, infos);
 #ifdef TRACE
   dump(resp->auth, sizeof resp->auth, "resp->auth ");
   dump(keys.km2, sizeof keys.km2, "km2 ");
@@ -1545,7 +1532,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 #endif
 
   if(authU) {
-    get_xcript_usr(xcript, sec, resp, env, X_u, infos, 1);
+    get_xcript_usr(xcript, sec, resp, env, X_u, infos);
     crypto_auth_hmacsha256(authU, xcript, crypto_hash_sha256_BYTES, keys.km3);
 #ifdef TRACE
   dump(xcript, crypto_hash_sha256_BYTES, "session user finish xcript ");
@@ -1562,21 +1549,15 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
 }
 
 // extra function to implement the hmac based auth as defined in the ietf cfrg draft
-int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos) {
+int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]) {
   if(_sec==NULL) return 1;
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
 
-  if(infos!=NULL) {
-    if(infos->info3!=NULL) crypto_hash_sha256_update(&sec->xcript_state, infos->info3, infos->info3_len);
-    if(infos->einfo3!=NULL) crypto_hash_sha256_update(&sec->xcript_state, infos->einfo3, infos->einfo3_len);
-  }
   uint8_t xcript[crypto_hash_sha256_BYTES];
   crypto_hash_sha256_final(&sec->xcript_state, xcript);
 #ifdef TRACE
   dump(sec->km3,crypto_auth_hmacsha256_KEYBYTES,"km3 ");
   dump(xcript, crypto_hash_sha256_BYTES, "xcript ");
-  if(infos)
-    dump((uint8_t*)infos, sizeof(Opaque_App_Infos), "infos ");
   dump(authU,crypto_auth_hmacsha256_BYTES, "authU ");
 #endif
   return crypto_auth_hmacsha256_verify(authU, xcript, crypto_hash_sha256_BYTES, sec->km3);

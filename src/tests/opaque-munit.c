@@ -310,7 +310,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
-  if(-1==opaque_UserAuth(ctx, authU, NULL)) {
+  if(-1==opaque_UserAuth(ctx, authU)) {
     fprintf(stderr,"failed authenticating user\n");
     return MUNIT_FAIL;
   }

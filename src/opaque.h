@@ -78,16 +78,10 @@ typedef struct {
    session-specific parameters to the current session.
 */
 typedef struct {
-  uint8_t *info1;
-  size_t info1_len;
-  uint8_t *info2;
-  size_t info2_len;
-  uint8_t *einfo2;
-  size_t einfo2_len;
-  uint8_t *info3;
-  size_t info3_len;
-  uint8_t *einfo3;
-  size_t einfo3_len;
+  uint8_t *info;
+  size_t info_len;
+  uint8_t *einfo;
+  size_t einfo_len;
 } Opaque_App_Infos;
 
 /**
@@ -232,12 +226,9 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env
 
    @param [in] sec - the context returned by opaque_CreateCredentialResponse()
    @param [in] authU is the authentication token sent by the user.
-   @param [in] infos is a pointer to a struct containing the
-   info* /einfo* values used during the protocol instantiation (only
-   info3/einfo3 is needed - the rest is already cached in sec)
    @return the function returns 0 if the hmac verifies correctly.
  */
-int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
+int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
 
 /**
    Alternative user initialization, user registration as specified by the RFC

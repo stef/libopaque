@@ -39,7 +39,7 @@ resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS=None)
 
 # server authenticates user
-opaque.UserAuth(secS, authU, None)
+opaque.UserAuth(secS, authU)
 
 assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
 assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
@@ -70,7 +70,7 @@ resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
 sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS=None)
 
 # 4. server authenicates user
-opaque.UserAuth(secS, authU, None)
+opaque.UserAuth(secS, authU)
 
 assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
 assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
@@ -103,7 +103,7 @@ def register_with_global_server_key():
     pub, secU = opaque.CreateCredentialRequest(pwdU)
     resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
     sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS, ids)
-    opaque.UserAuth(secS, authU, None)
+    opaque.UserAuth(secS, authU)
     assert ids.idU==ids1.idU, "The recovered user ID (ids1.idU) must equal the registration user ID (ids.idU)."
     assert ids.idS==ids1.idS, "The recovered server ID (ids1.idS) must equal the registration server ID (ids.idS)."
     assert export_key==export_key1, "export_key must equal export_key1."

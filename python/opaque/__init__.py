@@ -339,18 +339,15 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
 #
 #  @param [in] sec - the context returned by opaque_CreateCredentialResponse()
 #  @param [in] authU is the authentication token sent by the user.
-#  @param [in] infos is a pointer to a struct containing the
-#  info* /einfo* values used during the protocol instantiation (only
-#  info3/einfo3 is needed - the rest is already cached in sec)
 #  @return the function returns 0 if the hmac verifies correctly.
 #int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES], const Opaque_App_Infos *infos);
-def UserAuth(sec, authU, infos):
+def UserAuth(sec, authU):
     if None in (sec, authU):
         raise ValueError("invalid parameter")
     if len(sec) != OPAQUE_SERVER_AUTH_CTX_LEN: raise ValueError("invalid sec param")
     if len(authU) != crypto_auth_hmacsha256_BYTES: raise ValueError("invalid authU param")
 
-    __check(opaquelib.opaque_UserAuth(sec, authU, ctypes.pointer(infos) if infos else None))
+    __check(opaquelib.opaque_UserAuth(sec, authU))
 
 #  Alternative user initialization, user registration as specified by the RFC
 

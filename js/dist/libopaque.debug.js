@@ -226,16 +226,10 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
     "number", // const uint16_t ids_idU_len,
     "string", // const uint8_t *ids_idS,
     "number", // const uint16_t ids_idS_len,
-    "string", // const uint8_t *app_info1,
-    "number", // const size_t app_info1_len,
-    "string", // const uint8_t *app_info2,
-    "number", // const size_t app_info2_len,
-    "string", // const uint8_t *app_einfo2,
-    "number", // const size_t app_einfo2_len,
-    "string", // const uint8_t *app_info3,
-    "number", // const size_t app_info3_len,
-    "string", // const uint8_t *app_einfo3,
-    "number", // const size_t app_einfo3_len,
+    "string", // const uint8_t *app_info,
+    "number", // const size_t app_info_len,
+    "string", // const uint8_t *app_einfo,
+    "number", // const size_t app_einfo_len,
     "number", // uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
     "number", // uint8_t sk[crypto_secretbox_KEYBYTES],
     "number" // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
@@ -274,7 +268,7 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
         pointers.push(sec_pointer);
         sec_pointer.zero();
 
-        if (0 !== module.CreateCredentialResponse(pub_pointer.address, rec_pointer.address, ids.idU, ids.idU.length, ids.idS, ids.idS.length, app_info.info1, app_info.info1 != null ? app_info.info1.length : 0, app_info.info2, app_info.info2 != null ? app_info.info2.length : 0, app_info.einfo2, app_info.einfo2 != null ? app_info.einfo2.length : 0, app_info.info3, app_info.info3 != null ? app_info.info3.length : 0, app_info.einfo3, app_info.einfo3 != null ? app_info.einfo3.length : 0, resp_pointer.address, sk_pointer.address, sec_pointer.address)) {
+        if (0 !== module.CreateCredentialResponse(pub_pointer.address, rec_pointer.address, ids.idU, ids.idU.length, ids.idS, ids.idS.length, app_info.info, app_info.info != null ? app_info.info.length : 0, app_info.einfo, app_info.einfo != null ? app_info.einfo.length : 0, resp_pointer.address, sk_pointer.address, sec_pointer.address)) {
           var error = new Error("CreateCredentialResponse failed.");
           error.name = "OpaqueError";
           throw error;
@@ -310,16 +304,10 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
     "number", // const uint8_t cfg_pkS,
     "number", // const uint8_t cfg_idS,
     "number", // const uint8_t cfg_idU,
-    "string", // const uint8_t *app_info1,
-    "number", // const size_t app_info1_len,
-    "string", // const uint8_t *app_info2,
-    "number", // const size_t app_info2_len,
-    "string", // const uint8_t *app_einfo2,
-    "number", // const size_t app_einfo2_len,
-    "string", // const uint8_t *app_info3,
-    "number", // const size_t app_info3_len,
-    "string", // const uint8_t *app_einfo3,
-    "number", // const size_t app_einfo3_len,
+    "string", // const uint8_t *app_info,
+    "number", // const size_t app_info_len,
+    "string", // const uint8_t *app_einfo,
+    "number", // const size_t app_einfo_len,
     "number", // const uint8_t **ids_idU,
     "number", // const uint16_t *ids_idU_len,
     "number", // const uint8_t **ids_idS,
@@ -435,7 +423,7 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
         var export_key_pointer = new AllocatedBuf(module.crypto_hash_sha256_BYTES, module);
         pointers.push(export_key_pointer);
 
-        if (0 !== module.RecoverCredentials(resp_pointer.address, sec_pointer.address, pkS_pointer ? pkS_pointer.address : null, cfg.skU, cfg.pkU, cfg.pkS, cfg.idS, cfg.idU, app_info.info1, app_info.info1 != null ? app_info.info1.length : 0, app_info.info2, app_info.info2 != null ? app_info.info2.length : 0, app_info.einfo2, app_info.einfo2 != null ? app_info.einfo2.length : 0, app_info.info3, app_info.info3 != null ? app_info.info3.length : 0, app_info.einfo3, app_info.einfo3 != null ? app_info.einfo3.length : 0, ids1_idU_pointer_pointer.address, ids1_idU_len_pointer.address, ids1_idS_pointer_pointer.address, ids1_idS_len_pointer.address, sk_pointer.address, authU_pointer.address, export_key_pointer.address)) {
+        if (0 !== module.RecoverCredentials(resp_pointer.address, sec_pointer.address, pkS_pointer ? pkS_pointer.address : null, cfg.skU, cfg.pkU, cfg.pkS, cfg.idS, cfg.idU, app_info.info, app_info.info != null ? app_info.info.length : 0, app_info.einfo, app_info.einfo != null ? app_info.einfo.length : 0, ids1_idU_pointer_pointer.address, ids1_idU_len_pointer.address, ids1_idS_pointer_pointer.address, ids1_idS_len_pointer.address, sk_pointer.address, authU_pointer.address, export_key_pointer.address)) {
           var error = new Error("RecoverCredentials failed.");
           error.name = "OpaqueError";
           throw error;
@@ -468,11 +456,7 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
     };
 
     Module["UserAuth"] = Module.cwrap("opaquejs_UserAuth", "number", ["number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-    "number", // const uint8_t authU[crypto_auth_hmacsha256_BYTES],
-    "string", // const uint8_t *app_info3,
-    "number", // const size_t app_info3_len,
-    "string", // const uint8_t *app_einfo3,
-    "number" // const size_t app_einfo3_len);
+    "number" // const uint8_t authU[crypto_auth_hmacsha256_BYTES],
     ]);
 
     function userAuth(module, params) {
@@ -480,22 +464,16 @@ var Module = typeof Module !== 'undefined' ? Module : {}; // --pre-jses are emit
 
       try {
         var sec = params.sec,
-            authU = params.authU,
-            infos = params.infos;
-        var app_info = infos || {};
+            authU = params.authU;
         validateUint8Arrays({
           sec: sec,
           authU: authU
-        });
-        validateOptionalStrings({
-          app_info3: app_info.info3,
-          app_einfo3: app_info.einfo3
         });
         var sec_pointer = AllocatedBuf.fromUint8Array(sec, module.OPAQUE_SERVER_AUTH_CTX_LEN, module);
         pointers.push(sec_pointer);
         var authU_pointer = AllocatedBuf.fromUint8Array(authU, module.crypto_auth_hmacsha256_BYTES, module);
         pointers.push(authU_pointer);
-        return 0 === module.UserAuth(sec_pointer.address, authU_pointer.address, app_info.info3, app_info.info3 != null ? app_info.info3.length : 0, app_info.einfo3, app_info.einfo3 != null ? app_info.einfo3.length : 0);
+        return 0 === module.UserAuth(sec_pointer.address, authU_pointer.address);
       } catch (e) {
         if (e.name === "OpaqueError") throw e;
         var error = new Error("userAuth failed. (" + e.name + ") " + e.message);

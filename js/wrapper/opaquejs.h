@@ -65,16 +65,10 @@ int opaquejs_CreateCredentialResponse(
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  const uint8_t *app_info1,
-  const size_t app_info1_len,
-  const uint8_t *app_info2,
-  const size_t app_info2_len,
-  const uint8_t *app_einfo2,
-  const size_t app_einfo2_len,
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len,
+  const uint8_t *app_info1
+  const size_t app_info_len,
+  const uint8_t *app_einfo,
+  const size_t app_einfo_len,
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN /*+envU_len*/],
   uint8_t sk[crypto_secretbox_KEYBYTES],
   uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
@@ -88,16 +82,10 @@ int opaquejs_RecoverCredentials(
   const uint8_t cfg_pkS,
   const uint8_t cfg_idS,
   const uint8_t cfg_idU,
-  const uint8_t *app_info1,
-  const size_t app_info1_len,
-  const uint8_t *app_info2,
-  const size_t app_info2_len,
-  const uint8_t *app_einfo2,
-  const size_t app_einfo2_len,
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len,
+  const uint8_t *app_info,
+  const size_t app_info_len,
+  const uint8_t *app_einfo,
+  const size_t app_einfo_len,
   uint8_t **ids_idU,
   uint16_t *ids_idU_len,
   uint8_t **ids_idS,
@@ -108,11 +96,7 @@ int opaquejs_RecoverCredentials(
 
 int opaquejs_UserAuth(
   uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-  const uint8_t authU[crypto_auth_hmacsha256_BYTES],
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len);
+  const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
 
 int opaquejs_CreateRegistrationRequest(
   const uint8_t *pwdU,

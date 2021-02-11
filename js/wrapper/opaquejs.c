@@ -14,25 +14,16 @@ typedef struct {
 
 
 void opaquejs_to_App_Infos(
-  const uint8_t *app_info1,
-  const size_t app_info1_len,
-  const uint8_t *app_info2,
-  const size_t app_info2_len,
-  const uint8_t *app_einfo2,
-  const size_t app_einfo2_len,
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len,
+  const uint8_t *app_info,
+  const size_t app_info_len,
+  const uint8_t *app_einfo,
+  const size_t app_einfo_len,
   Opaque_App_Infos **infos_ptr) {
 
-  if (app_info1 || app_info2 || app_einfo2 || app_info3 || app_einfo3) {
+  if (app_info || app_einfo) {
     Opaque_App_Infos infos = {
-      (uint8_t *)app_info1,  app_info1_len,
-      (uint8_t *)app_info2,  app_info2_len,
-      (uint8_t *)app_einfo2, app_einfo2_len,
-      (uint8_t *)app_info3,  app_info3_len,
-      (uint8_t *)app_einfo3, app_einfo3_len
+      (uint8_t *)app_info,  app_info_len,
+      (uint8_t *)app_einfo, app_einfo_len,
     };
     *infos_ptr = &infos;
   }
@@ -208,27 +199,18 @@ int opaquejs_CreateCredentialResponse(
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  const uint8_t *app_info1,
-  const size_t app_info1_len,
-  const uint8_t *app_info2,
-  const size_t app_info2_len,
-  const uint8_t *app_einfo2,
-  const size_t app_einfo2_len,
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len,
+  const uint8_t *app_info,
+  const size_t app_info_len,
+  const uint8_t *app_einfo,
+  const size_t app_einfo_len,
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN /*+envU_len*/],
   uint8_t sk[crypto_secretbox_KEYBYTES],
   uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]) {
 
   const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
   Opaque_App_Infos *infos_ptr = NULL;
-  opaquejs_to_App_Infos(app_info1, app_info1_len,
-                        app_info2, app_info2_len,
-                        app_einfo2, app_einfo2_len,
-                        app_info3, app_info3_len,
-                        app_einfo3, app_einfo3_len,
+  opaquejs_to_App_Infos(app_info, app_info_len,
+                        app_einfo, app_einfo_len,
                         &infos_ptr);
   return opaque_CreateCredentialResponse(pub, rec, &ids, infos_ptr, resp, sk, sec);
 }
@@ -243,16 +225,10 @@ int opaquejs_RecoverCredentials(
   const uint8_t cfg_pkS,
   const uint8_t cfg_idS,
   const uint8_t cfg_idU,
-  const uint8_t *app_info1,
-  const size_t app_info1_len,
-  const uint8_t *app_info2,
-  const size_t app_info2_len,
-  const uint8_t *app_einfo2,
-  const size_t app_einfo2_len,
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len,
+  const uint8_t *app_info,
+  const size_t app_info_len,
+  const uint8_t *app_einfo,
+  const size_t app_einfo_len,
   uint8_t **ids_idU,
   uint16_t *ids_idU_len,
   uint8_t **ids_idS,
@@ -264,11 +240,8 @@ int opaquejs_RecoverCredentials(
   Opaque_PkgConfig cfg;
   if (0 != opaquejs_to_PkgConfig(cfg_skU, cfg_pkU, cfg_pkS, cfg_idS, cfg_idU, &cfg)) return 1;
   Opaque_App_Infos *infos_ptr = NULL;
-  opaquejs_to_App_Infos(app_info1, app_info1_len,
-                        app_info2, app_info2_len,
-                        app_einfo2, app_einfo2_len,
-                        app_info3, app_info3_len,
-                        app_einfo3, app_einfo3_len,
+  opaquejs_to_App_Infos(app_info, app_info_len,
+                        app_einfo, app_einfo_len,
                         &infos_ptr);
   Opaque_Ids ids1 = { *ids_idU_len, *ids_idU, *ids_idS_len, *ids_idS };
   if (0 != opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_ptr,
@@ -284,20 +257,9 @@ int opaquejs_RecoverCredentials(
 
 int opaquejs_UserAuth(
   uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-  const uint8_t authU[crypto_auth_hmacsha256_BYTES],
-  const uint8_t *app_info3,
-  const size_t app_info3_len,
-  const uint8_t *app_einfo3,
-  const size_t app_einfo3_len) {
+  const uint8_t authU[crypto_auth_hmacsha256_BYTES]) {
 
-  Opaque_App_Infos *infos_ptr = NULL;
-  opaquejs_to_App_Infos(NULL, 0,
-                        NULL, 0,
-                        NULL, 0,
-                        app_info3, app_info3_len,
-                        app_einfo3, app_einfo3_len,
-                        &infos_ptr);
-  return opaque_UserAuth(sec, authU, infos_ptr);
+  return opaque_UserAuth(sec, authU);
 }
 
 

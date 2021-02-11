@@ -50,7 +50,7 @@ const opaque = require("../dist/libopaque.js");
     infos,
     ids,
   });
-  if (!opaque.userAuth({ sec: secS, authU, infos }))
+  if (!opaque.userAuth({ sec: secS, authU }))
     throw new Error("userAuth failed!");
   if (ids.idU !== ids1.idU)
     throw new Error(

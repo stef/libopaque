@@ -22,11 +22,8 @@ const registerSecrets = {};
   };
   const idS = "server";
   const infos = {
-    info1: null,
-    info2: null,
-    einfo2: null,
-    info3: null,
-    einfo3: null,
+    info: null,
+    einfo: null,
   };
   const pkS = opaque.hexToUint8Array(
     "8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f"
@@ -109,7 +106,6 @@ const registerSecrets = {};
         opaque.userAuth({
           sec,
           authU,
-          infos,
         })
       );
     } catch (e) {

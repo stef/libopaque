@@ -280,16 +280,10 @@
         "number", // const uint16_t ids_idU_len,
         "string", // const uint8_t *ids_idS,
         "number", // const uint16_t ids_idS_len,
-        "string", // const uint8_t *app_info1,
-        "number", // const size_t app_info1_len,
-        "string", // const uint8_t *app_info2,
-        "number", // const size_t app_info2_len,
-        "string", // const uint8_t *app_einfo2,
-        "number", // const size_t app_einfo2_len,
-        "string", // const uint8_t *app_info3,
-        "number", // const size_t app_info3_len,
-        "string", // const uint8_t *app_einfo3,
-        "number", // const size_t app_einfo3_len,
+        "string", // const uint8_t *app_info,
+        "number", // const size_t app_info_len,
+        "string", // const uint8_t *app_einfo,
+        "number", // const size_t app_einfo_len,
         "number", // uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
         "number", // uint8_t sk[crypto_secretbox_KEYBYTES],
         "number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
@@ -351,16 +345,10 @@
             ids.idU.length,
             ids.idS,
             ids.idS.length,
-            app_info.info1,
-            app_info.info1 != null ? app_info.info1.length : 0,
-            app_info.info2,
-            app_info.info2 != null ? app_info.info2.length : 0,
-            app_info.einfo2,
-            app_info.einfo2 != null ? app_info.einfo2.length : 0,
-            app_info.info3,
-            app_info.info3 != null ? app_info.info3.length : 0,
-            app_info.einfo3,
-            app_info.einfo3 != null ? app_info.einfo3.length : 0,
+            app_info.info,
+            app_info.info != null ? app_info.info.length : 0,
+            app_info.einfo,
+            app_info.einfo != null ? app_info.einfo.length : 0,
             resp_pointer.address,
             sk_pointer.address,
             sec_pointer.address
@@ -403,16 +391,10 @@
         "number", // const uint8_t cfg_pkS,
         "number", // const uint8_t cfg_idS,
         "number", // const uint8_t cfg_idU,
-        "string", // const uint8_t *app_info1,
-        "number", // const size_t app_info1_len,
-        "string", // const uint8_t *app_info2,
-        "number", // const size_t app_info2_len,
-        "string", // const uint8_t *app_einfo2,
-        "number", // const size_t app_einfo2_len,
-        "string", // const uint8_t *app_info3,
-        "number", // const size_t app_info3_len,
-        "string", // const uint8_t *app_einfo3,
-        "number", // const size_t app_einfo3_len,
+        "string", // const uint8_t *app_info,
+        "number", // const size_t app_info_len,
+        "string", // const uint8_t *app_einfo,
+        "number", // const size_t app_einfo_len,
         "number", // const uint8_t **ids_idU,
         "number", // const uint16_t *ids_idU_len,
         "number", // const uint8_t **ids_idS,
@@ -576,16 +558,10 @@
             cfg.pkS,
             cfg.idS,
             cfg.idU,
-            app_info.info1,
-            app_info.info1 != null ? app_info.info1.length : 0,
-            app_info.info2,
-            app_info.info2 != null ? app_info.info2.length : 0,
-            app_info.einfo2,
-            app_info.einfo2 != null ? app_info.einfo2.length : 0,
-            app_info.info3,
-            app_info.info3 != null ? app_info.info3.length : 0,
-            app_info.einfo3,
-            app_info.einfo3 != null ? app_info.einfo3.length : 0,
+            app_info.info,
+            app_info.info != null ? app_info.info.length : 0,
+            app_info.einfo,
+            app_info.einfo != null ? app_info.einfo.length : 0,
             ids1_idU_pointer_pointer.address,
             ids1_idU_len_pointer.address,
             ids1_idS_pointer_pointer.address,
@@ -632,11 +608,7 @@
     };
     Module["UserAuth"] = Module.cwrap("opaquejs_UserAuth", "number", [
       "number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-      "number", // const uint8_t authU[crypto_auth_hmacsha256_BYTES],
-      "string", // const uint8_t *app_info3,
-      "number", // const size_t app_info3_len,
-      "string", // const uint8_t *app_einfo3,
-      "number", // const size_t app_einfo3_len);
+      "number", // const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
     ]);
     function userAuth(module, params) {
       const pointers = [];
@@ -644,14 +616,8 @@
         const {
           sec, // required
           authU, // required
-          infos, // optional
         } = params;
-        const app_info = infos || {};
         validateUint8Arrays({ sec, authU });
-        validateOptionalStrings({
-          app_info3: app_info.info3,
-          app_einfo3: app_info.einfo3,
-        });
         const sec_pointer = AllocatedBuf.fromUint8Array(
           sec,
           module.OPAQUE_SERVER_AUTH_CTX_LEN,
@@ -668,12 +634,7 @@
           0 ===
           module.UserAuth(
             sec_pointer.address,
-            authU_pointer.address,
-            app_info.info3,
-            app_info.info3 != null ? app_info.info3.length : 0,
-            app_info.einfo3,
-            app_info.einfo3 != null ? app_info.einfo3.length : 0
-          )
+            authU_pointer.address)
         );
       } catch (e) {
         if (e.name === "OpaqueError") throw e;

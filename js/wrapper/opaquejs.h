@@ -65,7 +65,7 @@ int opaquejs_CreateCredentialResponse(
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  const uint8_t *app_info1
+  const uint8_t *app_info
   const size_t app_info_len,
   const uint8_t *app_einfo,
   const size_t app_einfo_len,

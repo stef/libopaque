@@ -311,7 +311,6 @@ PHP_FUNCTION(opaque_user_auth) {
   size_t sec_len;
   char *authU;
   size_t authU_len;
-  zend_array *infos_array=NULL;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
 		Z_PARAM_STRING(sec, sec_len)

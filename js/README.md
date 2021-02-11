@@ -30,7 +30,7 @@ contains pre-built scripts. Copy one of the files to your application:
 libopaque.js is also available on npm:
 [libopaque](https://www.npmjs.com/package/libopaque).
 
-### Usage
+## Usage
 
 On the server side, see
 [`demo/app.js`](https://github.com/stef/libopaque/tree/master/js/demo/app.js)
@@ -42,8 +42,19 @@ and
 [`demo/public/index-worker.js`](https://github.com/stef/libopaque/tree/master/js/demo/public/index-worker.js)
 for example usage.
 
-### Running the Demo
+## Running the Demo
 
+If you have Node.js installed, here is how to run the demo:
+```sh
+$ # cd to this directory.
+$ cd demo
+$ npm install
+$ node app.js
+$ # Navigate to http://localhost:8080 in a browser.
+$ # Type Ctrl+C to terminate.
+```
+
+Here is how to run the demo using Docker:
 ```sh
 $ # cd to this directory.
 $ docker run -it --publish 8080:8080 --rm \
@@ -57,7 +68,7 @@ $ # Navigate to http://localhost:8080 in a browser.
 $ docker stop libopaque-demo
 ```
 
-### Compilation
+## Compilation
 
 If you want to compile the files yourself, you need the following dependencies
 installed on your system:
@@ -77,5 +88,5 @@ $ docker run -it --rm \
   --volume "$(pwd)/..":/src \
   --workdir /src/js \
   emscripten/emsdk:1.40.1 \
-  sh -c 'apt update && apt install pkgconf uncrustify && make'
+  bash -c 'apt update && apt install pkgconf uncrustify && make'
 ```

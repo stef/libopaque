@@ -1,6 +1,6 @@
 {
   "name": "libopaque",
-  "version": "0.0.0-alpha.1",
+  "version": "0.0.0-alpha.2",
   "description": "The OPAQUE asymmetric password-authenticated key exchange (PAKE) protocol library (libopaque) compiled to WebAssembly and pure JavaScript using Emscripten",
   "keywords": [
     "ake",

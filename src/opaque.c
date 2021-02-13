@@ -138,6 +138,31 @@ typedef struct {
   uint8_t data[1];
 } __attribute((packed)) CredentialExtension;
 
+const Opaque_PkgConfig IETF_BaseCfg = {
+  .skU= InSecEnv,
+  .pkU= NotPackaged,
+  .pkS= InClrEnv,
+  .idU= NotPackaged,
+  .idS= NotPackaged,
+};
+
+const Opaque_PkgConfig IETF_CustomIDCfg = {
+  .skU= InSecEnv,
+  .pkU= NotPackaged,
+  .pkS= InClrEnv,
+  .idU= InClrEnv,
+  .idS= InClrEnv,
+};
+
+#define Cfg2Short(c) ((uint16_t) (c.skU      |    \
+                                  c.pkU << 2 |    \
+                                  c.pkS << 4 |    \
+                                  c.idU << 6 |    \
+                                  c.idS << 8))
+
+const uint16_t IETF_BaseCfgInt = Cfg2Short(IETF_BaseCfg);
+const uint16_t IETF_CustomIDCfgInt = Cfg2Short(IETF_CustomIDCfg);
+
 /**
  * This function generates an OPRF private key.
  *

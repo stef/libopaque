@@ -67,6 +67,25 @@
    /* km3 */ crypto_auth_hmacsha256_KEYBYTES+          \
    /* xcript_state */ sizeof(crypto_hash_sha256_state))
 
+typedef enum {
+   Base = 1,
+   CustomID = 2
+} __attribute((packed)) Opaque_IETF_EnvelopeMode;
+
+#define OPAQUE_ENVELOPE_BASE_MODE_LEN (               \
+   /* mode */sizeof(Opaque_IETF_EnvelopeMode)+        \
+   /* nonce */ OPAQUE_NONCE_BYTES+                    \
+   /* skU_len */ sizeof(uint16_t)+                    \
+   /* skU */ crypto_scalarmult_SCALARBYTES+           \
+   /* pkS_len */ sizeof(uint16_t)+                    \
+   /* pkS */ crypto_scalarmult_BYTES)
+
+
+#define OPAQUE_ENVELOPE_CUSTOMID_MODE_LEN (           \
+   OPAQUE_ENVELOPE_BASE_MODE_LEN +                    \
+  /* idU_len */ sizeof(uint16_t) +                    \
+  /* idS_len */ sizeof(uint16_t))
+
 /**
    struct to store the IDs of the user/server.
  */
@@ -122,7 +141,10 @@ typedef struct {
   Opaque_PkgTarget idS : 2;  /**< id of the server - the RFC specifies
                                 this to be possible to pack into the
                                 envelope */
-} Opaque_PkgConfig;
+} __attribute((packed)) Opaque_PkgConfig;
+
+extern const Opaque_PkgConfig IETF_BaseCfg;
+extern const Opaque_PkgConfig IETF_CustomIDCfg;
 
 /**
    This function implements the storePwdFile function from the paper

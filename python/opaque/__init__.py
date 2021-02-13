@@ -521,21 +521,6 @@ def Store1kUserRecord(sec, skS, rec):
     opaquelib.opaque_Store1kUserRecord(sec, skS, rec)
     return rec
 
-#  This helper function calculates the length of one part, either the secret
-#  part (SecEnv) or the cleartext part (ClrEnv), of the envelope in bytes.
-#
-#  @param [in] cfg - the configuration of the envelope's secret and cleartext
-#  parts
-#  @param [in] ids - the IDs of the user and server that are only needed if we
-#  pack one of the IDs into the envelope as given by the cfg param
-#  @param [in] type - InSecEnv|InClrEnv - NotPackaged is useless
-#
-#  @return the function returns the size of the envelope part specified by the
-#  type param in bytes.
-#size_t opaque_package_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, const Opaque_PkgTarget type);
-def package_len(cfg, ids, type):
-    return opaquelib.opaque_package_len(ctypes.pointer(cfg), ctypes.pointer(ids), type)
-
 #  This helper function calculates the length of the envelope in bytes.
 #
 #  The returned size should be OPAQUE_ENVELOPE_META_LEN + SecEnv_len +

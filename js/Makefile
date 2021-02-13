@@ -170,13 +170,12 @@ dist/libopaque.js: wrapper/opaquejs.o node_modules
 	wrapper/opaquejs.o \
 	$(LDFLAGS) \
 	-fstack-clash-protection
-	npx terser@5.5.1 --output dist/libopaque.js -- dist/libopaque.debug.js
+	npx terser --output dist/libopaque.js -- dist/libopaque.debug.js
 
 # Check that our JavaScript is ES6-compatible.
-es-check:
-	npm install --global es-check@5.1.4
-	es-check es6 dist/*.js --verbose
-	es-check es6 demo/public/*.js --verbose
+es-check: node_modules
+	npx es-check es6 dist/*.js --verbose
+	npx es-check es6 demo/public/*.js --verbose
 
 # Even though the following 3 lines
 #
@@ -194,8 +193,8 @@ es-check:
 # [error]   1314 |     }
 # [error] > 1315 | }})();
 # [error]        | ^
-format:
-	npx sort-package-json@1.48.0 package.json demo/package.json
+format: node_modules
+	npx sort-package-json package.json demo/package.json
 	printf "demo/public/libopaque.js\ndist\nlibsodium.js" >> .prettierignore
 	# Make the syntax valid for partial JavaScript files.
 	cat wrapper/libopaque-pre.js >> wrapper/libopaque-pre.tmp
@@ -205,7 +204,7 @@ format:
 	cat wrapper/libopaque-post.js >> wrapper/libopaque-post.tmp
 	rm wrapper/libopaque-post.js
 	mv wrapper/libopaque-post.tmp wrapper/libopaque-post.js
-	npx prettier@2.2.1 --write .
+	npx prettier --write .
 	# Remove the last two lines of libopaque-pre.js.
 	sed -i '$$d' wrapper/libopaque-pre.js
 	sed -i '$$d' wrapper/libopaque-pre.js
@@ -239,4 +238,10 @@ testjs: all
 	./test/libopaquejs-test-global-pkS.js
 	./test/libopaquejs-test-per-user-pkS.js
 
-.PHONY: all all-libopaque all-libopaquejs clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs
+update: node_modules
+	npx npm-check-updates --upgrade
+	npx npm-check-updates --upgrade --packageFile demo/package.json
+	npm install
+	cd demo && npm install
+
+.PHONY: all all-libopaque all-libopaquejs clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs update

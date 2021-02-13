@@ -30,7 +30,7 @@
     "type": "git",
     "url": "https://github.com/stef/libopaque/tree/master/js"
   },
-  "license": "GPLv3",
+  "license": "GPL-3.0",
   "author": "Stefan Marsiske (@stef)",
   "contributors": [
     "Chris Topher (@creemama)"

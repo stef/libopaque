@@ -181,7 +181,7 @@ static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
                          const uint8_t N[crypto_core_ristretto255_BYTES],
                          const uint8_t *info, const uint16_t info_len,
-                         const uint8_t nonce[envelope_NONCEBYTES],
+                         const uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES],
                          uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
@@ -238,7 +238,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
     return -1;
   }
   sodium_munlock(y, sizeof(y));
-  crypto_kdf_hkdf_sha256_extract(rwdU, nonce, envelope_NONCEBYTES, rwdU, crypto_secretbox_KEYBYTES);
+  crypto_kdf_hkdf_sha256_extract(rwdU, nonce, OPAQUE_ENVELOPE_NONCEBYTES, rwdU, crypto_secretbox_KEYBYTES);
 
 #ifdef TRACE
   dump((uint8_t*) rwdU, crypto_secretbox_KEYBYTES, "rwdU ");
@@ -397,7 +397,7 @@ static int voprf_hash_to_ristretto255(const uint8_t *msg, uint8_t msg_len, uint8
 
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
-               uint8_t nonce[envelope_NONCEBYTES],
+               uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES],
                uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
   // F_k(pwd) = H(pwd, (H0(pwd))^k) for key k ∈ Z_q
   uint8_t H0[crypto_core_ristretto255_BYTES];
@@ -1177,8 +1177,8 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
     return -1;
   }
 
-  uint8_t nonce[envelope_NONCEBYTES];
-  randombytes(nonce, envelope_NONCEBYTES);
+  uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES];
+  randombytes(nonce, OPAQUE_ENVELOPE_NONCEBYTES);
   if(prf(pwdU, pwdU_len, rec->kU, nonce, rwdU)!=0) {
     sodium_munlock(rwdU,sizeof rwdU);
     return -1;
@@ -1671,8 +1671,8 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
     return -1;
   }
   // 2. y = Finalize(pwdU, N, "OPAQUE01")
-  uint8_t nonce[envelope_NONCEBYTES];
-  randombytes(nonce, envelope_NONCEBYTES);
+  uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES];
+  randombytes(nonce, OPAQUE_ENVELOPE_NONCEBYTES);
   if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, nonce, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU, sizeof(rwdU));

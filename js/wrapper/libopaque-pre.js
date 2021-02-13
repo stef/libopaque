@@ -631,10 +631,7 @@
         );
         pointers.push(authU_pointer);
         return (
-          0 ===
-          module.UserAuth(
-            sec_pointer.address,
-            authU_pointer.address)
+          0 === module.UserAuth(sec_pointer.address, authU_pointer.address)
         );
       } catch (e) {
         if (e.name === "OpaqueError") throw e;

@@ -38,19 +38,5 @@
   "main": "dist/libopaque.js",
   "files": [
     "dist"
-  ],
-  "scripts": {
-    "babel": "babel --out-file dist/libopaque.debug.js dist/libopaque.debug.js"
-  },
-  "babel": {
-    "presets": [
-      "@babel/preset-env"
-    ]
-  },
-  "devDependencies": {
-    "@babel/cli": "7.12.10",
-    "@babel/core": "7.12.10",
-    "@babel/preset-env": "7.12.11"
-  },
-  "babel-notes": "See https://medium.com/@SunnyB/how-to-convert-es6-into-es5-using-babel-1b533d31a169."
+  ]
 }

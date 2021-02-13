@@ -45,6 +45,7 @@ for example usage.
 ## Running the Demo
 
 If you have Node.js installed, here is how to run the demo:
+
 ```sh
 $ # cd to this directory.
 $ cd demo
@@ -55,6 +56,7 @@ $ # Type Ctrl+C to terminate.
 ```
 
 Here is how to run the demo using Docker:
+
 ```sh
 $ # cd to this directory.
 $ docker run -it --publish 8080:8080 --rm \

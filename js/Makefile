@@ -170,17 +170,13 @@ dist/libopaque.js: wrapper/opaquejs.o node_modules
 	wrapper/opaquejs.o \
 	$(LDFLAGS) \
 	-fstack-clash-protection
-	# Convert JavaScript to ES5 for old browsers.
-	npm run babel
-	# Undo Babel's bad change.
-	sed -i 's/(void 0)/(this)/' dist/libopaque.debug.js
 	npx terser@5.5.1 --output dist/libopaque.js -- dist/libopaque.debug.js
 
-# Check that our JavaScript is ES5-compatible for older browsers.
+# Check that our JavaScript is ES6-compatible.
 es-check:
 	npm install --global es-check@5.1.4
-	es-check es5 dist/*.js --verbose
-	es-check es5 demo/public/*.js --verbose
+	es-check es6 dist/*.js --verbose
+	es-check es6 demo/public/*.js --verbose
 
 # Even though the following 3 lines
 #

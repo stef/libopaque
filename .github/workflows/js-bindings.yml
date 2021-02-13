@@ -27,4 +27,4 @@ jobs:
        cd ..
        make
        rm -rf emsdk # We do not want to format emsdk.
-       make format test
+       make format es-check test

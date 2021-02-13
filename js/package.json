@@ -12,6 +12,7 @@
     "cryptography",
     "cryptography-library",
     "ietf-cfrg",
+    "javascript",
     "key-exchange",
     "libopaque",
     "libsodium",
@@ -20,7 +21,9 @@
     "password",
     "password-ake",
     "password-authenticated-key-exchange",
-    "sodium"
+    "sodium",
+    "wasm",
+    "webassembly"
   ],
   "homepage": "https://github.com/stef/libopaque/tree/master/js",
   "bugs": {

@@ -1,5 +1,5 @@
 /*
-    @copyright 2018-20, opaque@ctrlc.hu
+    @copyright 2018-21, opaque@ctrlc.hu
     This file is part of libopaque.
 
     libopaque is free software: you can redistribute it and/or

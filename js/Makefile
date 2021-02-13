@@ -195,7 +195,6 @@ es-check: node_modules
 # [error]        | ^
 format: node_modules
 	npx sort-package-json package.json demo/package.json
-	printf "demo/public/libopaque.js\ndist\nlibsodium.js" >> .prettierignore
 	# Make the syntax valid for partial JavaScript files.
 	cat wrapper/libopaque-pre.js >> wrapper/libopaque-pre.tmp
 	printf "});}})();" >> wrapper/libopaque-pre.tmp
@@ -211,7 +210,6 @@ format: node_modules
 	sed -i '$$d' wrapper/libopaque-pre.js
 	# Remove the first two lines of libopaque-post.js.
 	sed -i '1d;2d;3d;4d' wrapper/libopaque-post.js
-	rm .prettierignore
 	uncrustify -c uncrustify.cfg --no-backup wrapper/opaquejs.c wrapper/opaquejs.h
 
 libopaque: ../src/libopaque.so

@@ -2,10 +2,13 @@
 
 // https://expressjs.com/en/starter/hello-world.html
 const express = require("express");
+const opaque = require("../dist/libopaque.js");
 const path = require("path");
+const rateLimit = require("express-rate-limit");
+
 const app = express();
 const port = 8080;
-const opaque = require("../dist/libopaque.js");
+
 const users = {};
 const credentialSecrets = {};
 const registerSecrets = {};
@@ -39,6 +42,18 @@ const registerSecrets = {};
   // https://stackoverflow.com/questions/4295782/how-to-process-post-data-in-node-js
   // https://stackoverflow.com/questions/25471856/express-throws-error-as-body-parser-deprecated-undefined-extended
   app.use(express.urlencoded({ extended: true }));
+
+  // Auth0 has a user/password authentication rate limit of 20 per minute:
+  // https://web.archive.org/web/20201111055850/https://auth0.com/docs/policies/rate-limit-policy/database-connections-rate-limits.
+  // Since the OPAQUE protocol requires some back and forth (e.g., registration
+  // takes at least 3 requests), let's set the limit to 100 requests per minute.
+  // Having a rate limiter fixes the following CodeQL finding:
+  // https://web.archive.org/web/20210213102815/https://github.com/github/codeql/blob/main/javascript/ql/src/Security/CWE-770/MissingRateLimiting.ql.
+  const limiter = rateLimit({
+    windowMs: 60 * 1000, // = 1 minute.
+    max: 100, // Limit each IP to 100 requests per windowMs.
+  });
+  app.use(limiter);
 
   app.post("/register-with-password", (req, res) => {
     try {

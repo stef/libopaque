@@ -17,7 +17,13 @@
 #define OPAQUE_SHARED_SECRETBYTES 32
 #define OPAQUE_HANDSHAKE_SECRETBYTES 32
 #define OPAQUE_NONCE_BYTES 32
-#define OPAQUE_ENVELOPE_META_LEN (2*crypto_hash_sha256_BYTES + 2*sizeof(uint16_t))
+#define OPAQUE_ENVELOPE_NONCEBYTES 32
+
+#define OPAQUE_ENVELOPE_META_LEN (                     \
+  /* envU nonce */ OPAQUE_ENVELOPE_NONCEBYTES+         \
+  /* SecEnv_len */ sizeof(uint16_t)+                   \
+  /* ClrEnv_len */ sizeof(uint16_t)+                   \
+  /* auth tag */ crypto_hash_sha256_BYTES)
 
 #define OPAQUE_USER_RECORD_LEN (                       \
    /* kU */ crypto_core_ristretto255_SCALARBYTES+      \

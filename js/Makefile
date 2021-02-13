@@ -145,6 +145,8 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 		LDFLAGS='$(LIBOPAQUE_LDFLAGS)' \
 		tests
 
+build: clean format all es-check test
+
 clean: clean-libsodium clean-libopaque clean-libopaquejs
 
 clean-libopaque:
@@ -242,4 +244,4 @@ update: node_modules
 	npm install
 	cd demo && npm install
 
-.PHONY: all all-libopaque all-libopaquejs clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs update
+.PHONY: all all-libopaque all-libopaquejs build clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs update

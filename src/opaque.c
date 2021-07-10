@@ -1196,17 +1196,13 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
                     uint8_t export_key[crypto_hash_sha256_BYTES]) {
   Opaque_UserRecord *rec = (Opaque_UserRecord *)_rec;
 
-  const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
-  const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
-  const uint32_t envU_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
+  const uint32_t envU_len = opaque_envelope_len(cfg, ids);
 
 #ifdef TRACE
   dump((uint8_t*) cfg,2, "cfg ");
   fprintf(stderr, "cfg skU: %d, pkU:%d, pkS:%d, idU:%d, idS:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
   dump(ids->idU, ids->idU_len,"idU ");
   dump(ids->idS, ids->idS_len,"idS ");
-  fprintf(stderr,"clrenv_len: %d\n", ClrEnv_len);
-  fprintf(stderr,"secenv_len: %d\n", SecEnv_len);
   fprintf(stderr,"envU_len: %d\n", envU_len);
   fprintf(stderr,"rec_len: %ld\n", OPAQUE_USER_RECORD_LEN+envU_len);
   memset(_rec,0,OPAQUE_USER_RECORD_LEN+envU_len);
@@ -1690,11 +1686,9 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
 
-  const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
-  const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
+  const uint32_t envU_len = opaque_envelope_len(cfg, ids);
 
 #ifdef TRACE
-  const uint32_t envU_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
   memset(_rec,0,OPAQUE_USER_RECORD_LEN+envU_len);
 #endif
 
@@ -1751,7 +1745,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
   if(0!=ret) {
     return -1;
   }
-  rec->envU_len = OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
+  rec->envU_len = envU_len;
 
 #ifdef TRACE
   dump(_rec, OPAQUE_USER_RECORD_LEN, "cipher user rec ");

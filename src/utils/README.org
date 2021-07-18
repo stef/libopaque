@@ -1,0 +1,64 @@
+** Offline Registration
+```
+echo -n password | ./opaque init user server >record 3>export_key
+```
+** Online Registration
+*** socat style
+**** server
+```
+socat tcp-l:23523,reuseaddr,fork system:"bash -c \'./opaque server-reg user server 3>record\'"
+```
+**** client
+```
+socat tcp:127.0.0.1:23523 exec:'bash -c \"./opaque user-reg user server 3< <(echo -n password) 4>export_key\"'
+```
+*** tcpserver style
+**** server
+```
+s6-tcpserver 127.0.0.1 23523 bash -c './opaque server-reg user server 3>record'
+```
+**** client
+```
+s6-tcpclient 127.0.0.1 23523 bash -c "./opaque user-reg user server <&6 >&7 3< <(echo -n password) 4>export_key"
+```
+*** The manual way
+it's also possible to do all 4 steps seperately, in case you cannot connect to the server directly, then:
+
+the user initiates with:
+```
+echo -n password | ./opaque register >msg 3>ctx
+```
+
+the server gets `msg` and responds with rpub, while keeping rsec secret:
+```
+cat msg | ./opaque respond >rpub 3>rsec
+```
+
+the user receives rpub and creates stub record and optionally uses the export key to encrypt more data:
+```
+cat ctx | ./opaque finalize user server 4<rpub >record 3>export_key
+```
+
+the server finalizes the record by completing the stub record from the client:
+```
+cat rec | ./opaque store user server >record 3<rsec
+```
+** Running OPAQUE
+*** tcpserver style
+**** server
+```
+s6-tcpserver 127.0.0.1 23523 bash -c './opaque server user server 3<record 4>shared_secret'
+```
+**** client
+```
+s6-tcpclient 127.0.0.1 23523 bash -c "./opaque user user server <&6 >&7 3< <(echo -n password) 4>export_key 5>shared_secret"
+```
+*** socat style
+**** server
+```
+socat tcp-l:23523,reuseaddr,fork system:"bash -c \'./opaque server user server 3<record 4>shared_secret\'"
+```
+**** client
+```
+socat tcp:127.0.0.1:23523 exec:'bash -c \"./opaque user user server 3< <(echo -n password) 4>export_key  5>shared_secret\"'
+```

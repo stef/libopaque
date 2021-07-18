@@ -15,7 +15,7 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: libopaque.$(SOEXT) tests
+all: libopaque.$(SOEXT) tests utils/opaque
 
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
@@ -52,12 +52,18 @@ test: tests
 	./tests/opaque-tv2$(EXT)
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
-install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h
+utils/opaque: utils/main.c
+	gcc -Wall -O2 -o utils/opaque utils/main.c -lopaque -lsodium
+
+install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
 
 $(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	cp $< $@
 
 $(PREFIX)/include/opaque.h: opaque.h
+	cp $< $@
+
+$(PREFIX)/bin/opaque: utils/opaque
 	cp $< $@
 
 %.o: %.c

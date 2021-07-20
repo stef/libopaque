@@ -53,7 +53,7 @@ test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
 utils/opaque: utils/main.c
-	gcc -Wall -O2 -o utils/opaque utils/main.c -lopaque -lsodium
+	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -lopaque -lsodium
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
 

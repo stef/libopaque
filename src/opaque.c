@@ -1035,14 +1035,14 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
       ptr<SecEnv+SecEnv_len;
       ptr+=cred->size + 3) {
     cred = (const CredentialExtension*) ptr;
-    extract_credential(cfg, InSecEnv, cred, &seen, creds, ids);
+    if(extract_credential(cfg, InSecEnv, cred, &seen, creds, ids)) return 1;
   }
   // parse ClrEnv
   for(ptr=ClrEnv;
       ptr<ClrEnv+ClrEnv_len;
       ptr+=cred->size + 3) {
     cred = (const CredentialExtension*) ptr;
-    extract_credential(cfg, InClrEnv, cred, &seen, creds, ids);
+    if(extract_credential(cfg, InClrEnv, cred, &seen, creds, ids)) return 1;
   }
   // skU might not be packaged according to the rfc draft. In this case
   // rwdU is used to derive a seed for the keygen - which for 25519 is

@@ -19,6 +19,7 @@ assert(o.userAuth(ssec,authU))
 sec, pub = o.createCredentialReq("qwer")
 resp, ssk, ssec = o.createCredentialResp(pub, rec, cfg, "idU", "idS", {"info", "einfo"})
 ok, csk, authU, export_key = pcall(o.recoverCredentials, resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+assert(not ok)
 print(ok, csk, authU, export_key)
 
 -- registration
@@ -29,7 +30,8 @@ rec = o.storeRec(ssec, rec)
 
 sec, pub = o.createCredentialReq("asdf")
 resp, ssk, ssec = o.createCredentialResp(pub, rec, cfg, "idU", "idS", {"info", "einfo"})
-csk, authU, export_key = o.recoverCredentials(resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+ok, csk, authU, export_key = pcall(o.recoverCredentials, resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+assert(ok)
 assert(csk==ssk)
 assert(o.userAuth(ssec,authU))
 
@@ -41,7 +43,8 @@ rec = o.store1kRec(ssec, '\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e
 
 sec, pub = o.createCredentialReq("asdf")
 resp, ssk, ssec = o.createCredentialResp(pub, rec, cfg, "idU", "idS", {"info", "einfo"})
-csk, authU, export_key = o.recoverCredentials(resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+ok, csk, authU, export_key = pcall(o.recoverCredentials, resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+assert(ok)
 assert(csk==ssk)
 assert(o.userAuth(ssec,authU))
 

@@ -300,7 +300,7 @@ static int recover_creds(lua_State *L) {
     return lua_error(L);
   }
 
-  luaL_Buffer sk_, authU_, ek_;
+  luaL_Buffer sk_, authU_, ek_, idU_, idS_;
   char *ptr = luaL_buffinitsize(L, &sk_, OPAQUE_SHARED_SECRETBYTES);
   memcpy(ptr,sk,OPAQUE_SHARED_SECRETBYTES);
   luaL_pushresultsize(&sk_, OPAQUE_SHARED_SECRETBYTES);
@@ -313,7 +313,15 @@ static int recover_creds(lua_State *L) {
   memcpy(ptr,export_key, crypto_hash_sha256_BYTES);
   luaL_pushresultsize(&ek_, crypto_hash_sha256_BYTES);
 
-  return 3;
+  ptr = luaL_buffinitsize(L, &idU_, ids.idU_len);
+  memcpy(ptr,ids.idU, ids.idU_len);
+  luaL_pushresultsize(&idU_, ids.idU_len);
+
+  ptr = luaL_buffinitsize(L, &idS_, ids.idS_len);
+  memcpy(ptr,ids.idS, ids.idS_len);
+  luaL_pushresultsize(&idS_, ids.idS_len);
+
+  return 5;
 }
 
 static int user_auth(lua_State *L) {

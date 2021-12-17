@@ -11,7 +11,9 @@ cfg = {["skU"] = o.InSecEnv,
 rec, ek = o.register("asdf", nil, cfg, "idU", "idS")
 sec, pub = o.createCredentialReq("asdf")
 resp, ssk, ssec = o.createCredentialResp(pub, rec, cfg, "idU", "idS", {"info", "einfo"})
-csk, authU, export_key = o.recoverCredentials(resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+csk, authU, export_key, idU, idS = o.recoverCredentials(resp, sec, nil, cfg, {"info", "einfo"}, nil, nil)
+assert("idU"==idU)
+assert("idS"==idS)
 assert(csk==ssk)
 assert(o.userAuth(ssec,authU))
 

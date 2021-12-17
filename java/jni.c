@@ -273,13 +273,16 @@ static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_,
   uint8_t *pkS=0;
   jbyte *pkS_jb=NULL;
   if(NULL!=pkS_) {
+    if (cfg.pkS!=NotPackaged) {
+      exception(env, "pkS is packaged according to cfg and also provided as param");
+    }
     if((*env)->GetArrayLength(env, sec_)!=crypto_scalarmult_BYTES) {
       exception(env, "invalid pkS size");
     }
     pkS_jb = (*env)->GetByteArrayElements(env, pkS_, NULL);
     pkS = (char*) pkS_jb;
   } else if (cfg.pkS==NotPackaged) {
-      exception(env, "pkS is NotPackaged in cfg and also not provided as param");
+    exception(env, "pkS is NotPackaged in cfg and also not provided as param");
   }
 
   uint8_t idU[1024]={0}, idS[1024]={0};

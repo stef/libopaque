@@ -9,9 +9,6 @@
 #define OPAQUE_ERL_CFG_WAS_ATOM 4
 #define OPAQUE_ERL_TRUNCATED_CFG_ATOM 5
 #define OPAQUE_ERL_INVALID_CFG_ATOM 6
-#define OPAQUE_ERL_INVALID_IDS_SIZE 7
-#define OPAQUE_ERL_INVALID_IDS_ITEM 7
-#define OPAQUE_ERL_INVALID_IDS_ITEM_SIZE 8
 
 static int getcfg(ErlNifEnv* env, const ERL_NIF_TERM tuple, Opaque_PkgConfig *cfg) {
   int items=0, i;
@@ -69,13 +66,27 @@ static int getids(ErlNifEnv* env, const ERL_NIF_TERM tuple, Opaque_Ids *ids) {
 
   ErlNifBinary bin;
   if(enif_inspect_binary(env, array[0], &bin)) {
+    if(bin.size>=(2<<16)) {
+        enif_raise_exception(env, enif_make_atom(env, "idU_too_big"));
+        return 1;
+    }
     ids->idU=(uint8_t*) bin.data;
     ids->idU_len=bin.size;
+  } else {
+        enif_raise_exception(env, enif_make_atom(env, "idU_missing"));
+        return 1;
   }
 
   if(enif_inspect_binary(env, array[1], &bin)) {
+    if(bin.size>=(2<<16)) {
+        enif_raise_exception(env, enif_make_atom(env, "idU_too_big"));
+        return 1;
+    }
     ids->idS=(uint8_t*) bin.data;
     ids->idS_len=bin.size;
+  } else {
+        enif_raise_exception(env, enif_make_atom(env, "idS_missing"));
+        return 1;
   }
 
   return 0;
@@ -326,7 +337,7 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   if(!enif_inspect_binary(env, idarray[0], &bin)) {
     return enif_raise_exception(env, enif_make_atom(env, "ids_parse_error"));
   }
-  if(bin.size>(2<<16)-1) {
+  if(bin.size>=(2<<16)) {
     return enif_raise_exception(env, enif_make_atom(env, "idU_too_big"));
   }
   if(bin.size>0) {
@@ -342,7 +353,7 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   if(!enif_inspect_binary(env, idarray[1], &bin)) {
     return enif_raise_exception(env, enif_make_atom(env, "ids_parse_error"));
   }
-  if(bin.size>(2<<16)-1) {
+  if(bin.size>=(2<<16)) {
     return enif_raise_exception(env, enif_make_atom(env, "idS_too_big"));
   }
   if(bin.size>0) {

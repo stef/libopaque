@@ -232,6 +232,10 @@ static int recover_creds(lua_State *L) {
     lua_pushstring(L, "pkS cannot be None if cfg.pkS is NotPackaged.");
     return lua_error(L);
   }
+  if (cfg.pkS!=NotPackaged && pkS!=NULL) {
+    lua_pushstring(L, "pkS cannot be redundantly provided and packaged according to cfg.pkS.");
+    return lua_error(L);
+  }
 
   Opaque_App_Infos infos={0}, *infos_p=get_infos(L, &infos, 5);
 
@@ -250,6 +254,10 @@ static int recover_creds(lua_State *L) {
     memcpy(idU, id, id_len);
     idU_len = id_len;
   } else {
+    if (id!=NULL) {
+      lua_pushstring(L, "idU cannot be supplied if cfg.idU is packaged.");
+      return lua_error(L);
+    }
     idU_len = sizeof(idU);
   }
 
@@ -266,6 +274,10 @@ static int recover_creds(lua_State *L) {
     memcpy(idS, id, id_len);
     idS_len = id_len;
   } else {
+    if (id!=NULL) {
+      lua_pushstring(L, "idS cannot be supplied if cfg.idU is packaged.");
+      return lua_error(L);
+    }
     idS_len = sizeof(idS);
   }
 

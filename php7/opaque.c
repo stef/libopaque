@@ -236,11 +236,6 @@ PHP_FUNCTION(opaque_recover_credentials) {
 		Z_PARAM_STRING(idS, idS_len)
 	ZEND_PARSE_PARAMETERS_END();
 
-    if(resp_len<=OPAQUE_SERVER_SESSION_LEN) {
-      php_error_docref(NULL, E_WARNING, "invalid resp param.");
-      return;
-    }
-
     if(sec_len<=OPAQUE_USER_SESSION_SECRET_LEN) {
       php_error_docref(NULL, E_WARNING, "invalid sec param.");
       return;
@@ -262,16 +257,28 @@ PHP_FUNCTION(opaque_recover_credentials) {
       return;
     }
 
-    uint8_t idU1[1024], idS1[1024];
+    if (cfg.pkS!=NotPackaged && pkS!=NULL) {
+      php_error_docref(NULL, E_WARNING, "pkS cannot be provided if cfg.pkS is Packaged.");
+    }
+
+    uint8_t idU1[65535]={0}, idS1[65535]={0};
     size_t idU1_len, idS1_len;
     if (cfg.idU==NotPackaged) {
       if (idU==NULL) {
         php_error_docref(NULL, E_WARNING, "idU cannot be NULL if cfg.idU is NotPackaged.");
         return;
       }
+      if(idU_len>=(2<<16)) {
+        php_error_docref(NULL, E_WARNING, "idU too big.");
+        return;
+      }
       memcpy(idU1, idU, idU_len);
       idU1_len = idU_len;
     } else {
+      if (idU!=NULL) {
+        php_error_docref(NULL, E_WARNING, "idU cannot be set if cfg.idU is Packaged.");
+        return;
+      }
       idU1_len = sizeof(idU1);
     }
     if (cfg.idS==NotPackaged) {
@@ -279,12 +286,27 @@ PHP_FUNCTION(opaque_recover_credentials) {
         php_error_docref(NULL, E_WARNING, "idS cannot be NULL if cfg.idS is NotPackaged.");
         return;
       }
+      if(idS_len>=(2<<16)) {
+        php_error_docref(NULL, E_WARNING, "idS too big.");
+        return;
+      }
       memcpy(idS1, idS, idS_len);
       idS1_len = idS_len;
     } else {
+      if (idS!=NULL) {
+        php_error_docref(NULL, E_WARNING, "idS cannot be set if cfg.idU is Packaged.");
+        return;
+      }
       idS1_len = sizeof(idS1);
     }
-    Opaque_Ids ids1={.idU_len=idU1_len,.idU=idU1,.idS_len=idS1_len,.idS=idS1};
+    Opaque_Ids ids={.idU_len=idU1_len,.idU=idU1,.idS_len=idS1_len,.idS=idS1};
+
+    const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
+    if(resp_len<OPAQUE_SERVER_SESSION_LEN+envU_len) {
+      fprintf(stderr, "resp_len: %ld <= %ld\n", resp_len, OPAQUE_SERVER_SESSION_LEN+envU_len);
+      php_error_docref(NULL, E_WARNING, "invalid resp param.");
+      return;
+    }
 
     Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
 
@@ -292,7 +314,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
     uint8_t authU[crypto_auth_hmacsha256_BYTES];
     uint8_t export_key[crypto_hash_sha256_BYTES];
 
-    if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids1, sk, authU, export_key)) return;
+    if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids, sk, authU, export_key)) return;
 
     zend_array *ret = zend_new_array(5);
     zval zarr;
@@ -300,8 +322,8 @@ PHP_FUNCTION(opaque_recover_credentials) {
     add_next_index_stringl(&zarr,sk, sizeof(sk));                   // sensitive
     add_next_index_stringl(&zarr,authU, sizeof(authU));             // sensitive
     add_next_index_stringl(&zarr,export_key, sizeof(export_key));   // sensitive
-    add_next_index_stringl(&zarr,ids1.idU, ids1.idU_len);
-    add_next_index_stringl(&zarr,ids1.idS, ids1.idS_len);
+    add_next_index_stringl(&zarr,ids.idU, ids.idU_len);
+    add_next_index_stringl(&zarr,ids.idS, ids.idS_len);
 
     RETVAL_ARR(ret);
 }

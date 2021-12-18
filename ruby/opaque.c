@@ -186,9 +186,7 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   size_t idS_len=0;
 
   extract_str(argv[0], &resp, &resp_len, "resp is not a string");
-  if(resp_len<=OPAQUE_SERVER_SESSION_LEN) {
-    rb_raise(rb_eTypeError, "invalid resp param.");
-  }
+  // size check after envU_len is available later
 
   extract_str(argv[1], &sec, &sec_len, "sec is not a string");
   if(sec_len<=OPAQUE_USER_SESSION_SECRET_LEN) {
@@ -199,8 +197,8 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   extract_cfg(argv[2], &cfg);
 
   Opaque_App_Infos *infos_p=NULL;
+  Opaque_App_Infos infos={0};
   if(argc>3 && RB_TYPE_P(argv[3], T_ARRAY)) {
-    Opaque_App_Infos infos={0};
     get_infos(infos_p, argv[3]);
     infos_p=&infos;
   }
@@ -221,16 +219,25 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   if (cfg.pkS==NotPackaged && pkS==NULL) {
     rb_raise(rb_eRuntimeError, "cfg.pkS is NotPackaged and pkS is nil");
   }
+  if (cfg.pkS!=NotPackaged && pkS!=NULL) {
+    rb_raise(rb_eRuntimeError, "cfg.pkS is Packaged and pkS is redundantly supplied");
+  }
 
-  uint8_t idU1[1024], idS1[1024];
-  size_t idU1_len, idS1_len;
+  uint8_t idU1[65535]={0}, idS1[65535]={0};
+  size_t idU1_len=sizeof(idU1), idS1_len=sizeof(idS1);
   if (cfg.idU==NotPackaged) {
     if (idU==NULL) {
       rb_raise(rb_eRuntimeError, "cfg.idU is NotPackaged and idU is nil");
     }
+    if(idU_len>=(2<<16)) {
+      rb_raise(rb_eRuntimeError, "idU too big.");
+    }
     memcpy(idU1, idU, idU_len);
     idU1_len = idU_len;
   } else {
+    if (idU!=NULL) {
+      rb_raise(rb_eRuntimeError, "cfg.idU is Packaged and idU is redundantly supplied");
+    }
     idU1_len = sizeof(idU1);
   }
 
@@ -238,12 +245,24 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
     if (idS==NULL) {
       rb_raise(rb_eRuntimeError, "cfg.idS is NotPackaged and idS is nil");
     }
+    if(idU_len>=(2<<16)) {
+      rb_raise(rb_eRuntimeError, "idS too big.");
+    }
     memcpy(idS1, idS, idS_len);
     idS1_len = idS_len;
   } else {
+    if (idU!=NULL) {
+      rb_raise(rb_eRuntimeError, "cfg.idS is Packaged and idS is redundantly supplied");
+    }
     idS1_len = sizeof(idS1);
   }
   Opaque_Ids ids1={.idU_len=idU1_len,.idU=idU1,.idS_len=idS1_len,.idS=idS1};
+
+  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids1);
+  if(resp_len<OPAQUE_SERVER_SESSION_LEN+envU_len) {
+    fprintf(stderr, "rl: %ld < %ld\n", resp_len, OPAQUE_SERVER_SESSION_LEN+envU_len);
+    rb_raise(rb_eTypeError, "invalid resp param.");
+  }
 
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t authU[crypto_auth_hmacsha256_BYTES];

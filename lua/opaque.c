@@ -285,7 +285,7 @@ static int recover_creds(lua_State *L) {
 
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
 
-  if(resp_len<=OPAQUE_SERVER_SESSION_LEN+envU_len) {
+  if(resp_len<OPAQUE_SERVER_SESSION_LEN+envU_len) {
     fprintf(stderr, "resplen: %ld, expected: %ld\n", resp_len, OPAQUE_SERVER_SESSION_LEN+envU_len);
     lua_pushstring(L, "invalid response size");
     return lua_error(L);

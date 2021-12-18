@@ -373,7 +373,7 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   if(!enif_inspect_binary(env, argv[0], &bin)) {
     return enif_raise_exception(env, enif_make_atom(env, "resp_not_binary"));
   }
-  if(bin.size<=OPAQUE_SERVER_SESSION_LEN+envU_len) {
+  if(bin.size<OPAQUE_SERVER_SESSION_LEN+envU_len) {
     return enif_raise_exception(env, enif_make_atom(env, "resp_invalid_size"));
   }
   resp=(uint8_t*) bin.data;

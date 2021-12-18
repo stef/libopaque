@@ -176,6 +176,8 @@ class PkgConfig(ctypes.Structure):
 def Register(pwdU, cfg, ids, skS=None):
     if not pwdU:
         raise ValueError("invalid parameter")
+    if skS and len(skS) != crypto_scalarmult_SCALARBYTES:
+        raise ValueError("invalid skS param")
 
     envU_len = envelope_len(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+envU_len)
@@ -279,6 +281,10 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
 
     if cfg.pkS == NotPackaged and not pkS:
         raise ValueError("pkS cannot be None if cfg.pkS is NotPackaged.")
+    if cfg.pkS != NotPackaged and pkS:
+        raise ValueError("pkS cannot be supplied while cfg.pkS is Packaged.")
+
+    if pkS and len(pkS)!=crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")
 
     ids1 = Ids()
     if cfg.idU == NotPackaged:
@@ -286,22 +292,30 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
             raise ValueError("ids cannot be None if cfg.idU is NotPackaged.")
         if not ids.idU:
             raise ValueError("ids.idU cannot be None if cfg.idU is NotPackaged.")
+        if len(ids.idU)>65535:
+            raise ValueError("ids.idU too big.")
         ids1.idU=ids.idU
         ids1.idU_len=ids.idU_len
     else:
-        ids1.idU=ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
-        ids1.idU_len=1024
+        if ids and ids.idU:
+            raise ValueError("idS cannot be supplied if cfg.idU is Packaged.")
+        ids1.idU=ctypes.cast(ctypes.create_string_buffer(65535), ctypes.c_char_p)
+        ids1.idU_len=65535
 
     if cfg.idS == NotPackaged:
         if not ids:
             raise ValueError("ids cannot be None if cfg.idS is NotPackaged.")
         if not ids.idS:
             raise ValueError("ids.idU cannot be None if cfg.idS is NotPackaged.")
+        if len(ids.idS)>65535:
+            raise ValueError("ids.idU too big.")
         ids1.idS=ids.idS
         ids1.idS_len=ids.idS_len
     else:
-        ids1.idS=ctypes.cast(ctypes.create_string_buffer(1024), ctypes.c_char_p)
-        ids1.idS_len=1024
+        if ids and ids.idS:
+            raise ValueError("idS cannot be supplied if cfg.idS is Packaged.")
+        ids1.idS=ctypes.cast(ctypes.create_string_buffer(65535), ctypes.c_char_p)
+        ids1.idS_len=65535
 
     __check(opaquelib.opaque_RecoverCredentials(resp, sec, pkS, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids1), sk, authU, export_key))
     return sk.raw, authU.raw, export_key.raw, ids1
@@ -407,7 +421,7 @@ def CreateRegistrationResponse(M):
 #  @return the function returns 0 if everything is correct.
 #int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 def Create1kRegistrationResponse(M, pkS):
-    if None in  (M, pkS):
+    if None in (M, pkS):
         raise ValueError("invalid parameter")
     if len(M) != crypto_core_ristretto255_BYTES: raise ValueError("invalid M param")
     if len(pkS) != crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")

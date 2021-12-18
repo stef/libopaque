@@ -1,0 +1,23 @@
+taken from: https://www.zend.com/building-and-installing-php-extension
+
+Building and Installing the opaque extension
+
+This extension skeleton can be compiled without any changes. The first “phpize” command is a part of the PHP build we created in the first step. (It should still be in the PATH.) 
+
+$ phpize
+$ ./configure
+$ make
+$ make install
+
+These commands should build our shared extension “opaque.so” and copy it into appropriate directory of our PHP installation. To load it, we need to add a line into our custom php.ini 
+
+$ vi ~/php-bin/DEBUG/etc/php.ini
+
+Add the following line:
+
+extension=opaque.so
+
+ Check that extension is loaded and works. “php -m” command prints the list of loaded extensions: 
+
+$ php -m | grep opaque
+opaque

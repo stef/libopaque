@@ -97,9 +97,9 @@ def register_with_global_server_key():
     pkS=pysodium.crypto_scalarmult_curve25519_base(skS);
 
     secU, M = opaque.CreateRegistrationRequest(pwdU)
-    secS, pub = opaque.Create1kRegistrationResponse(M, pkS)
+    secS, pub = opaque.CreateRegistrationResponse(M, pkS)
     rec, export_key = opaque.FinalizeRequest(secU, pub, cfg, ids)
-    rec = opaque.Store1kUserRecord(secS, skS, rec)
+    rec = opaque.StoreUserRecord(secS, rec, skS)
     pub, secU = opaque.CreateCredentialRequest(pwdU)
     resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, None)
     sk1, authU, export_key1, ids1 = opaque.RecoverCredentials(resp, secU, cfg, None, pkS, ids)

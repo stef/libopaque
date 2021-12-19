@@ -388,47 +388,18 @@ def CreateRegistrationRequest(pwdU):
 #  be passed to the client into opaque_FinalizeRequest()
 #  @return the function returns 0 if everything is correct.
 #int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
-def CreateRegistrationResponse(M):
+def CreateRegistrationResponse(M, pkS=None):
     if not M:
         raise ValueError("invalid parameter")
     if len(M) != crypto_core_ristretto255_BYTES: raise ValueError("invalid M param")
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_SECRET_LEN)
     pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
-    __check(opaquelib.opaque_CreateRegistrationResponse(M, sec, pub))
-    return sec.raw, pub.raw
-
-#  2nd step of registration: Server evaluates OPRF - Global Server Key Version
-#
-#  This function is essentially the same as
-#  opaque_CreateRegistrationResponse(), except this function does not
-#  generate a per-user long-term key, but instead expects the servers
-#  to supply a long-term pubkey as a parameter, this might be one
-#  unique global key, or it might be a per-user key derived from a
-#  server secret.
-#
-#  This function is called CreateRegistrationResponse in the rfc.
-#  The server receives M from the users invocation of its
-#  opaque_CreateRegistrationRequest() function, it outputs a value sec
-#  which needs to be protected until step 4 by the server. This
-#  function also outputs a value pub which needs to be passed to the
-#  user.
-#  @param [in] M - the blinded password as per the OPRF.
-#  @param [in] pkS - the servers long-term pubkey
-#  @param [out] sec - the private key and the OPRF secret of the server.
-#  @param [out] pub - the evaluated OPRF and pubkey of the server to
-#  be passed to the client into opaque_FinalizeRequest()
-#  @return the function returns 0 if everything is correct.
-#int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
-def Create1kRegistrationResponse(M, pkS):
-    if None in (M, pkS):
-        raise ValueError("invalid parameter")
-    if len(M) != crypto_core_ristretto255_BYTES: raise ValueError("invalid M param")
-    if len(pkS) != crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")
-
-    sec = ctypes.create_string_buffer(OPAQUE_REGISTER_SECRET_LEN)
-    pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
-    __check(opaquelib.opaque_Create1kRegistrationResponse(M, pkS, sec, pub))
+    if pkS:
+        if len(pkS) != crypto_scalarmult_BYTES: raise ValueError("invalid pkS param")
+        __check(opaquelib.opaque_Create1kRegistrationResponse(M, pkS, sec, pub))
+    else:
+        __check(opaquelib.opaque_CreateRegistrationResponse(M, sec, pub))
     return sec.raw, pub.raw
 
 #  Client finalizes registration by concluding the OPRF, generating
@@ -488,51 +459,16 @@ def FinalizeRequest(sec, pub, cfg, ids):
 #  account the variable length of idU and idS in case these are
 #  included in the envelope.
 #void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
-def StoreUserRecord(sec, rec):
+def StoreUserRecord(sec, rec, skS=None):
     if None in (sec, rec):
         raise ValueError("invalid parameter")
     if len(sec) != OPAQUE_REGISTER_SECRET_LEN: raise ValueError("invalid sec param")
     if len(rec) <= OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
-
-    opaquelib.opaque_StoreUserRecord(sec, rec)
-    return rec
-
-#  Final Registration step Global Server Key Version - server adds own info to the record to be stored.
-#
-#  this function essentially does the same as
-#  opaque_StoreUserRecord() except that it expects the server
-#  to provide its secret key. This server secret key might be one
-#  global secret key used for all users, or it might be a per-user
-#  unique key derived from a secret server seed.
-#
-#  The rfc does not explicitly specify this function.
-#  The server combines the sec value from its run of its
-#  opaque_CreateRegistrationResponse() function with the rec output of
-#  the users opaque_FinalizeRequest() function, creating the
-#  final record, which should be the same as the output of the 1-step
-#  storePwdFile() init function of the paper. The server should save
-#  this record in combination with a user id and/or sid value as
-#  suggested in the paper.
-#
-#  @param [in] sec - the private value of the server running
-#  opaque_CreateRegistrationResponse() in step 2 of the registration
-#  protocol
-#  @param [in] skS - the servers long-term private key
-#  @param [in/out] rec - input the record from the client running
-#  opaque_FinalizeRequest() - output the final record to be
-#  stored by the server this is a pointer to memory allocated by the
-#  caller, and must be large enough to hold the record and take into
-#  account the variable length of idU and idS in case these are
-#  included in the envelope.
-#void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
-def Store1kUserRecord(sec, skS, rec):
-    if None in (sec, skS, rec):
-        raise ValueError("invalid parameter")
-    if len(sec) != OPAQUE_REGISTER_SECRET_LEN: raise ValueError("invalid sec param")
-    if len(skS) != crypto_scalarmult_SCALARBYTES: raise ValueError("invalid skS param")
-    if len(rec) <= OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
-
-    opaquelib.opaque_Store1kUserRecord(sec, skS, rec)
+    if skS:
+        if len(skS)!=crypto_scalarmult_SCALARBYTES: raise ValueError("invalid skS param")
+        opaquelib.opaque_Store1kUserRecord(sec, skS, rec)
+    else:
+        opaquelib.opaque_StoreUserRecord(sec, rec)
     return rec
 
 #  This helper function calculates the length of the envelope in bytes.

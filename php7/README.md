@@ -58,14 +58,27 @@ The IDs of the client (idU) and the server (idS) are passed directly
 as seperate parameters to functions that need to handle IDs.
 
 ### `PkgConfig`
-Configuration of the envelope is handled via a simple array:
 
+Configuration of the envelope is handled via a simple array.
+
+The items in this array correspond to the envelope fields in this
+order: `skU`, `pkU`, `pkS`, `idU`, `idS`. Each item in this array must
+be one of the following constants:
+
+ - opaque_InSecEnv: the value is encrypted in the envelope,
+ - opaque_InClrEnv: the value is unencrypted in the envelope,
+ - opaque_NotPackaged: the value is not present in the envelope.
+
+Important to note is that the first value for the `skU` cannot be
+`InClrEnv` since this value is the clients secret key, and thus must
+either be encrypted or not packaged at all to be derived. For more
+information how `NotPackaged` values are derived see the main
+libopaque documentation.
+
+Example:
 ```
 $cfg=[opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv];
 ```
-
-The items in this array correspond to the envelope fields in this
-order: `skU`, `pkU`, `pkS`, `idU`, `idS`.
 
 ### `App_Infos`
 

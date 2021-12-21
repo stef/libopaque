@@ -40,9 +40,9 @@ The items in this array correspond to the envelope fields in this
 order: `skU`, `pkU`, `pkS`, `idU`, `idS`. Each item in this array must
 be one of the following constants:
 
- - opaque_InSecEnv: the value is encrypted in the envelope,
- - opaque_InClrEnv: the value is unencrypted in the envelope,
- - opaque_NotPackaged: the value is not present in the envelope.
+ - InSecEnv: the value is encrypted in the envelope,
+ - InClrEnv: the value is unencrypted in the envelope,
+ - NotPackaged: the value is not present in the envelope.
 
 Important to note is that the first value for the `skU` cannot be
 `InClrEnv` since this value is the clients secret key, and thus must
@@ -198,7 +198,7 @@ The user should hold onto `sec` securely until step 3 of the protocol.
 ### Step 2: The server responds to the credential request.
 
 ```ruby
-resp, sk, sec = opaque_create_credential_response(req, rec, idU, idS, cfg, infos);
+resp, sk, sec = create_credential_response(req, rec, idU, idS, cfg, infos);
 ```
 
  - `req` comes from the user running the previous step.

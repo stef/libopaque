@@ -42,6 +42,12 @@ $ php -m | grep opaque
 opaque
 ```
 
+## Demo and Examples
+
+For a simple demo please check the `demo` subdirectory, for simple
+examples please check the test-cases: `002.phpt`, `003.phpt,
+`004.phpt`.
+
 ## API
 
 There are 3 data structures that are used by libopaque:

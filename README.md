@@ -2,9 +2,12 @@
 
 This library implements the OPAQUE protocol as proposed in an early
 draft by the IRTF CFRG in
-https://github.com/cfrg/draft-irtf-cfrg-opaque.
+https://github.com/cfrg/draft-irtf-cfrg-opaque. THe draft has been updated
+since then and this implementation is now slightly out of sync, but as soon as
+the specification gets more stable, it is planned to reach full compliance with
+it.
 
-It comes with bindings for js, php7, ruby, java, erlang, lua, python.
+It comes with bindings for js, php7, ruby, java, erlang, lua, python, go.
 
 ## The OPAQUE Protocol
 

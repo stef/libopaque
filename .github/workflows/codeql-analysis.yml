@@ -44,6 +44,7 @@ jobs:
        git submodule update --init --recursive tests/munit
        make debug test # Test a debug build.
        make clean all test # Test a production build.
+       sudo PREFIX=/usr make install
        # python3
        cd ../python/test
        sudo apt install -y python3-pip
@@ -57,8 +58,9 @@ jobs:
        LD_LIBRARY_PATH=../src TEST_PHP_ARGS=-q make EXTRA_CFLAGS=-I../src EXTRA_LDFLAGS=-L../src test
        # ruby
        cd ../ruby
+       echo "asdf $PWD"
        sudo apt install -y ruby ruby-dev
-       make
+       make all
        ./test.rb
        # lua
        cd ../lua
@@ -68,11 +70,11 @@ jobs:
        # java
        cd ../java
        sudo apt install -y  openjdk-11-jdk  openjdk-11-jre
-       make clean all test
+       make all test
        # erlang
        sudo apt install -y  erlang 
        cd ../erlang
-       make clean all test
+       make all test
        # golang
        sudo apt install -y  golang
        cd ../go

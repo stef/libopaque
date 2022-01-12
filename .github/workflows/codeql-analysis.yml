@@ -58,9 +58,9 @@ jobs:
        LD_LIBRARY_PATH=../src TEST_PHP_ARGS=-q make EXTRA_CFLAGS=-I../src EXTRA_LDFLAGS=-L../src test
        # ruby
        cd ../ruby
-       echo "asdf $PWD"
        sudo apt install -y ruby ruby-dev
-       make all
+       ruby extconf.rb
+       make
        ./test.rb
        # lua
        cd ../lua

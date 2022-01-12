@@ -154,14 +154,13 @@ const Opaque_PkgConfig IETF_CustomIDCfg = {
   .idS= InClrEnv,
 };
 
-#define Cfg2Short(c) ((uint16_t) (c.skU      |    \
-                                  c.pkU << 2 |    \
-                                  c.pkS << 4 |    \
-                                  c.idU << 6 |    \
-                                  c.idS << 8))
-
-const uint16_t IETF_BaseCfgInt = Cfg2Short(IETF_BaseCfg);
-const uint16_t IETF_CustomIDCfgInt = Cfg2Short(IETF_CustomIDCfg);
+//((uint16_t) (c.skU      |
+//             c.pkU << 2 |
+//             c.pkS << 4 |
+//             c.idU << 6 |
+//             c.idS << 8))
+const uint16_t IETF_BaseCfgInt = 0x0021;
+const uint16_t IETF_CustomIDCfgInt = 0x02a1;
 
 /**
  * This function generates an OPRF private key.

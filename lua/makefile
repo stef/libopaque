@@ -1,5 +1,5 @@
 opaque.so: opaque.c
-	gcc opaque.c -g -shared -o opaque.so -fPIC  -llua -lopaque
+	gcc opaque.c -g -shared -o opaque.so -fPIC  $(shell pkgconf --libs lua) -lopaque
 
 test: opaque.so
 	./test.lua

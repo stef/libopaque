@@ -33,6 +33,8 @@
 #include "aux/crypto_kdf_hkdf_sha256.h"
 #endif
 
+// TODO implement setting id[US] to pubkey if ids ptr is null
+
 #ifdef VOPRF_TEST_VEC
     static const uint8_t OPAQUE_FINALIZE_INFO[] = {
     0x4f, 0x50, 0x52, 0x46, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x76, 0x65,

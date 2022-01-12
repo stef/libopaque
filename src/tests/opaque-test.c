@@ -41,32 +41,36 @@ static void _dump(const uint8_t *p, const size_t len, const char* msg) {
   fprintf(stderr, "\n");
 }
 
-int register_with_global_server_key(const uint8_t *pwdU,
-                                    const uint16_t pwdU_len,
-                                    const Opaque_Ids ids,
-                                    Opaque_Ids ids1,
-                                    const uint32_t envU_len) {
+int register_with_global_server_key(void) {
+  uint8_t pwdU[]="password";
+  uint16_t pwdU_len=strlen((char*) pwdU);
+  Opaque_Ids ids={3,(uint8_t*)"idU",3,(uint8_t*)"idS"};
+  uint8_t idU[1024]={0}, idS[1024]={0};
+  Opaque_Ids ids1={sizeof idU,idU, sizeof idS ,idS};
+
   uint8_t rsecU[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
   uint8_t M[crypto_core_ristretto255_BYTES];
   uint8_t pkS[crypto_scalarmult_BYTES];
   uint8_t rsecS[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   Opaque_PkgConfig cfg={
-                        .skU = NotPackaged,
+                        .skU = InSecEnv,
                         .pkU = NotPackaged,
                         .pkS = NotPackaged,
-                        .idS = NotPackaged,
-                        .idU = NotPackaged,
+                        .idS = InSecEnv,
+                        .idU = InSecEnv,
   };
+
+  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
   uint8_t export_key[crypto_hash_sha256_BYTES], export_key1[crypto_hash_sha256_BYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES];
+  uint8_t skS[crypto_scalarmult_SCALARBYTES] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
   uint8_t secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES], sk1[OPAQUE_SHARED_SECRETBYTES];
   uint8_t secS[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
   uint8_t authU[crypto_auth_hmacsha256_BYTES];
 
-  randombytes(skS, crypto_scalarmult_SCALARBYTES);
+  //randombytes(skS, crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult_base(pkS, skS);
 
   fprintf(stderr, "\n\nglobal server key private registration\n\n");
@@ -78,13 +82,13 @@ int register_with_global_server_key(const uint8_t *pwdU,
   if(0!=opaque_CreateCredentialRequest(pwdU, pwdU_len, secU, pub)) return 1;
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, secS)) return 1;
   if(0!=opaque_RecoverCredentials(resp, secU, pkS, &cfg, NULL, &ids1, sk1, authU, export_key1)) return 1;
-  if(0!=opaque_UserAuth(secS, authU)) return 1;
   assert(ids.idU_len==ids1.idU_len);
   assert(ids.idS_len==ids1.idS_len);
   assert(0==memcmp(ids.idU, ids1.idU, ids.idU_len));
   assert(0==memcmp(ids.idS, ids1.idS, ids.idS_len));
   assert(0==sodium_memcmp(export_key, export_key1, sizeof export_key));
   assert(0==sodium_memcmp(sk, sk1, sizeof sk));
+  if(0!=opaque_UserAuth(secS, authU)) return 1;
   return 0;
 }
 
@@ -223,7 +227,7 @@ int main(void) {
     return 1;
   }
 
-  if (0!=register_with_global_server_key(pwdU, pwdU_len, ids, ids1, envU_len))
+  if (0!=register_with_global_server_key())
     return 1;
 
   fprintf(stderr, "\nall ok\n\n");

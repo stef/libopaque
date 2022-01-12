@@ -1,7 +1,7 @@
 # libopaque Python bindings
 
 These bindings provide access to libopaque which implements the
-[IETF CFRG RFC draft](https://github.com/cfrg/draft-irtf-cfrg-opaque)
+[IRTF CFRG RFC draft](https://github.com/cfrg/draft-irtf-cfrg-opaque)
 or you can read the [original paper](https://eprint.iacr.org/2018/163).
 
 ## Dependencies

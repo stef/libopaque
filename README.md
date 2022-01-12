@@ -226,7 +226,7 @@ the original paper:
    unprotected.
 
 For more information, see the
-[IETF CFRG specification](https://github.com/cfrg/draft-irtf-cfrg-opaque/blob/master/draft-irtf-cfrg-opaque.md),
+[IRTF CFRG specification](https://github.com/cfrg/draft-irtf-cfrg-opaque/blob/master/draft-irtf-cfrg-opaque.md),
 the [original paper](https://github.com/stef/libopaque/blob/master/doc/opaque.pdf)
 and the
 [`src/tests/opaque-test.c`](https://github.com/stef/libopaque/blob/master/src/tests/opaque-test.c)

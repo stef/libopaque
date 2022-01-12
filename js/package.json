@@ -11,7 +11,7 @@
     "crypto",
     "cryptography",
     "cryptography-library",
-    "ietf-cfrg",
+    "irtf-cfrg",
     "javascript",
     "key-exchange",
     "libopaque",

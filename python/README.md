@@ -35,7 +35,7 @@ cfg.idS=opaque.InClrEnv        # The server's ID is plaintext.
 ```
 
 ### `App_Infos`
-The IETF CFRG draft mentions `info` and `einfo` parameters that can
+The IRTF CFRG draft mentions `info` and `einfo` parameters that can
 be used to be bound into the session:
 ```python
 infos=opaque.App_Infos(info="1", einfo="e")
@@ -43,7 +43,7 @@ infos=opaque.App_Infos(info="1", einfo="e")
 
 ## 1-step registration
 
-1-step registration is only specified in the original paper. It is not specified by the IETF
+1-step registration is only specified in the original paper. It is not specified by the IRTF
 CFRG draft. 1-step registration has the benefit that the supplied password (`pwdU`) can be checked
 on the server for password rules (e.g., occurrence in common password
 lists). It has the drawback that the password is exposed to the server.
@@ -54,7 +54,7 @@ rec, export_key = opaque.Register(pwdU, cfg, ids, skS)
 
 ## 4-step registration
 
-Registration as specified in the IETF CFRG draft consists of the
+Registration as specified in the IRTF CFRG draft consists of the
 following 4 steps:
 
 ### Step 1: The user creates a registration request.

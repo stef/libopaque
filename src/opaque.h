@@ -70,10 +70,10 @@
 typedef enum {
    Base = 1,
    CustomID = 2
-} __attribute((packed)) Opaque_IETF_EnvelopeMode;
+} __attribute((packed)) Opaque_IRTF_EnvelopeMode;
 
 #define OPAQUE_ENVELOPE_BASE_MODE_LEN (               \
-   /* mode */sizeof(Opaque_IETF_EnvelopeMode)+        \
+   /* mode */sizeof(Opaque_IRTF_EnvelopeMode)+        \
    /* nonce */ OPAQUE_NONCE_BYTES+                    \
    /* skU_len */ sizeof(uint16_t)+                    \
    /* skU */ crypto_scalarmult_SCALARBYTES+           \
@@ -143,8 +143,8 @@ typedef struct {
                                 envelope */
 } __attribute((packed)) Opaque_PkgConfig;
 
-extern const Opaque_PkgConfig IETF_BaseCfg;
-extern const Opaque_PkgConfig IETF_CustomIDCfg;
+extern const Opaque_PkgConfig IRTF_BaseCfg;
+extern const Opaque_PkgConfig IRTF_CustomIDCfg;
 
 /**
    This function implements the storePwdFile function from the paper
@@ -249,7 +249,7 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env
    Explicit User Authentication.
 
    This is a function not explicitly specified in the original paper. In the
-   ietf cfrg draft authentication is done using a hmac of the session
+   irtf cfrg draft authentication is done using a hmac of the session
    transcript with different keys coming out of a hkdf after the key
    exchange.
 

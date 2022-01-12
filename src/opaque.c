@@ -15,7 +15,7 @@
     You should have received a copy of the GNU General Public License
     along with libopaque. If not, see <http://www.gnu.org/licenses/>.
 
-    This file implements the Opaque protocol as specified by the IETF CFRG
+    This file implements the Opaque protocol as specified by the IRTF CFRG
 */
 
 #include "opaque.h"
@@ -140,7 +140,7 @@ typedef struct {
   uint8_t data[1];
 } __attribute((packed)) CredentialExtension;
 
-const Opaque_PkgConfig IETF_BaseCfg = {
+const Opaque_PkgConfig IRTF_BaseCfg = {
   .skU= InSecEnv,
   .pkU= NotPackaged,
   .pkS= InClrEnv,
@@ -148,7 +148,7 @@ const Opaque_PkgConfig IETF_BaseCfg = {
   .idS= NotPackaged,
 };
 
-const Opaque_PkgConfig IETF_CustomIDCfg = {
+const Opaque_PkgConfig IRTF_CustomIDCfg = {
   .skU= InSecEnv,
   .pkU= NotPackaged,
   .pkS= InClrEnv,
@@ -162,8 +162,8 @@ const Opaque_PkgConfig IETF_CustomIDCfg = {
                                   c.idU << 6 |  \
                                   c.idS << 8))
 
-const uint16_t IETF_BaseCfgInt = 0x0021;
-const uint16_t IETF_CustomIDCfgInt = 0x02a1;
+const uint16_t IRTF_BaseCfgInt = 0x0021;
+const uint16_t IRTF_CustomIDCfgInt = 0x02a1;
 
 /**
  * This function generates an OPRF private key.
@@ -211,7 +211,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
                          const uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES],
                          uint8_t rwdU[crypto_secretbox_KEYBYTES]) {
   // according to paper: hash(pwd||H0^k)
-  // acccording to voprf IETF CFRG specification: hash(htons(len(pwd))||pwd||
+  // acccording to voprf IRTF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
   //                                              htons(len(info))||info||
   //                                              htons(len("VOPRF06-Finalize-\x00\x00\x01"))||"VOPRF06-Finalize-\x00\x00\x01")
@@ -255,7 +255,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   dump((uint8_t*) y, sizeof y, "y ");
 #endif
 
-  // salt - according to the ietf draft this could be all zeroes
+  // salt - according to the irtf draft this could be all zeroes
   uint8_t salt[crypto_pwhash_SALTBYTES]={0};
   if (crypto_pwhash(rwdU, crypto_secretbox_KEYBYTES, (const char*) y, sizeof y, salt,
        crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE,
@@ -629,7 +629,7 @@ static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf
   crypto_kdf_hkdf_sha256_expand(res, len, (const char*) hkdflabel, sizeof(hkdflabel), secret);
 }
 
-// derive keys according to ietf cfrg draft
+// derive keys according to irtf cfrg draft
 static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_BYTES * 3], const char info[crypto_hash_sha256_BYTES]) {
   uint8_t prk[crypto_kdf_hkdf_sha256_KEYBYTES];
   sodium_mlock(prk, sizeof prk);
@@ -872,7 +872,7 @@ static int pack(const Opaque_PkgConfig *cfg, const Opaque_Credentials *cred, con
   return 0;
 }
 
-// enveloping function as formerly specified in the ietf cfrg draft https://tools.ietf.org/html/draft-krawczyk-cfrg-opaque-06#section-4
+// enveloping function as formerly specified in the irtf cfrg draft https://tools.ietf.org/html/draft-krawczyk-cfrg-opaque-06#section-4
 // todo implement draft envelope specification in case cfg is:
 // base mode: cfg.skU = inSecEnv, cfg.pkS = inClrEnv, others notPackages
 // customIdentifier mode: cfg.skU = inSecEnv, cfg.pkS = inClrEnv, cfg.id[US] = inClrEnv
@@ -1175,10 +1175,10 @@ static int opaque_envelope_open(const Opaque_PkgConfig *cfg,
 
 size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids) {
   uint16_t c = Cfg2Short((*cfg));
-  if(c==IETF_BaseCfgInt) {
+  if(c==IRTF_BaseCfgInt) {
     return OPAQUE_ENVELOPE_BASE_MODE_LEN;
   }
-  if(c== IETF_CustomIDCfgInt) {
+  if(c== IRTF_CustomIDCfgInt) {
     return OPAQUE_ENVELOPE_CUSTOMID_MODE_LEN + ids->idU_len + ids->idS_len;
   }
 
@@ -1305,7 +1305,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
-// more or less corresponds to CreateCredentialRequest in the ietf draft
+// more or less corresponds to CreateCredentialRequest in the irtf draft
 int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
@@ -1342,7 +1342,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   return 0;
 }
 
-// more or less corresponds to CreateCredentialResponse in the ietf draft
+// more or less corresponds to CreateCredentialResponse in the irtf draft
 // 2. (SvrSession, sid , ssid ): On input α from U, S proceeds as follows:
 // (a) Checks that α ∈ G^∗ If not, outputs (abort, sid , ssid ) and halts;
 // (b) Retrieves file[sid] = {k_s, p_s, P_s, P_u, c};
@@ -1401,7 +1401,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // nonceS
   randombytes(resp->nonceS, OPAQUE_NONCE_BYTES);
 
-  // mixing in things from the ietf cfrg spec
+  // mixing in things from the irtf cfrg spec
   char info[crypto_hash_sha256_BYTES];
   calc_info(info, pub->nonceU, resp->nonceS, ids);
   Opaque_Keys keys;
@@ -1430,7 +1430,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   memcpy(&resp->envU, &rec->envU, rec->envU_len);
   memcpy(&resp->envU_len, &rec->envU_len, sizeof rec->envU_len);
 
-  // Mac(Km2; xcript2) - from the ietf cfrg draft
+  // Mac(Km2; xcript2) - from the irtf cfrg draft
   uint8_t xcript[crypto_hash_sha256_BYTES];
   get_xcript_srv(xcript, _sec, pub, resp, infos);
   crypto_auth_hmacsha256(resp->auth,                          // out
@@ -1460,7 +1460,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   return 0;
 }
 
-// more or less corresponds to RecoverCredentials in the ietf draft
+// more or less corresponds to RecoverCredentials in the irtf draft
 // 3. On β, X_s and c from S, U proceeds as follows:
 // (a) Checks that β ∈ G ∗ . If not, outputs (abort, sid , ssid ) and halts;
 // (b) Computes rw := H(key, pw|β^1/r );
@@ -1532,7 +1532,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   dump((uint8_t*)&cred, sizeof cred, "unpacked cred ");
 #endif
 
-  // mixing in things from the ietf cfrg spec
+  // mixing in things from the irtf cfrg spec
   char hkdf_info[crypto_hash_sha256_BYTES];
   calc_info(hkdf_info, sec->nonceU, resp->nonceS, ids);
   Opaque_Keys keys;
@@ -1587,7 +1587,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN/*+en
   return 0;
 }
 
-// extra function to implement the hmac based auth as defined in the ietf cfrg draft
+// extra function to implement the hmac based auth as defined in the irtf cfrg draft
 int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]) {
   if(_sec==NULL) return 1;
   Opaque_ServerAuthCTX *sec = (Opaque_ServerAuthCTX *)_sec;
@@ -1605,7 +1605,7 @@ int opaque_UserAuth(const uint8_t _sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_
 // variant where the secrets of U never touch S unencrypted
 
 // U computes: blinded PW
-// called CreateRegistrationRequest in the ietf cfrg rfc draft
+// called CreateRegistrationRequest in the irtf cfrg rfc draft
 int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
@@ -1619,7 +1619,7 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // (2) generates k_s ←_R Z_q,
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
-// called CreateRegistrationResponse in the ietf cfrg rfc draft
+// called CreateRegistrationResponse in the irtf cfrg rfc draft
 int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   // p_s ←_R Z_q
@@ -1642,7 +1642,7 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
 // (2) generates k_s ←_R Z_q,
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
-// called CreateRegistrationResponse in the ietf cfrg rfc draft
+// called CreateRegistrationResponse in the irtf cfrg rfc draft
 int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
@@ -1680,7 +1680,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
 // (c) p_u ←_R Z_q
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
-// called FinalizeRequest in the ietf cfrg rfc draft
+// called FinalizeRequest in the irtf cfrg rfc draft
 int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/],
                                     const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                     const Opaque_PkgConfig *cfg,
@@ -1762,7 +1762,7 @@ int opaque_FinalizeRequest(const uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwd
 }
 
 // S records file[sid ] := {k_s, p_s, P_s, P_u, c}.
-// called StoreUserRecord in the ietf cfrg rfc draft
+// called StoreUserRecord in the irtf cfrg rfc draft
 void opaque_StoreUserRecord(const uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   return opaque_Store1kUserRecord(_sec, sec->skS, _rec);

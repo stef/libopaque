@@ -8,7 +8,7 @@ pure JavaScript using [Emscripten](https://github.com/kripken/emscripten).
 
 libopaque implements the
 [OPAQUE protocol](https://github.com/cfrg/draft-irtf-cfrg-opaque) as proposed
-by the Internet Engineering Task Force (IETF) Crypto Forum Research Group
+by the Internet Research Task Force (IRTF) Crypto Forum Research Group
 (CFRG).
 
 The OPAQUE protocol is a secure asymmetric password-authenticated key exchange

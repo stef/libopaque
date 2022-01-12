@@ -107,6 +107,21 @@ lists). It has the drawback that the password is exposed to the server.
 $rec, $export_key = opaque_register($pwd, $idU, $idS, $cfg, $skS);
 ```
 
+The function expects these paramters:
+
+ - `$pwd` is the user's password.
+ - `$idU` is the clients ID,
+ - `$idS` is the servers ID,
+ - `$cfg` is an array containing the envelope configuration,
+ - `$skS` is an optional explicitly specified server long-term key
+
+This function returns:
+
+ - `$rec` should be stored by the server associated with the ID of the user.
+ - `$export_key` is an extra secret that can be used to encrypt
+   additional data that you might want to store on the server next to
+   your record.
+
 ## 4-step registration
 
 Registration as specified in the IRTF CFRG draft consists of the
@@ -118,7 +133,7 @@ following 4 steps:
 $sec, $req = opaque_create_registration_request(pwd);
 ```
 
-- `$pwd` is the user's password.
+ - `$pwd` is the user's password.
 
 The user should hold on to `$sec` securely until step 3 of the
 registration process. `$req` needs to be passed to the server running
@@ -133,11 +148,11 @@ $sec, $resp = opaque_create_registration_response($req);
 alternatively, for explicitly providing the server long term private key:
 
 ```php
-$sec, $resp = opaque_create_registration_response($req, $skS);
+$sec, $resp = opaque_create_registration_response($req, $pkS);
 ```
 
  - `$req` comes from the user running the previous step.
- - `$skS` is an optional explicitly specified server long-term key
+ - `$pkS` is an optional explicitly specified server long-term public key
 
 The server should hold onto `$sec` securely until step 4 of the registration process.
 `$resp` should be passed to the user running step 3.
@@ -239,7 +254,8 @@ This function returns:
  - `$sk` is a shared secret, the result of the AKE.
  - `$authU` is an authentication tag that can be passed in step 4 for explicit user authentication.
  - `$export_key` can be used to decrypt additional data stored by the server.
- - `$ids` is an `Ids` struct containing the IDs of the user and the server.
+ - `$idU` and `$idS` are the IDs of the user and the server, this is
+   useful if these are packaged in the envelope.
 
 ### Step 4 (Optional): The server authenticates the user.
 

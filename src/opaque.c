@@ -156,11 +156,12 @@ const Opaque_PkgConfig IETF_CustomIDCfg = {
   .idS= InClrEnv,
 };
 
-//((uint16_t) (c.skU      |
-//             c.pkU << 2 |
-//             c.pkS << 4 |
-//             c.idU << 6 |
-//             c.idS << 8))
+#define Cfg2Short(c) ((uint16_t) (c.skU      |  \
+                                  c.pkU << 2 |  \
+                                  c.pkS << 4 |  \
+                                  c.idU << 6 |  \
+                                  c.idS << 8))
+
 const uint16_t IETF_BaseCfgInt = 0x0021;
 const uint16_t IETF_CustomIDCfgInt = 0x02a1;
 

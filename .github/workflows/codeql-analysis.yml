@@ -70,7 +70,7 @@ jobs:
        # java
        cd ../java
        sudo apt install -y  openjdk-11-jdk  openjdk-11-jre
-       make all test
+       make JAVAINCLUDES=/usr/lib/jvm/java-11-openjdk-amd64/include all test
        # erlang
        sudo apt install -y  erlang 
        cd ../erlang

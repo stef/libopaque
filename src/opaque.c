@@ -1064,8 +1064,8 @@ static int unpack(const Opaque_PkgConfig *cfg, const uint8_t *SecEnv, const uint
 #ifdef TRACE
     fprintf(stderr, "seen: %x, expected: %x\n", seen, (3 | ((!!cfg->pkS) << 2) | ((!!cfg->idU) << 3) | ((!!cfg->idS) << 4)));
 #endif
-      return 1;
-    }
+    return 1;
+  }
   return 0;
 }
 

@@ -1181,6 +1181,10 @@ size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids) {
 
   const uint16_t ClrEnv_len = opaque_package_len(cfg, ids, InClrEnv);
   const uint16_t SecEnv_len = opaque_package_len(cfg, ids, InSecEnv);
+#ifdef TRACE
+  fprintf(stderr, "ClrEnv_len: %d\n", ClrEnv_len);
+  fprintf(stderr, "SecEnv_len: %d\n", SecEnv_len);
+#endif
   return OPAQUE_ENVELOPE_META_LEN + SecEnv_len + ClrEnv_len;
 }
 

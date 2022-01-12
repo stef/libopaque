@@ -165,13 +165,13 @@ PHP_FUNCTION(opaque_create_credential_response) {
   zend_array *infos_array=NULL;
 
 	ZEND_PARSE_PARAMETERS_START(5, 6)
-		Z_PARAM_STRING(pub, pub_len)
-		Z_PARAM_STRING(rec, rec_len)
-		Z_PARAM_STRING(idU, idU_len)
-		Z_PARAM_STRING(idS, idS_len)
-        Z_PARAM_ARRAY_HT(cfg_array)
+         Z_PARAM_STRING(pub, pub_len)
+         Z_PARAM_STRING(rec, rec_len)
+         Z_PARAM_STRING(idU, idU_len)
+         Z_PARAM_STRING(idS, idS_len)
+         Z_PARAM_ARRAY_HT(cfg_array)
 		Z_PARAM_OPTIONAL
-        Z_PARAM_ARRAY_HT(infos_array)
+         Z_PARAM_ARRAY_HT(infos_array)
 	ZEND_PARSE_PARAMETERS_END();
 
     if(pub_len!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
@@ -382,10 +382,13 @@ PHP_FUNCTION(opaque_create_registration_request) {
 PHP_FUNCTION(opaque_create_registration_response) {
   char *M;
   size_t M_len;
+  char *pkS=NULL;
+  size_t pkS_len=0;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	ZEND_PARSE_PARAMETERS_START(1, 2)
 		Z_PARAM_STRING(M, M_len)
-		Z_PARAM_OPTIONAL
+   Z_PARAM_OPTIONAL
+      Z_PARAM_STRING(pkS, pkS_len)
 	ZEND_PARSE_PARAMETERS_END();
 
     if(M_len!=crypto_core_ristretto255_BYTES) {
@@ -394,7 +397,15 @@ PHP_FUNCTION(opaque_create_registration_response) {
     }
 
     uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], pub[OPAQUE_REGISTER_PUBLIC_LEN];
-    if(0!=opaque_CreateRegistrationResponse(M, sec, pub)) return;
+    if(NULL==pkS) {
+       if(0!=opaque_CreateRegistrationResponse(M, sec, pub)) return;
+    } else {
+       if(pkS_len!=crypto_scalarmult_BYTES) {
+          php_error_docref(NULL, E_WARNING, "invalid pkS param.");
+          return;
+       }
+       if(0!=opaque_Create1kRegistrationResponse(M, pkS, sec, pub)) return;
+    }
 
     zend_array *ret = zend_new_array(2);
     zval zarr;
@@ -403,39 +414,6 @@ PHP_FUNCTION(opaque_create_registration_response) {
     add_next_index_stringl(&zarr,pub, sizeof(pub));
 
     RETVAL_ARR(ret);
-}
-
-PHP_FUNCTION(opaque_create_1k_registration_response) {
-  char *M;
-  size_t M_len;
-  char *pkS;
-  size_t pkS_len;
-
-  ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_STRING(M, M_len)
-    Z_PARAM_STRING(pkS, pkS_len)
-    Z_PARAM_OPTIONAL
-  ZEND_PARSE_PARAMETERS_END();
-
-  if(M_len!=crypto_core_ristretto255_BYTES) {
-    php_error_docref(NULL, E_WARNING, "invalid M param.");
-    return;
-  }
-  if(pkS_len!=crypto_scalarmult_BYTES) {
-    php_error_docref(NULL, E_WARNING, "invalid pkS param.");
-    return;
-  }
-
-  uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], pub[OPAQUE_REGISTER_PUBLIC_LEN];
-  if(0!=opaque_Create1kRegistrationResponse(M, pkS, sec, pub)) return;
-
-  zend_array *ret = zend_new_array(2);
-  zval zarr;
-  ZVAL_ARR(&zarr, ret);
-  add_next_index_stringl(&zarr,sec, sizeof(sec)); // sensitive
-  add_next_index_stringl(&zarr,pub, sizeof(pub));
-
-  RETVAL_ARR(ret);
 }
 
 PHP_FUNCTION(opaque_finalize_request) {
@@ -493,12 +471,15 @@ PHP_FUNCTION(opaque_store_user_record) {
   size_t sec_len;
   char *rec;
   size_t rec_len;
+  char *skS=NULL;
+  size_t skS_len=0;
   zend_string *retval;
 
-	ZEND_PARSE_PARAMETERS_START(2, 2)
+	ZEND_PARSE_PARAMETERS_START(2, 3)
 		Z_PARAM_STRING(sec, sec_len)
 		Z_PARAM_STRING(rec, rec_len)
-		Z_PARAM_OPTIONAL
+   Z_PARAM_OPTIONAL
+      Z_PARAM_STRING(skS, skS_len)
 	ZEND_PARSE_PARAMETERS_END();
 
     if(sec_len!=OPAQUE_REGISTER_SECRET_LEN) {
@@ -510,45 +491,18 @@ PHP_FUNCTION(opaque_store_user_record) {
       return;
     }
 
-    opaque_StoreUserRecord(sec, rec);
+    if(NULL==skS) {
+       opaque_StoreUserRecord(sec, rec);
+    } else {
+       if(skS_len!=crypto_scalarmult_SCALARBYTES) {
+          php_error_docref(NULL, E_WARNING, "invalid skS param.");
+          return;
+       }
+       opaque_Store1kUserRecord(sec, skS, rec);
+    }
 
     retval = zend_string_init(rec, rec_len, 0);
     RETURN_STR(retval);
-}
-
-PHP_FUNCTION(opaque_store_1k_user_record) {
-  char *sec;
-  size_t sec_len;
-  char *skS;
-  size_t skS_len;
-  char *rec;
-  size_t rec_len;
-  zend_string *retval;
-
-  ZEND_PARSE_PARAMETERS_START(3, 3)
-    Z_PARAM_STRING(sec, sec_len)
-    Z_PARAM_STRING(skS, skS_len)
-    Z_PARAM_STRING(rec, rec_len)
-    Z_PARAM_OPTIONAL
-  ZEND_PARSE_PARAMETERS_END();
-
-  if(sec_len!=OPAQUE_REGISTER_SECRET_LEN) {
-    php_error_docref(NULL, E_WARNING, "invalid sec param.");
-    return;
-  }
-  if(skS_len!=crypto_scalarmult_SCALARBYTES) {
-    php_error_docref(NULL, E_WARNING, "invalid skS param.");
-    return;
-  }
-  if(rec_len<=OPAQUE_USER_RECORD_LEN) {
-    php_error_docref(NULL, E_WARNING, "invalid rec param.");
-    return;
-  }
-
-  opaque_Store1kUserRecord(sec, skS, rec);
-
-  retval = zend_string_init(rec, rec_len, 0);
-  RETURN_STR(retval);
 }
 
 PHP_FUNCTION(opaque_create_server_keys) {
@@ -639,10 +593,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_registration_response, 0)
 	ZEND_ARG_INFO(0, M)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_opaque_create_1k_registration_response, 0)
-	ZEND_ARG_INFO(0, M)
 	ZEND_ARG_INFO(0, pkS)
 ZEND_END_ARG_INFO()
 
@@ -656,12 +606,6 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO(arginfo_opaque_store_user_record, 0)
 	ZEND_ARG_INFO(0, sec)
-	ZEND_ARG_INFO(0, rec)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO(arginfo_opaque_store_1k_user_record, 0)
-	ZEND_ARG_INFO(0, sec)
-	ZEND_ARG_INFO(0, skS)
 	ZEND_ARG_INFO(0, rec)
 ZEND_END_ARG_INFO()
 
@@ -679,10 +623,8 @@ static const zend_function_entry opaque_functions[] = {
 	PHP_FE(opaque_user_auth,						arginfo_opaque_user_auth)
 	PHP_FE(opaque_create_registration_request,		arginfo_opaque_create_registration_request)
 	PHP_FE(opaque_create_registration_response,		arginfo_opaque_create_registration_response)
-	PHP_FE(opaque_create_1k_registration_response,		arginfo_opaque_create_1k_registration_response)
 	PHP_FE(opaque_finalize_request,					arginfo_opaque_finalize_request)
 	PHP_FE(opaque_store_user_record,				arginfo_opaque_store_user_record)
-	PHP_FE(opaque_store_1k_user_record,				arginfo_opaque_store_1k_user_record)
 	PHP_FE(opaque_create_server_keys,				arginfo_opaque_create_server_keys)
 	PHP_FE_END
 };

@@ -11,30 +11,49 @@ import (
 	"unsafe"
 )
 
+// Type wrapping the infos parameter, it is not very well specified,
+// see the irtf cfrg draft for more info
 type OpaqueInfos struct {
 	Info  []byte
 	Einfo []byte
 }
 
+// Type wrapping the IDs of the user and the server
 type OpaqueIDS struct {
+	// users id
 	IdU []byte
+	// servers id
 	IdS []byte
 }
 
+const (
+	// field is not included in the envelope
+	CfgNotPackaged C.int = C.NotPackaged
+	// field is encrypted and authenticated in the envelope
+	CfgInSecEnv C.int = C.InSecEnv
+	// field is plaintext but authenticated in the envelop
+	CfgInClrEnv C.int = C.InClrEnv
+)
+
+// Type to store an OPAQUE envelop configuration
 type OpaqueCfg struct {
+	// users secret key - must not be InClrEnv, if it is NotPackaged
+	// then rwdU is used to seed a keygen() via hkdf-expand()
 	SkU C.int
+	// users public key - if not included it can be derived from the
+	// private key
 	PkU C.int
+	// servers public key - if not packaged it must be supplied to the
+	// functions requiring this (see the pkS param)
 	PkS C.int
+	// id of the user
 	IdU C.int
+	// id of the server
 	IdS C.int
 }
 
-const (
-	CfgNotPackaged C.int = C.NotPackaged
-	CfgInSecEnv    C.int = C.InSecEnv
-	CfgInClrEnv    C.int = C.InClrEnv
-)
-
+// private internal function converting an OpaqueCfg to the packed 2
+// byte c struct that libopaque expects.
 func createConfig(c OpaqueCfg) (C.Opaque_PkgConfig, error) {
 	cfg := C.Opaque_PkgConfig{}
 
@@ -49,6 +68,11 @@ func createConfig(c OpaqueCfg) (C.Opaque_PkgConfig, error) {
 	return cfg, nil
 }
 
+// This function implements the storePwdFile function from the paper
+// it is not specified by the RFC. This function runs on the server
+// and creates a new output record rec of secret key material. The
+// server needs to implement the storage of this record and any
+// binding to user names or as the paper suggests sid.
 func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, []byte, error) {
 	// int opaque_Register(
 	//          const uint8_t *pwdU,
@@ -114,6 +138,8 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 	return r, e, nil
 }
 
+// This function initiates a new OPAQUE session, is the same as the
+// function defined in the paper with the name usrSession.
 func CreateCredReq(pwdU string) ([]byte, []byte, error) {
 	//int opaque_CreateCredentialRequest(
 	// in:
@@ -150,6 +176,13 @@ func CreateCredReq(pwdU string) ([]byte, []byte, error) {
 	return s, p, nil
 }
 
+// This is the same function as defined in the paper with name
+// srvSession name. This function runs on the server and receives the
+// output pub from the user running CreateCredReq(), furthermore the
+// server needs to load the user record created when registering the
+// user with Register() or StoreUserRec(). These input parameters are
+// transformed into a secret/shared session key sk and a response resp
+// to be sent back to the user.
 func CreateCredResp(pub []byte, rec []byte, cfg_ OpaqueCfg, ids OpaqueIDS, infos OpaqueInfos) ([]byte, []byte, []byte, error) {
 	// int opaque_CreateCredentialResponse(
 	// in:
@@ -233,6 +266,14 @@ func CreateCredResp(pub []byte, rec []byte, cfg_ OpaqueCfg, ids OpaqueIDS, infos
 	return r, k, s, nil
 }
 
+// This is the same function as defined in the paper with the
+// usrSessionEnd name. It is run by the user and receives as input the
+// response from the previous server CreateCredResp() function as well
+// as the sec value from running the CreateCredReq() function that
+// initiated this instantiation of this protocol, All these input
+// parameters are transformed into a shared/secret session key pk,
+// which should be the same as the one calculated by the
+// CreateCredResp() function.
 func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids OpaqueIDS, infos OpaqueInfos) ([]byte, []byte, []byte, OpaqueIDS, error) {
 	// int opaque_RecoverCredentials(
 	// in:
@@ -301,8 +342,6 @@ func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids Opaque
 		idCC.idS = (*C.uchar)(idS_buf)
 		idCC.idS_len = 65535
 	}
-	//fmt.Printf("> idCC.idU(%d): %s\n", C.int(idCC.idS_len),
-	//	C.GoBytes(unsafe.Pointer(idCC.idS), (C.int)(idCC.idS_len)))
 	defer C.free(unsafe.Pointer(idS_buf))
 
 	// handle infos struct
@@ -384,6 +423,10 @@ func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids Opaque
 	return s, a, e, ids, nil
 }
 
+// This is a function not explicitly specified in the original paper. In the
+// irtf cfrg draft authentication is done using a hmac of the session
+// transcript with different keys coming out of a hkdf after the key
+// exchange.
 func UserAuth(sec []byte, authU []byte) error {
 	// int opaque_UserAuth(
 	// in
@@ -408,6 +451,11 @@ func UserAuth(sec []byte, authU []byte) error {
 	return nil
 }
 
+// Initial step to start registering a new user/client with the server.
+// The user inputs its password pwdU, and receives a secret context sec
+// and a blinded value M as output. sec should be protected until
+// step 3 of this registration protocol and the value req should be
+// passed to the server.
 func CreateRegReq(pwdU string) ([]byte, []byte, error) {
 	// int opaque_CreateRegistrationRequest(
 	// int
@@ -447,6 +495,12 @@ func CreateRegReq(pwdU string) ([]byte, []byte, error) {
 	return s, m, nil
 }
 
+// Server evaluates OPRF and creates a user-specific public/private keypair
+//
+// The server receives req from the users invocation of its
+// CreateRegReq() function, it outputs a value sec which needs to be
+// protected until step 4 by the server. This function also outputs a
+// value resp which needs to be passed to the user.
 func CreateRegResp(req []byte, pkS []byte) ([]byte, []byte, error) {
 	// int opaque_CreateRegistrationResponse(
 	// in
@@ -505,6 +559,15 @@ func CreateRegResp(req []byte, pkS []byte) ([]byte, []byte, error) {
 	return s, r, nil
 }
 
+// Final Registration step - server adds own info to the record to be stored.
+//
+// The rfc does not explicitly specify this function.  The server
+// combines the sec value from its run of its CreateRegResp() function
+// with the rec output of the users opaque_FinalizeRequest() function,
+// creating the final record, which should be the same as the output
+// of the 1-step storePwdFile() init function of the paper. The server
+// should save this record in combination with a user id and/or sid
+// value as suggested in the paper.
 func FinalizeReq(sec []byte, resp []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, []byte, error) {
 	// int opaque_FinalizeRequest(
 	// in
@@ -570,6 +633,21 @@ func FinalizeReq(sec []byte, resp []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte
 	return r, e, nil
 }
 
+// Final Registration step Global Server Key Version - server adds own
+// info to the record to be stored.
+//
+// this function essentially does the same as StoreUserRec() except
+// that it expects the server to provide its secret key. This server
+// secret key might be one global secret key used for all users, or it
+// might be a per-user unique key derived from a secret server seed.
+//
+// The rfc does not explicitly specify this function.  The server
+// combines the sec value from its run of its CreateRegResp() function
+// with the rec output of the users FinalizeReq() function, creating
+// the final record, which should be the same as the output of the
+// 1-step storePwdFile() init function of the paper. The server should
+// save this record in combination with a user id and/or sid value as
+// suggested in the paper.
 func StoreUserRec(sec []byte, skS []byte, rec []byte) ([]byte, error) {
 	// void opaque_StoreUserRecord(
 	// in

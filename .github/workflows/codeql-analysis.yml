@@ -64,7 +64,7 @@ jobs:
        ./test.rb
        # lua
        cd ../lua
-       sudo apt install -y lua5.3
+       sudo apt install -y lua5.3 liblua5.3-dev
        make
        ./test.lua
        # java

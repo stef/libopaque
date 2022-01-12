@@ -58,7 +58,7 @@ jobs:
        # ruby
        cd ../ruby
        sudo apt install -y ruby ruby-dev
-       make clean all
+       make
        ./test.rb
        # lua
        cd ../lua

@@ -165,7 +165,7 @@ switch ($_SERVER["REQUEST_URI"]) {
           header('Content-Type: application/json');
           $idU = $_POST["id"];
           $M = hex2bin($_POST["request"]);
-          $r = opaque_create_1k_registration_response($M, $pkS);
+          $r = opaque_create_registration_response($M, $pkS);
           $secS = $r[0];
           $pub = $r[1];
           $json_obj = (object)[];
@@ -188,7 +188,7 @@ switch ($_SERVER["REQUEST_URI"]) {
           $rec = hex2bin($_POST["rec"]);
           $secS = hex2bin(opaque_fetch("registration", $idU));
           // error_log(bin2hex($secS));
-          $rec = opaque_store_1k_user_record($secS, $skS, $rec);
+          $rec = opaque_store_user_record($secS, $rec, $skS);
           $user = opaque_fetch("users", $idU);
           $hex = bin2hex($rec);
           if (!empty($hex)) {

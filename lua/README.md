@@ -123,11 +123,11 @@ sec, resp = createRegistrationResp(req);
 Alternatively, for explicitly providing the server long term private key:
 
 ```lua
-sec, resp = create1kRegistrationResp(req, skS);
+sec, resp = create1kRegistrationResp(req, pkS);
 ```
 
  - `req` comes from the user running the previous step.
- - `skS` is an optional explicitly specified server long-term key
+ - `pkS` is an optional explicitly specified server long-term public key
 
 The server should hold onto `sec` securely until step 4 of the registration process.
 `resp` should be passed to the user running step 3.

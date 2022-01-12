@@ -1,6 +1,6 @@
 """Wrapper for libopaque library
 
-   Copyright (c) 2018, Marsiske Stefan.
+   Copyright (c) 2018-2021, Marsiske Stefan.
    All rights reserved.
 
    This file is part of libopaque.

@@ -62,13 +62,13 @@ int register_with_global_server_key(void) {
 
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  uint8_t export_key[crypto_hash_sha256_BYTES], export_key1[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES], export_key1[crypto_hash_sha512_BYTES];
   uint8_t skS[crypto_scalarmult_SCALARBYTES] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
   uint8_t secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES], sk1[OPAQUE_SHARED_SECRETBYTES];
   uint8_t secS[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
 
   //randombytes(skS, crypto_scalarmult_SCALARBYTES);
   crypto_scalarmult_base(pkS, skS);
@@ -95,8 +95,8 @@ int register_with_global_server_key(void) {
 int main(void) {
   uint8_t pwdU[]="simple guessable dictionary password";
   uint16_t pwdU_len=strlen((char*) pwdU);
-  uint8_t export_key[crypto_hash_sha256_BYTES];
-  uint8_t export_key_x[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
+  uint8_t export_key_x[crypto_hash_sha512_BYTES];
   Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};
   ids.idU_len = strlen((char*) ids.idU);
   ids.idS_len = strlen((char*) ids.idS);
@@ -138,7 +138,7 @@ int main(void) {
 
   uint8_t pk[32];
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t idU[ids.idU_len], idS[ids.idS_len]; // must be big enough to fit ids
   Opaque_Ids ids1={sizeof idU,idU, sizeof idS ,idS};
   if(cfg.idU == NotPackaged) {

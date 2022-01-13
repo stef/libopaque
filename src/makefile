@@ -9,7 +9,7 @@ SOEXT=so
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
 	CFLAGS+= -Iaux
-	EXTRA_OBJECTS+= aux/kdf_hkdf_sha256.o
+	EXTRA_OBJECTS+= aux/kdf_hkdf_sha512.o
 else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif

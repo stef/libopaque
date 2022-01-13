@@ -192,7 +192,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   const TestType type = *((const TestType*)munit_parameters_get(params, "type"));
   const uint8_t *pwdU=(const uint8_t*) munit_parameters_get(params, "pwdU");
   const size_t pwdU_len=strlen((char*) pwdU);
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
   Opaque_Ids ids={0, (uint8_t*) munit_parameters_get(params, "idU"),
                   0, (uint8_t*) munit_parameters_get(params, "idS")};
@@ -210,7 +210,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t pk[32];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t idU[ids.idU_len], idS[ids.idS_len]; // must be big enough to fit ids
   Opaque_Ids ids1={sizeof idU,idU,sizeof idS,idS};
   // in case we omit the id* in the envelope we must provide it before-hand.

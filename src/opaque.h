@@ -15,7 +15,7 @@
  * the algorithm to calculate sk changes, we can just change it in one place.
  */
 #define OPAQUE_SHARED_SECRETBYTES 32
-#define OPAQUE_HANDSHAKE_SECRETBYTES 32
+#define OPAQUE_HANDSHAKE_SECRETBYTES 64
 #define OPAQUE_NONCE_BYTES 32
 #define OPAQUE_ENVELOPE_NONCEBYTES 32
 
@@ -23,7 +23,7 @@
   /* envU nonce */ OPAQUE_ENVELOPE_NONCEBYTES+         \
   /* SecEnv_len */ sizeof(uint16_t)+                   \
   /* ClrEnv_len */ sizeof(uint16_t)+                   \
-  /* auth tag */ crypto_hash_sha256_BYTES)
+  /* auth tag */ crypto_hash_sha512_BYTES)
 
 #define OPAQUE_USER_RECORD_LEN (                       \
    /* kU */ crypto_core_ristretto255_SCALARBYTES+      \
@@ -48,7 +48,7 @@
    /* Z */ crypto_core_ristretto255_BYTES+             \
    /* X_s */ crypto_scalarmult_BYTES+                  \
    /* nonceS */ OPAQUE_NONCE_BYTES+                    \
-   /* auth */ crypto_auth_hmacsha256_BYTES+            \
+   /* auth */ crypto_auth_hmacsha512_BYTES+            \
    /* envU_len */ sizeof(uint32_t))
 
 #define OPAQUE_REGISTER_USER_SEC_LEN (                 \
@@ -64,8 +64,8 @@
    /* kU */ crypto_core_ristretto255_SCALARBYTES)
 
 #define OPAQUE_SERVER_AUTH_CTX_LEN (                   \
-   /* km3 */ crypto_auth_hmacsha256_KEYBYTES+          \
-   /* xcript_state */ sizeof(crypto_hash_sha256_state))
+   /* km3 */ crypto_auth_hmacsha512_KEYBYTES+          \
+   /* xcript_state */ sizeof(crypto_hash_sha512_state))
 
 typedef enum {
    Base = 1,
@@ -171,7 +171,7 @@ extern const Opaque_PkgConfig IRTF_CustomIDCfg;
         encrypt/authenticate additional data.
    @return the function returns 0 if everything is correct
  */
-int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t *rec/*[OPAQUE_USER_RECORD_LEN+envU_len]*/, uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 /**
    This function initiates a new OPAQUE session, is the same as the
@@ -212,7 +212,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    @return the function returns 0 if everything is correct
  */
  // TODO do not pass cfg here, but instead size of rec, and from that envU_len=rec_len - OPAQUE_USER_RECORD_LEN. let the client check the length of rec being correct in recover_creds
-int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
+int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t *rec/*[OPAQUE_USER_RECORD_LEN+envU_len]*/, const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t *resp/*[OPAQUE_SERVER_SESSION_LEN+envU_len]*/, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
 
 /**
    This is the same function as defined in the paper with the
@@ -243,7 +243,7 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_RecoverCredentials(const uint8_t *resp/*[OPAQUE_SERVER_SESSION_LEN+envU_len]*/, const uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/, const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES], uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 /**
    Explicit User Authentication.
@@ -257,7 +257,7 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+env
    @param [in] authU is the authentication token sent by the user.
    @return the function returns 0 if the hmac verifies correctly.
  */
-int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 /**
    Alternative user initialization, user registration as specified by the RFC
@@ -357,7 +357,7 @@ int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t *rec/*[OPAQUE_USER_RECORD_LEN+envU_len]*/, uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 /**
    Final Registration step - server adds own info to the record to be stored.
@@ -381,7 +381,7 @@ int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU
    account the variable length of idU and idS in case these are
    included in the envelope.
  */
-void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
+void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t *rec/*[OPAQUE_USER_RECORD_LEN+envU_len]*/);
 
 /**
    Final Registration step Global Server Key Version - server adds own info to the record to be stored.
@@ -412,7 +412,7 @@ void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8
    account the variable length of idU and idS in case these are
    included in the envelope.
  */
-void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
+void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t *rec/*[OPAQUE_USER_RECORD_LEN+envU_len]*/);
 
 /**
    This helper function calculates the length of the envelope in bytes.

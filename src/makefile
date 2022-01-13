@@ -1,7 +1,6 @@
 PREFIX?=/usr/local
 LIBS=-lsodium
 DEFINES=
-#DEFINES=-DTRACE -DNORANDOM
 CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack $(DEFINES)
 LDFLAGS=-g $(LIBS)
 CC=gcc

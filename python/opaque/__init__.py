@@ -29,16 +29,16 @@ if not opaquelib._name:
     raise ValueError('Unable to find libopaque')
 
 from pysodium import (crypto_core_ristretto255_SCALARBYTES, crypto_scalarmult_SCALARBYTES, crypto_scalarmult_BYTES,
-                      crypto_core_ristretto255_BYTES, crypto_auth_hmacsha256_BYTES, crypto_hash_sha256_STATEBYTES,
-                      crypto_hash_sha256_BYTES, sodium_version_check)
+                      crypto_core_ristretto255_BYTES, crypto_auth_hmacsha512_BYTES, crypto_hash_sha512_STATEBYTES,
+                      crypto_hash_sha512_BYTES, sodium_version_check)
 if sodium_version_check(1,0,19):
-    from pysodium import crypto_auth_hmacsha256_KEYBYTES
+    from pysodium import crypto_auth_hmacsha512_KEYBYTES
 else:
-    from pysodium import crypto_auth_hmacsha256_BYTES as crypto_auth_hmacsha256_KEYBYTES
+    from pysodium import crypto_auth_hmacsha512_BYTES as crypto_auth_hmacsha512_KEYBYTES
 
 OPAQUE_SHARED_SECRETBYTES = 32
 OPAQUE_NONCE_BYTES = 32
-OPAQUE_ENVELOPE_META_LEN = (2*crypto_hash_sha256_BYTES + 2*sizeof(c_uint16))
+OPAQUE_ENVELOPE_META_LEN = (2*crypto_hash_sha512_BYTES + 2*sizeof(c_uint16))
 OPAQUE_USER_RECORD_LEN = (
     crypto_core_ristretto255_SCALARBYTES+     # kU
     crypto_scalarmult_SCALARBYTES+            # skS
@@ -59,7 +59,7 @@ OPAQUE_SERVER_SESSION_LEN = (
     crypto_core_ristretto255_BYTES+           # Z
     crypto_scalarmult_BYTES+                  # X_s
     OPAQUE_NONCE_BYTES+                       # nonceS
-    crypto_auth_hmacsha256_BYTES+             # auth
+    crypto_auth_hmacsha512_BYTES+             # auth
     sizeof(c_uint32))                         # envU_len
 OPAQUE_REGISTER_USER_SEC_LEN = (
     crypto_core_ristretto255_SCALARBYTES+     # r
@@ -71,8 +71,8 @@ OPAQUE_REGISTER_SECRET_LEN = (
     crypto_scalarmult_SCALARBYTES+            # skS
     crypto_core_ristretto255_SCALARBYTES)     # kU
 OPAQUE_SERVER_AUTH_CTX_LEN = (
-    crypto_auth_hmacsha256_KEYBYTES +         # km3
-    crypto_hash_sha256_STATEBYTES)            # xcript_state
+    crypto_auth_hmacsha512_KEYBYTES +         # km3
+    crypto_hash_sha512_STATEBYTES)            # xcript_state
 
 def __check(code):
     if code != 0:
@@ -172,7 +172,7 @@ class PkgConfig(ctypes.Structure):
 #       protected) memory for an extra_key that can be used to
 #       encrypt/authenticate additional data.
 #  @return the function returns 0 if everything is correct
-# int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+# int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
 def Register(pwdU, cfg, ids, skS=None):
     if not pwdU:
         raise ValueError("invalid parameter")
@@ -181,7 +181,7 @@ def Register(pwdU, cfg, ids, skS=None):
 
     envU_len = envelope_len(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+envU_len)
-    export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
+    export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
     __check(opaquelib.opaque_Register(pwdU, len(pwdU), skS, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
     return rec.raw, export_key.raw
 
@@ -268,7 +268,7 @@ def CreateCredentialResponse(pub, rec, cfg, ids, infos):
 #  @param [out] export_key - key used to encrypt/authenticate extra
 #  material not stored directly in the envelope
 #  @return the function returns 0 if the protocol is executed correctly
-#int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+#int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha512_BYTES], uint8_t export_key[crypto_hash_sha512_BYTES]);
 def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
@@ -276,8 +276,8 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
     if len(sec) <= OPAQUE_USER_SESSION_SECRET_LEN: raise ValueError("invalid sec param")
 
     sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
-    authU = ctypes.create_string_buffer(crypto_auth_hmacsha256_BYTES)
-    export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
+    authU = ctypes.create_string_buffer(crypto_auth_hmacsha512_BYTES)
+    export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
 
     if cfg.pkS == NotPackaged and not pkS:
         raise ValueError("pkS cannot be None if cfg.pkS is NotPackaged.")
@@ -330,12 +330,12 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
 #  @param [in] sec - the context returned by opaque_CreateCredentialResponse()
 #  @param [in] authU is the authentication token sent by the user.
 #  @return the function returns 0 if the hmac verifies correctly.
-#int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+#int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 def UserAuth(sec, authU):
     if None in (sec, authU):
         raise ValueError("invalid parameter")
     if len(sec) != OPAQUE_SERVER_AUTH_CTX_LEN: raise ValueError("invalid sec param")
-    if len(authU) != crypto_auth_hmacsha256_BYTES: raise ValueError("invalid authU param")
+    if len(authU) != crypto_auth_hmacsha512_BYTES: raise ValueError("invalid authU param")
 
     __check(opaquelib.opaque_UserAuth(sec, authU))
 
@@ -425,7 +425,7 @@ def CreateRegistrationResponse(M, pkS=None):
 #  material not stored directly in the envelope
 #
 #  @return the function returns 0 if everything is correct.
-#int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+#int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
 def FinalizeRequest(sec, pub, cfg, ids):
     if None in (sec, pub, cfg, ids):
         raise ValueError("invalid parameter")
@@ -434,7 +434,7 @@ def FinalizeRequest(sec, pub, cfg, ids):
 
     envU_len = envelope_len(cfg, ids)
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN+envU_len)
-    export_key = ctypes.create_string_buffer(crypto_hash_sha256_BYTES)
+    export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
     __check(opaquelib.opaque_FinalizeRequest(sec, pub, ctypes.pointer(cfg), ctypes.pointer(ids), rec, export_key))
     return rec.raw, export_key.raw
 

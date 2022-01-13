@@ -2,16 +2,16 @@
   "use strict";
 
   function wrapLibrary(Module) {
-    Module["crypto_auth_hmacsha256_BYTES"] = Module.cwrap(
-      "opaquejs_crypto_auth_hmacsha256_BYTES",
+    Module["crypto_auth_hmacsha512_BYTES"] = Module.cwrap(
+      "opaquejs_crypto_auth_hmacsha512_BYTES",
       "number"
     )();
     Module["crypto_core_ristretto255_BYTES"] = Module.cwrap(
       "opaquejs_crypto_core_ristretto255_BYTES",
       "number"
     )();
-    Module["crypto_hash_sha256_BYTES"] = Module.cwrap(
-      "opaquejs_crypto_hash_sha256_BYTES",
+    Module["crypto_hash_sha512_BYTES"] = Module.cwrap(
+      "opaquejs_crypto_hash_sha512_BYTES",
       "number"
     )();
     Module["crypto_scalarmult_BYTES"] = Module.cwrap(
@@ -129,7 +129,7 @@
       "string", // const uint8_t *ids_idS,
       "number", // const uint16_t ids_idS_len,
       "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-      "number", // uint8_t export_key[crypto_hash_sha256_BYTES]);
+      "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
     ]);
     function register(module, params) {
       const pointers = [];
@@ -163,7 +163,7 @@
         );
         pointers.push(rec_pointer);
         const export_key_pointer = new AllocatedBuf(
-          module.crypto_hash_sha256_BYTES,
+          module.crypto_hash_sha512_BYTES,
           module
         );
         pointers.push(export_key_pointer);
@@ -400,8 +400,8 @@
         "number", // const uint8_t **ids_idS,
         "number", // const uint16_t *ids_idS_len,
         "number", // uint8_t *sk,
-        "number", // uint8_t authU[crypto_auth_hmacsha256_BYTES],
-        "number", // uint8_t export_key[crypto_hash_sha256_BYTES]);
+        "number", // uint8_t authU[crypto_auth_hmacsha512_BYTES],
+        "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
       ]
     );
     function recoverCredentials(module, params) {
@@ -537,12 +537,12 @@
         );
         pointers.push(sk_pointer);
         const authU_pointer = new AllocatedBuf(
-          module.crypto_auth_hmacsha256_BYTES,
+          module.crypto_auth_hmacsha512_BYTES,
           module
         );
         pointers.push(authU_pointer);
         const export_key_pointer = new AllocatedBuf(
-          module.crypto_hash_sha256_BYTES,
+          module.crypto_hash_sha512_BYTES,
           module
         );
         pointers.push(export_key_pointer);
@@ -608,7 +608,7 @@
     };
     Module["UserAuth"] = Module.cwrap("opaquejs_UserAuth", "number", [
       "number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-      "number", // const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+      "number", // const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
     ]);
     function userAuth(module, params) {
       const pointers = [];
@@ -626,7 +626,7 @@
         pointers.push(sec_pointer);
         const authU_pointer = AllocatedBuf.fromUint8Array(
           authU,
-          module.crypto_auth_hmacsha256_BYTES,
+          module.crypto_auth_hmacsha512_BYTES,
           module
         );
         pointers.push(authU_pointer);
@@ -859,7 +859,7 @@
         "string", // const uint8_t *ids_idS,
         "number", // const uint16_t ids_idS_len,
         "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-        "number", // uint8_t export_key[crypto_hash_sha256_BYTES]);
+        "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
       ]
     );
     function finalizeRequest(module, params) {
@@ -895,7 +895,7 @@
         );
         pointers.push(rec_pointer);
         const export_key_pointer = new AllocatedBuf(
-          module.crypto_hash_sha256_BYTES,
+          module.crypto_hash_sha512_BYTES,
           module
         );
         pointers.push(export_key_pointer);

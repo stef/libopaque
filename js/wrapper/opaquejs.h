@@ -4,11 +4,11 @@
 #include <opaque.h>
 #include <common.h>
 
-int opaquejs_crypto_auth_hmacsha256_BYTES();
+int opaquejs_crypto_auth_hmacsha512_BYTES();
 
 int opaquejs_crypto_core_ristretto255_BYTES();
 
-int opaquejs_crypto_hash_sha256_BYTES();
+int opaquejs_crypto_hash_sha512_BYTES();
 
 int opaquejs_crypto_scalarmult_BYTES();
 
@@ -50,7 +50,7 @@ int opaquejs_Register(
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
   uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
-  uint8_t export_key[crypto_hash_sha256_BYTES]);
+  uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 int opaquejs_CreateCredentialRequest(
   const uint8_t *pwdU,
@@ -91,12 +91,12 @@ int opaquejs_RecoverCredentials(
   uint8_t **ids_idS,
   uint16_t *ids_idS_len,
   uint8_t *sk,
-  uint8_t authU[crypto_auth_hmacsha256_BYTES],
-  uint8_t export_key[crypto_hash_sha256_BYTES]);
+  uint8_t authU[crypto_auth_hmacsha512_BYTES],
+  uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 int opaquejs_UserAuth(
   uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-  const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+  const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 int opaquejs_CreateRegistrationRequest(
   const uint8_t *pwdU,
@@ -128,7 +128,7 @@ int opaquejs_FinalizeRequest(
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
   uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
-  uint8_t export_key[crypto_hash_sha256_BYTES]);
+  uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 void opaquejs_StoreUserRecord(
   const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],

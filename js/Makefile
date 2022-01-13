@@ -51,9 +51,9 @@ $(DEFINES)
 CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src
 
 EXPORTED_FUNCTIONS=\
-"_opaquejs_crypto_auth_hmacsha256_BYTES", \
+"_opaquejs_crypto_auth_hmacsha512_BYTES", \
 "_opaquejs_crypto_core_ristretto255_BYTES", \
-"_opaquejs_crypto_hash_sha256_BYTES", \
+"_opaquejs_crypto_hash_sha512_BYTES", \
 "_opaquejs_crypto_scalarmult_BYTES", \
 "_opaquejs_crypto_scalarmult_SCALARBYTES", \
 "_opaquejs_crypto_secretbox_KEYBYTES", \

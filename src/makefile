@@ -20,6 +20,11 @@ all: libopaque.$(SOEXT) tests utils/opaque
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
 
+asan: DEFINES=-DTRACE -DNORANDOM
+asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
+asan: LDFLAGS+= -fsanitize=address -static-libasan
+asan: all
+
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT) tests/opaque-tv1$(EXT) tests/opaque-tv2$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)

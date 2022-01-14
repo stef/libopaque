@@ -42,7 +42,7 @@ static void _dump(const uint8_t *p, const size_t len, const char* msg) {
 }
 
 int register_with_global_server_key(void) {
-  uint8_t pwdU[]="password";
+  uint8_t pwdU[]="asdf";
   uint16_t pwdU_len=strlen((char*) pwdU);
   Opaque_Ids ids={3,(uint8_t*)"idU",3,(uint8_t*)"idS"};
   uint8_t idU[1024]={0}, idS[1024]={0};
@@ -57,13 +57,13 @@ int register_with_global_server_key(void) {
                         .pkU = NotPackaged,
                         .pkS = NotPackaged,
                         .idS = InSecEnv,
-                        .idU = InSecEnv,
+                        .idU = InClrEnv,
   };
 
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
   uint8_t export_key[crypto_hash_sha512_BYTES], export_key1[crypto_hash_sha512_BYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
+  uint8_t skS[crypto_scalarmult_SCALARBYTES]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f};
   uint8_t secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES], sk1[OPAQUE_SHARED_SECRETBYTES];
@@ -93,7 +93,7 @@ int register_with_global_server_key(void) {
 }
 
 int main(void) {
-  uint8_t pwdU[]="simple guessable dictionary password";
+  uint8_t pwdU[]="asdf";
   uint16_t pwdU_len=strlen((char*) pwdU);
   uint8_t export_key[crypto_hash_sha512_BYTES];
   uint8_t export_key_x[crypto_hash_sha512_BYTES];
@@ -101,11 +101,11 @@ int main(void) {
   ids.idU_len = strlen((char*) ids.idU);
   ids.idS_len = strlen((char*) ids.idS);
   Opaque_PkgConfig cfg={
-                        .skU = NotPackaged,
+                        .skU = InSecEnv, // NotPackaged,
                         .pkU = NotPackaged,
-                        .pkS = InSecEnv,
-                        .idS = NotPackaged,
-                        .idU = NotPackaged,
+                        .pkS = InClrEnv, //InSecEnv,
+                        .idS = InSecEnv, //NotPackaged,
+                        .idU = InClrEnv, //NotPackaged,
   };
   _dump((uint8_t*) &cfg,sizeof cfg, "cfg ");
   fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg.skU, cfg.pkU, cfg.pkS, cfg.idU, cfg.idS);
@@ -128,8 +128,9 @@ int main(void) {
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
+  Opaque_App_Infos infos={.info=(uint8_t*)"info",.info_len=4,.einfo=(uint8_t*)"einfo",.einfo_len=5};
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) {
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, &infos, resp, sk, ctx)) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
     return 1;
   }
@@ -156,8 +157,7 @@ int main(void) {
     pkS = _rec->pkS;
   }
 
-  //Opaque_App_Infos infos;
-  if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, NULL, &ids1, pk, authU, export_key_x)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, &infos, &ids1, pk, authU, export_key_x)) {
     fprintf(stderr, "opaque_RecoverCredentials failed.\n");
     return 1;
   }

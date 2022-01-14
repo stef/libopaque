@@ -125,7 +125,7 @@ static ERL_NIF_TERM c_register(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
   // const Opaque_PkgConfig *cfg,
   // const Opaque_Ids *ids,
   // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-  // uint8_t export_key[crypto_hash_sha256_BYTES]);
+  // uint8_t export_key[crypto_hash_sha512_BYTES]);
   unsigned pwdU_len;
   if(!enif_get_list_length(env, argv[0], &pwdU_len)) {
     return enif_raise_exception(env, enif_make_atom(env, "pwdU_not_list"));
@@ -169,7 +169,7 @@ static ERL_NIF_TERM c_register(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
   if(enif_has_pending_exception(env,&exc)) return exc;
   //fprintf(stderr,"idU: \"%.*s\", idS: \"%.*s\"\n", ids.idU_len, ids.idU, ids.idS_len, ids.idS);
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -276,8 +276,8 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 //                               const Opaque_App_Infos *infos,
 //                               Opaque_Ids *ids,
 // uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
-// uint8_t authU[crypto_auth_hmacsha256_BYTES],
-// uint8_t export_key[crypto_hash_sha256_BYTES]);
+// uint8_t authU[crypto_auth_hmacsha512_BYTES],
+// uint8_t export_key[crypto_hash_sha512_BYTES]);
 
   int pkS_offset = argc == 6;
 
@@ -379,8 +379,8 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   resp=(uint8_t*) bin.data;
 
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
   if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids, sk, authU, export_key)) {
     return enif_raise_exception(env, enif_make_atom(env, "recover_cred_failed"));
@@ -400,7 +400,7 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 static ERL_NIF_TERM c_user_auth(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
 // int opaque_UserAuth(
 //      const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-//      const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+//      const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
   ErlNifBinary bin;
   uint8_t *sec=NULL;
@@ -416,7 +416,7 @@ static ERL_NIF_TERM c_user_auth(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
   if(!enif_inspect_binary(env, argv[1], &bin)) {
     return enif_raise_exception(env, enif_make_atom(env, "authU_not_binary"));
   }
-  if(bin.size!=crypto_auth_hmacsha256_BYTES) {
+  if(bin.size!=crypto_auth_hmacsha512_BYTES) {
     return enif_raise_exception(env, enif_make_atom(env, "authU_invalid_size"));
   }
   authU=(uint8_t*) bin.data;
@@ -511,7 +511,7 @@ static ERL_NIF_TERM c_finalize_reg(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
 //            const Opaque_PkgConfig *cfg,
 //            const Opaque_Ids *ids,
 //  uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-//  uint8_t export_key[crypto_hash_sha256_BYTES]);
+//  uint8_t export_key[crypto_hash_sha512_BYTES]);
   ErlNifBinary bin;
 
   uint8_t *sec=NULL;
@@ -543,7 +543,7 @@ static ERL_NIF_TERM c_finalize_reg(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   ERL_NIF_TERM exc;
   if(enif_has_pending_exception(env,&exc)) return exc;
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 

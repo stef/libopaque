@@ -82,7 +82,7 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 	//          const Opaque_Ids *ids,
 	// out:
 	//          uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-	//          uint8_t export_key[crypto_hash_sha256_BYTES]);
+	//          uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 	if len(ids.IdU) > (2 << 16) {
 		return nil, nil, errors.New("idU too big")
@@ -97,10 +97,13 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 		idS_len: C.ushort(len(ids.IdS)),
 	}
 
-	if (skS != nil) && (len(skS) != C.crypto_scalarmult_SCALARBYTES) {
-		return nil, nil, errors.New("invalid skS")
+	skS_ptr := (*C.uchar)(nil)
+	if skS != nil {
+		if len(skS) != C.crypto_scalarmult_SCALARBYTES {
+			return nil, nil, errors.New("invalid skS")
+		}
+		skS_ptr = (*C.uchar)(C.CBytes(skS))
 	}
-
 	pwdB := []byte(pwdU)
 
 	cfg, err := createConfig(cfg_)
@@ -114,7 +117,7 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 		return nil, nil, errors.New("out of memory")
 	}
 	defer C.free(unsafe.Pointer(rec))
-	ek := C.malloc(C.sizeof_char * C.crypto_hash_sha256_BYTES)
+	ek := C.malloc(C.sizeof_char * C.crypto_hash_sha512_BYTES)
 	if ek == nil {
 		return nil, nil, errors.New("out of memory")
 	}
@@ -123,7 +126,7 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 	ret := C.opaque_Register(
 		(*C.uchar)(C.CBytes(pwdB)),
 		C.ushort(len(pwdB)),
-		(*C.uchar)(C.CBytes(skS)),
+		skS_ptr,
 		&cfg,
 		&idCC,
 		(*C.uchar)(rec),
@@ -134,7 +137,7 @@ func Register(pwdU string, skS []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte, [
 	}
 
 	r := C.GoBytes(rec, (C.int)(C.OPAQUE_USER_RECORD_LEN+envU_len))
-	e := C.GoBytes(ek, (C.crypto_hash_sha256_BYTES))
+	e := C.GoBytes(ek, (C.crypto_hash_sha512_BYTES))
 	return r, e, nil
 }
 
@@ -285,8 +288,8 @@ func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids Opaque
 	// io:   Opaque_Ids *ids,
 	// out:
 	//       uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
-	//       uint8_t authU[crypto_auth_hmacsha256_BYTES],
-	//       uint8_t export_key[crypto_hash_sha256_BYTES]);
+	//       uint8_t authU[crypto_auth_hmacsha512_BYTES],
+	//       uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 	if len(sec) <= C.OPAQUE_USER_SESSION_SECRET_LEN {
 		return nil, nil, nil, ids, errors.New("invalid sec param")
@@ -384,12 +387,12 @@ func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids Opaque
 		return nil, nil, nil, ids, errors.New("out of memory")
 	}
 	defer C.free(unsafe.Pointer(sk))
-	authU := C.malloc(C.crypto_auth_hmacsha256_BYTES)
+	authU := C.malloc(C.crypto_auth_hmacsha512_BYTES)
 	if authU == nil {
 		return nil, nil, nil, ids, errors.New("out of memory")
 	}
 	defer C.free(unsafe.Pointer(authU))
-	export_key := C.malloc(C.crypto_hash_sha256_BYTES)
+	export_key := C.malloc(C.crypto_hash_sha512_BYTES)
 	if export_key == nil {
 		return nil, nil, nil, ids, errors.New("out of memory")
 	}
@@ -418,8 +421,8 @@ func RecoverCred(resp []byte, sec []byte, pkS []byte, cfg_ OpaqueCfg, ids Opaque
 	}
 
 	s := C.GoBytes(sk, (C.int)(C.OPAQUE_SHARED_SECRETBYTES))
-	a := C.GoBytes(authU, (C.crypto_auth_hmacsha256_BYTES))
-	e := C.GoBytes(export_key, (C.crypto_hash_sha256_BYTES))
+	a := C.GoBytes(authU, (C.crypto_auth_hmacsha512_BYTES))
+	e := C.GoBytes(export_key, (C.crypto_hash_sha512_BYTES))
 	return s, a, e, ids, nil
 }
 
@@ -431,12 +434,12 @@ func UserAuth(sec []byte, authU []byte) error {
 	// int opaque_UserAuth(
 	// in
 	//       const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
-	//       const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+	//       const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 	if len(sec) != C.OPAQUE_SERVER_AUTH_CTX_LEN {
 		return errors.New("invalid sec param")
 	}
-	if len(authU) != C.crypto_auth_hmacsha256_BYTES {
+	if len(authU) != C.crypto_auth_hmacsha512_BYTES {
 		return errors.New("invalid authU param")
 	}
 
@@ -577,7 +580,7 @@ func FinalizeReq(sec []byte, resp []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte
 	//       const Opaque_Ids *ids,
 	// out
 	//       uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
-	//       uint8_t export_key[crypto_hash_sha256_BYTES]);
+	//       uint8_t export_key[crypto_hash_sha512_BYTES]);
 	if len(sec) <= C.OPAQUE_REGISTER_USER_SEC_LEN {
 		return nil, nil, errors.New("invalid sec param")
 	}
@@ -610,7 +613,7 @@ func FinalizeReq(sec []byte, resp []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte
 	}
 	defer C.free(unsafe.Pointer(rec))
 
-	ek := C.malloc(C.crypto_hash_sha256_BYTES)
+	ek := C.malloc(C.crypto_hash_sha512_BYTES)
 	if ek == nil {
 		return nil, nil, errors.New("out of memory")
 	}
@@ -629,7 +632,7 @@ func FinalizeReq(sec []byte, resp []byte, cfg_ OpaqueCfg, ids OpaqueIDS) ([]byte
 	}
 
 	r := C.GoBytes(rec, (C.int)(C.OPAQUE_USER_RECORD_LEN+envU_len))
-	e := C.GoBytes(ek, (C.crypto_hash_sha256_BYTES))
+	e := C.GoBytes(ek, (C.crypto_hash_sha512_BYTES))
 	return r, e, nil
 }
 

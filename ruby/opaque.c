@@ -82,7 +82,7 @@ VALUE opaque_register(int argc, VALUE *argv, VALUE obj) {
     }
   }
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -265,8 +265,8 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   }
 
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
   if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids1, sk, authU, export_key)) {
     rb_raise(rb_eRuntimeError, "recover credentials failed");
@@ -295,7 +295,7 @@ VALUE opaque_user_auth(int argc, VALUE *argv, VALUE obj) {
   }
 
   extract_str(argv[1], &authU, &authU_len, "authU is not a string");
-  if(authU_len!=crypto_auth_hmacsha256_BYTES) {
+  if(authU_len!=crypto_auth_hmacsha512_BYTES) {
     rb_raise(rb_eTypeError, "authU param is invalid");
   }
 
@@ -405,7 +405,7 @@ VALUE opaque_finalize_request(int argc, VALUE *argv, VALUE obj) {
 
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   if(0!=opaque_FinalizeRequest(sec, pub, &cfg, &ids, rec, export_key)) {
     rb_raise(rb_eRuntimeError, "create registration response failed");
   }

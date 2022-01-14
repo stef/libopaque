@@ -60,7 +60,7 @@ static Opaque_App_Infos* get_infos(lua_State *L, Opaque_App_Infos *infos, const 
 }
 
 static int reg(lua_State *L) {
-  //int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+  //int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
 
   const uint8_t *pwdU, *skS;
   size_t pwdU_len, skS_len;
@@ -90,7 +90,7 @@ static int reg(lua_State *L) {
   }
   ids.idS_len=id_len;
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -103,9 +103,9 @@ static int reg(lua_State *L) {
   char *ptr = luaL_buffinitsize(L, &r, OPAQUE_USER_RECORD_LEN+envU_len);
   memcpy(ptr,rec,OPAQUE_USER_RECORD_LEN+envU_len);
   luaL_pushresultsize(&r, OPAQUE_USER_RECORD_LEN+envU_len);
-  ptr = luaL_buffinitsize(L, &ek, crypto_hash_sha256_BYTES);
-  memcpy(ptr,export_key, crypto_hash_sha256_BYTES);
-  luaL_pushresultsize(&ek, crypto_hash_sha256_BYTES);
+  ptr = luaL_buffinitsize(L, &ek, crypto_hash_sha512_BYTES);
+  memcpy(ptr,export_key, crypto_hash_sha512_BYTES);
+  luaL_pushresultsize(&ek, crypto_hash_sha512_BYTES);
 
   return 2;
 }
@@ -206,7 +206,7 @@ static int create_cred_resp(lua_State *L) {
 }
 
 static int recover_creds(lua_State *L) {
-//int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+//int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t *sk, uint8_t authU[crypto_auth_hmacsha512_BYTES], uint8_t export_key[crypto_hash_sha512_BYTES]);
 
   const uint8_t *resp, *sec, *pkS;
   size_t resp_len, sec_len, pkS_len;
@@ -292,8 +292,8 @@ static int recover_creds(lua_State *L) {
   }
 
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
   if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids, sk, authU, export_key)) {
     lua_pushstring(L, "opaque recover credentials failed.");
@@ -305,13 +305,13 @@ static int recover_creds(lua_State *L) {
   memcpy(ptr,sk,OPAQUE_SHARED_SECRETBYTES);
   luaL_pushresultsize(&sk_, OPAQUE_SHARED_SECRETBYTES);
 
-  ptr = luaL_buffinitsize(L, &authU_, crypto_auth_hmacsha256_BYTES);
-  memcpy(ptr,authU, crypto_auth_hmacsha256_BYTES);
-  luaL_pushresultsize(&authU_, crypto_auth_hmacsha256_BYTES);
+  ptr = luaL_buffinitsize(L, &authU_, crypto_auth_hmacsha512_BYTES);
+  memcpy(ptr,authU, crypto_auth_hmacsha512_BYTES);
+  luaL_pushresultsize(&authU_, crypto_auth_hmacsha512_BYTES);
 
-  ptr = luaL_buffinitsize(L, &ek_, crypto_hash_sha256_BYTES);
-  memcpy(ptr,export_key, crypto_hash_sha256_BYTES);
-  luaL_pushresultsize(&ek_, crypto_hash_sha256_BYTES);
+  ptr = luaL_buffinitsize(L, &ek_, crypto_hash_sha512_BYTES);
+  memcpy(ptr,export_key, crypto_hash_sha512_BYTES);
+  luaL_pushresultsize(&ek_, crypto_hash_sha512_BYTES);
 
   ptr = luaL_buffinitsize(L, &idU_, ids.idU_len);
   memcpy(ptr,ids.idU, ids.idU_len);
@@ -325,7 +325,7 @@ static int recover_creds(lua_State *L) {
 }
 
 static int user_auth(lua_State *L) {
-// int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+// int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
   const uint8_t *sec, *authU;
   size_t sec_len, authU_len;
@@ -337,7 +337,7 @@ static int user_auth(lua_State *L) {
   }
 
   authU=(const uint8_t *) luaL_checklstring(L,2,&authU_len);
-  if(authU_len!=crypto_auth_hmacsha256_BYTES) {
+  if(authU_len!=crypto_auth_hmacsha512_BYTES) {
     lua_pushstring(L, "authU parameter too short");
     return lua_error(L);
   }
@@ -441,7 +441,7 @@ static int create_1k_reg_resp(lua_State *L) {
 }
 
 static int finalize_req(lua_State *L) {
-//int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+//int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
 
   const uint8_t *sec, *pub;
   size_t sec_len, pub_len;
@@ -475,7 +475,7 @@ static int finalize_req(lua_State *L) {
   }
   ids.idS_len=id_len;
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -489,9 +489,9 @@ static int finalize_req(lua_State *L) {
   memcpy(ptr,rec,OPAQUE_USER_RECORD_LEN+envU_len);
   luaL_pushresultsize(&r, OPAQUE_USER_RECORD_LEN+envU_len);
 
-  ptr = luaL_buffinitsize(L, &ek, crypto_hash_sha256_BYTES);
-  memcpy(ptr,export_key, crypto_hash_sha256_BYTES);
-  luaL_pushresultsize(&ek, crypto_hash_sha256_BYTES);
+  ptr = luaL_buffinitsize(L, &ek, crypto_hash_sha512_BYTES);
+  memcpy(ptr,export_key, crypto_hash_sha512_BYTES);
+  luaL_pushresultsize(&ek, crypto_hash_sha512_BYTES);
 
   return 2;
 }

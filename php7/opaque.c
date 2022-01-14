@@ -115,7 +115,7 @@ PHP_FUNCTION(opaque_register) {
       return;
     }
 
-    uint8_t export_key[crypto_hash_sha256_BYTES];
+    uint8_t export_key[crypto_hash_sha512_BYTES];
     const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -311,8 +311,8 @@ PHP_FUNCTION(opaque_recover_credentials) {
     Opaque_App_Infos infos={0}, *infos_p=get_infos(&infos, infos_array);
 
     uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-    uint8_t authU[crypto_auth_hmacsha256_BYTES];
-    uint8_t export_key[crypto_hash_sha256_BYTES];
+    uint8_t authU[crypto_auth_hmacsha512_BYTES];
+    uint8_t export_key[crypto_hash_sha512_BYTES];
 
     if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_p, &ids, sk, authU, export_key)) return;
 
@@ -344,7 +344,7 @@ PHP_FUNCTION(opaque_user_auth) {
       php_error_docref(NULL, E_WARNING, "invalid sec param.");
       return;
     }
-    if(authU_len!=crypto_auth_hmacsha256_BYTES) {
+    if(authU_len!=crypto_auth_hmacsha512_BYTES) {
       php_error_docref(NULL, E_WARNING, "invalid authU param.");
       return;
     }
@@ -454,7 +454,7 @@ PHP_FUNCTION(opaque_finalize_request) {
 
     const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
     uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-    uint8_t export_key[crypto_hash_sha256_BYTES];
+    uint8_t export_key[crypto_hash_sha512_BYTES];
     if(0!=opaque_FinalizeRequest(sec, pub, &cfg, &ids, rec, export_key)) return;
 
     zend_array *ret = zend_new_array(2);

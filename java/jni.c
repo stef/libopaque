@@ -114,7 +114,7 @@ static void getids(JNIEnv *env, jobject ids_, Opaque_Ids *ids, IdGC *gc) {
 }
 
 static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS_, jobject cfg_, jobject ids_) {
-  //int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+  //int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
   const char *pwdU, *skS=NULL;
   jbyte *skS_jb=NULL;
   size_t pwdU_len;
@@ -137,7 +137,7 @@ static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS
   IdGC gc;
   getids(env, ids_, &ids, &gc);
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 
@@ -240,7 +240,7 @@ static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyte
 }
 
 
-//int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha256_BYTES], uint8_t export_key[crypto_hash_sha256_BYTES]);
+//int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES], uint8_t export_key[crypto_hash_sha512_BYTES]);
 static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jbyteArray pkS_, jobject cfg_, jobject ids_) {
 
   Opaque_PkgConfig cfg = {0};
@@ -311,8 +311,8 @@ static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_,
 
   //  exception(env,"opaque createCredResp() failed...");
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
   if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, NULL, &ids, sk, authU, export_key)) {
     exception(env,"opaque recoverCredentials() failed...");
@@ -366,7 +366,7 @@ static jobject _c_recoverCredentials_NP(JNIEnv *env, jobject obj, jbyteArray res
 }
 
 static jboolean c_userAuth(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray authU_) {
-//int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha256_BYTES]);
+//int opaque_UserAuth(const uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN], const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
   const uint8_t *sec,
                 *authU;
 
@@ -374,7 +374,7 @@ static jboolean c_userAuth(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray
     exception(env, "invalid secret context size");
     return JNI_FALSE;
   }
-  if((*env)->GetArrayLength(env, authU_)!=crypto_auth_hmacsha256_BYTES) {
+  if((*env)->GetArrayLength(env, authU_)!=crypto_auth_hmacsha512_BYTES) {
     exception(env, "invalid auth token size");
     return JNI_FALSE;
   }
@@ -494,7 +494,7 @@ static jobject c_create1kRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteA
 
 static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray pub_, jobject cfg_, jobject ids_) {
 // int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids,
-// uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha256_BYTES]);
+// uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
   const char *sec=NULL, *pub=NULL;
   jbyte *sec_jb=NULL, *pub_jb = NULL;
 
@@ -516,7 +516,7 @@ static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   IdGC gc;
   getids(env, ids_, &ids, &gc);
 
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
   const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
   uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
 

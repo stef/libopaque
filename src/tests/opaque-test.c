@@ -128,7 +128,7 @@ int main(void) {
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
   uint8_t sk[32];
   uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  Opaque_App_Infos infos={.info=(uint8_t*)"info",.info_len=4,.einfo=(uint8_t*)"einfo",.einfo_len=5};
+  Opaque_App_Infos infos={.info=(uint8_t*)"info",.info_len=4,.einfo=(uint8_t*) "einfo",.einfo_len=5};
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
   if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, &infos, resp, sk, ctx)) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");

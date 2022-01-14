@@ -1456,7 +1456,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // e&f handled as parameters
 
 #ifdef TRACE
-  dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session srv resp ");
+  dump(_resp,OPAQUE_SERVER_SESSION_LEN+rec->envU_len, "session srv resp ");
+  dump(_sec,OPAQUE_SERVER_AUTH_CTX_LEN, "session srv sec ");
 #endif
 
   return 0;

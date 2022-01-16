@@ -135,12 +135,7 @@ class PkgConfig(ctypes.Structure):
                              # hkdf-expand()
         ('pkU', c_uint8, 2), # users public key - if not included it
                              # can be derived from the private key
-        ('pkS', c_uint8, 2), # servers public key - currently this is
-                             # not allowed to set to NotPackaged -
-                             # TODO if set to NotPackaged allow to
-                             # specify the pubkey explicitly as a
-                             # param to the functions that require
-                             # this info
+        ('pkS', c_uint8, 2), # servers public key
         ('idU', c_uint8, 2), # id of the user - the RFC specifies this
                              # to be possible to pack into the
                              # envelope

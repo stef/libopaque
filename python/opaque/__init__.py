@@ -88,10 +88,10 @@ class Ids(ctypes.Structure):
     def __init__(self, idu=None, ids=None):
         super().__init__()
         if idu:
-            self.idU=idu.encode("utf8")
+            self.idU=idu.encode("utf8") if isinstance(idu,str) else idu
             self.idU_len=len(self.idU)
         if ids:
-            self.idS=ids.encode('utf8')
+            self.idS=ids.encode('utf8') if isinstance(ids,str) else ids
             self.idS_len=len(self.idS)
 
 #   struct to store various extra protocol information.
@@ -313,7 +313,8 @@ def RecoverCredentials(resp, sec, cfg, infos, pkS=None, ids=None):
         ids1.idS_len=65535
 
     __check(opaquelib.opaque_RecoverCredentials(resp, sec, pkS, ctypes.pointer(cfg), ctypes.pointer(infos) if infos else None, ctypes.pointer(ids1), sk, authU, export_key))
-    return sk.raw, authU.raw, export_key.raw, ids1
+    return sk.raw, authU.raw, export_key.raw, Ids(idu=ids1.idU[:ids1.idU_len] if ids1.idU else None,
+                                                  ids=ids1.idS[:ids1.idS_len] if ids1.idS else None)
 
 #  Explicit User Authentication.
 #

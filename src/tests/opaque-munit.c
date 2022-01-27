@@ -23,20 +23,11 @@
 #include "../opaque.h"
 #include "../common.h"
 
-typedef struct {
-  uint8_t kU[crypto_core_ristretto255_SCALARBYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES];
-  uint8_t pkU[crypto_scalarmult_BYTES];
-  uint8_t pkS[crypto_scalarmult_BYTES];
-  uint32_t envU_len;
-  uint8_t envU[];
-} __attribute((packed)) Opaque_UserRecord;
-
 static char* type_params[] = {
-  "\x00",
-  "\x01",
-  "\x02",
-  "\x03",
+  "0",
+  "1",
+  "2",
+  "3",
   NULL
 };
 
@@ -58,132 +49,20 @@ static char* idS_params[] = {
   NULL
 };
 
-static char* cfg_params[]=
-  {"\x10\x00",
-   "\x10\x01",
-   "\x10\x02",
-   "\x50\x00",
-   "\x50\x01",
-   "\x50\x02",
-   "\x90\x00",
-   "\x90\x01",
-   "\x90\x02",
-   "\x20\x00",
-   "\x20\x01",
-   "\x20\x02",
-   "\x60\x00",
-   "\x60\x01",
-   "\x60\x02",
-   "\xa0\x00",
-   "\xa0\x01",
-   "\xa0\x02",
-   "\x14\x00",
-   "\x14\x01",
-   "\x14\x02",
-   "\x54\x00",
-   "\x54\x01",
-   "\x54\x02",
-   "\x94\x00",
-   "\x94\x01",
-   "\x94\x02",
-   "\x24\x00",
-   "\x24\x01",
-   "\x24\x02",
-   "\x64\x00",
-   "\x64\x01",
-   "\x64\x02",
-   "\xa4\x00",
-   "\xa4\x01",
-   "\xa4\x02",
-   "\x18\x00",
-   "\x18\x01",
-   "\x18\x02",
-   "\x58\x00",
-   "\x58\x01",
-   "\x58\x02",
-   "\x98\x00",
-   "\x98\x01",
-   "\x98\x02",
-   "\x28\x00",
-   "\x28\x01",
-   "\x28\x02",
-   "\x68\x00",
-   "\x68\x01",
-   "\x68\x02",
-   "\xa8\x00",
-   "\xa8\x01",
-   "\xa8\x02",
-   "\x11\x00",
-   "\x11\x01",
-   "\x11\x02",
-   "\x51\x00",
-   "\x51\x01",
-   "\x51\x02",
-   "\x91\x00",
-   "\x91\x01",
-   "\x91\x02",
-   "\x21\x00",
-   "\x21\x01",
-   "\x21\x02",
-   "\x61\x00",
-   "\x61\x01",
-   "\x61\x02",
-   "\xa1\x00",
-   "\xa1\x01",
-   "\xa1\x02",
-   "\x15\x00",
-   "\x15\x01",
-   "\x15\x02",
-   "\x55\x00",
-   "\x55\x01",
-   "\x55\x02",
-   "\x95\x00",
-   "\x95\x01",
-   "\x95\x02",
-   "\x25\x00",
-   "\x25\x01",
-   "\x25\x02",
-   "\x65\x00",
-   "\x65\x01",
-   "\x65\x02",
-   "\xa5\x00",
-   "\xa5\x01",
-   "\xa5\x02",
-   "\x19\x00",
-   "\x19\x01",
-   "\x19\x02",
-   "\x59\x00",
-   "\x59\x01",
-   "\x59\x02",
-   "\x99\x00",
-   "\x99\x01",
-   "\x99\x02",
-   "\x29\x00",
-   "\x29\x01",
-   "\x29\x02",
-   "\x69\x00",
-   "\x69\x01",
-   "\x69\x02",
-   "\xa9\x00",
-   "\xa9\x01",
-   "\xa9\x02",
-   NULL
-};
 
 static MunitParameterEnum init_params[] = {
   { "pwdU", pwdU_params },
   { "idU", idU_params },
   { "idS", idS_params },
-  { "cfg", cfg_params },
   { "type", type_params },
   { NULL, NULL },
 };
 
 typedef enum {
-              ServerInit,
-              Server1kInit,
-              PrivateInit,
-              Private1kInit
+              ServerInit = '0',
+              Server1kInit = '1',
+              PrivateInit = '2',
+              Private1kInit = '3'
 } TestType;
 
 MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixture) {
@@ -199,51 +78,32 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   ids.idU_len = strlen((char*)ids.idU);
   ids.idS_len = strlen((char*)ids.idS);
 
-  Opaque_PkgConfig *cfg=(Opaque_PkgConfig *) munit_parameters_get(params, "cfg");
-  fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg->skU, cfg->pkU, cfg->pkS, cfg->idU, cfg->idS);
-
-  const uint32_t envU_len = opaque_envelope_len(cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  fprintf(stderr,"sizeof(rec): %ld\n",sizeof(rec));
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
 
   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
   uint8_t sk[32];
   uint8_t pk[32];
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
-  uint8_t idU[ids.idU_len], idS[ids.idS_len]; // must be big enough to fit ids
-  Opaque_Ids ids1={sizeof idU,idU,sizeof idS,idS};
+  uint8_t authUs[crypto_auth_hmacsha512_BYTES];
   // in case we omit the id* in the envelope we must provide it before-hand.
   // if it is in the envelope it will be populated from the envelope
-  if(cfg->idU == NotPackaged) {
-    ids1.idU_len = ids.idU_len;
-    memcpy(idU, ids.idU, ids.idU_len);
-  }
-  if(cfg->idS == NotPackaged) {
-    ids1.idS_len = ids.idS_len;
-    memcpy(idS, ids.idS, ids.idS_len);
-  }
-  uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-
   uint8_t M[crypto_core_ristretto255_BYTES];
   uint8_t usr_ctx[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
 
-  uint8_t _skS[crypto_scalarmult_SCALARBYTES], _pkS[crypto_scalarmult_BYTES];
-  uint8_t *skS, *pkS;
+  uint8_t _skS[crypto_scalarmult_SCALARBYTES];
+  uint8_t *skS;
   if(type==Private1kInit || type==Server1kInit) {
     skS=_skS;
-    pkS=_pkS;
     randombytes(skS, crypto_scalarmult_SCALARBYTES);
-    crypto_scalarmult_base(pkS, skS);
   } else {
     skS=NULL;
-    pkS=NULL;
   }
 
   if(type==ServerInit || type==Server1kInit) {
     // register user
     fprintf(stderr,"\nopaque_Register\n");
-    if(0!=opaque_Register(pwdU, pwdU_len, skS, cfg, &ids, rec, export_key)) {
+    if(0!=opaque_Register(pwdU, pwdU_len, skS, &ids, rec, export_key)) {
       fprintf(stderr,"opaque_Register failed.\n");
       return MUNIT_FAIL;
     }
@@ -256,61 +116,40 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
     }
     // server responds
     uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
-    if(type==Private1kInit) {
-      fprintf(stderr,"\nopaque_Create1kRegistrationResponse\n");
-      if(0!=opaque_Create1kRegistrationResponse(M, pkS, rsec, rpub)) {
-        fprintf(stderr,"opaque_Create1kRegistrationResponse failed.\n");
-        return MUNIT_FAIL;
-      }
-    } else {
-      fprintf(stderr,"\nopaque_CreateRegistrationResponse\n");
-      if(0!=opaque_CreateRegistrationResponse(M, rsec, rpub)) {
-        fprintf(stderr,"opaque_CreateRegistrationResponse failed.\n");
-        return MUNIT_FAIL;
-      }
+    fprintf(stderr,"\nopaque_CreateRegistrationResponse\n");
+    if(0!=opaque_CreateRegistrationResponse(M, skS, rsec, rpub)) {
+      fprintf(stderr,"opaque_CreateRegistrationResponse failed.\n");
+      return MUNIT_FAIL;
     }
     // user commits its secrets
     fprintf(stderr,"\nopaque_FinalizeRequest\n");
-    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, cfg, &ids, rec, export_key)) {
+    unsigned char rrec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
+    if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &ids, rrec, export_key)) {
       fprintf(stderr,"opaque_FinalizeRequest failed.\n");
       return MUNIT_FAIL;
     }
     // server "saves"
-    if(type==Private1kInit) {
-      fprintf(stderr,"\nopaque_Store1kUserRecord\n");
-      opaque_Store1kUserRecord(rsec, skS, rec);
-    } else {
-      fprintf(stderr,"\nopaque_StoreUserRecord\n");
-      opaque_StoreUserRecord(rsec, rec);
-    }
+    fprintf(stderr,"\nopaque_Store1kUserRecord\n");
+    opaque_StoreUserRecord(rsec, rrec, rec);
   }
 
   fprintf(stderr,"\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
   fprintf(stderr,"\nopaque_CreateCredentialResponse\n");
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) {
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, (uint8_t*)"munit", 5, resp, sk, authUs)) {
     fprintf(stderr,"opaque_CreateCredentialResponse failed.\n");
     return MUNIT_FAIL;
   }
   fprintf(stderr,"\nopaque_RecoverCredentials\n");
 
-  if(cfg->pkS == NotPackaged) {
-    Opaque_UserRecord *_rec = (Opaque_UserRecord *) &rec;
-    if(type!=Private1kInit && type!=Server1kInit) {
-      pkS = _rec->pkS;
-    }
-  } else {
-    pkS = NULL;
-  }
-
-  if(0!=opaque_RecoverCredentials(resp, sec, pkS, cfg, NULL, &ids1, pk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, (uint8_t*)"munit", 5, &ids, pub, pk, authU, export_key)) {
     fprintf(stderr,"opaque_RecoverCredentials failed.\n");
     return MUNIT_FAIL;
   }
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
-  if(-1==opaque_UserAuth(ctx, authU)) {
+  if(0!=opaque_UserAuth(authUs, authU)) {
     fprintf(stderr,"failed authenticating user\n");
     return MUNIT_FAIL;
   }
@@ -343,6 +182,5 @@ static const MunitSuite suite = {
 };
 
 int main (int argc, char* const argv[]) {
-  cfg_params[2]=NULL;
   return munit_suite_main(&suite, NULL, argc, argv);
 }

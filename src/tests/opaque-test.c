@@ -21,155 +21,21 @@
 #include "../opaque.h"
 #include "../common.h"
 
-/* See src/opaque.c. */
-#define OPAQUE_SHARED_SECRETBYTES 32
-
-typedef struct {
-  uint8_t kU[crypto_core_ristretto255_SCALARBYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES];
-  uint8_t pkU[crypto_scalarmult_BYTES];
-  uint8_t pkS[crypto_scalarmult_BYTES];
-  uint32_t envU_len;
-  uint8_t envU[];
-} __attribute((packed)) Opaque_UserRecord;
-
-static void _dump(const uint8_t *p, const size_t len, const char* msg) {
-  size_t i;
-  fprintf(stderr, "%s",msg);
-  for(i=0;i<len;i++)
-    fprintf(stderr, "%02x", p[i]);
-  fprintf(stderr, "\n");
-}
-
-int register_with_global_server_key(void) {
-  uint8_t pwdU[]="asdf";
-  uint16_t pwdU_len=strlen((char*) pwdU);
-  Opaque_Ids ids={3,(uint8_t*)"idU",3,(uint8_t*)"idS"};
-  uint8_t idU[1024]={0}, idS[1024]={0};
-  Opaque_Ids ids1={sizeof idU,idU, sizeof idS ,idS};
-
-  uint8_t rsecU[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len];
-  uint8_t M[crypto_core_ristretto255_BYTES];
-  uint8_t pkS[crypto_scalarmult_BYTES];
-  uint8_t rsecS[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
-  Opaque_PkgConfig cfg={
-                        .skU = InSecEnv,
-                        .pkU = NotPackaged,
-                        .pkS = NotPackaged,
-                        .idS = InSecEnv,
-                        .idU = InClrEnv,
-  };
-
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  uint8_t export_key[crypto_hash_sha512_BYTES], export_key1[crypto_hash_sha512_BYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0x0e,0x0f,0x10,0x11,0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f};
-  uint8_t secU[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
-  uint8_t sk[OPAQUE_SHARED_SECRETBYTES], sk1[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t secS[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  uint8_t authU[crypto_auth_hmacsha512_BYTES];
-
-  //randombytes(skS, crypto_scalarmult_SCALARBYTES);
-  crypto_scalarmult_base(pkS, skS);
-
-  fprintf(stderr, "\n\nglobal server key private registration\n\n");
-
-  if(0!=opaque_CreateRegistrationRequest(pwdU, pwdU_len, rsecU, M)) return 1;
-  if(0!=opaque_Create1kRegistrationResponse(M, pkS, rsecS, rpub)) return 1;
-  if(0!=opaque_FinalizeRequest(rsecU, rpub, &cfg, &ids, rec, export_key)) return 1;
-  opaque_Store1kUserRecord(rsecS, skS, rec);
-  if(0!=opaque_CreateCredentialRequest(pwdU, pwdU_len, secU, pub)) return 1;
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, secS)) return 1;
-  if(0!=opaque_RecoverCredentials(resp, secU, pkS, &cfg, NULL, &ids1, sk1, authU, export_key1)) return 1;
-  assert(ids.idU_len==ids1.idU_len);
-  assert(ids.idS_len==ids1.idS_len);
-  assert(0==memcmp(ids.idU, ids1.idU, ids.idU_len));
-  assert(0==memcmp(ids.idS, ids1.idS, ids.idS_len));
-  assert(0==sodium_memcmp(export_key, export_key1, sizeof export_key));
-  assert(0==sodium_memcmp(sk, sk1, sizeof sk));
-  if(0!=opaque_UserAuth(secS, authU)) return 1;
-  return 0;
-}
-
 int main(void) {
-  uint8_t pwdU[]="asdf";
-  uint16_t pwdU_len=strlen((char*) pwdU);
+  const uint8_t pwdU[]="asdf";
+  const uint16_t pwdU_len=strlen((char*) pwdU);
   uint8_t export_key[crypto_hash_sha512_BYTES];
-  uint8_t export_key_x[crypto_hash_sha512_BYTES];
+  uint8_t export_key0[crypto_hash_sha512_BYTES];
   Opaque_Ids ids={4,(uint8_t*)"user",6,(uint8_t*)"server"};
-  ids.idU_len = strlen((char*) ids.idU);
-  ids.idS_len = strlen((char*) ids.idS);
-  Opaque_PkgConfig cfg={
-                        .skU = InSecEnv, // NotPackaged,
-                        .pkU = NotPackaged,
-                        .pkS = InClrEnv, //InSecEnv,
-                        .idS = InSecEnv, //NotPackaged,
-                        .idU = InClrEnv, //NotPackaged,
-  };
-  _dump((uint8_t*) &cfg,sizeof cfg, "cfg ");
-  fprintf(stderr, "cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg.skU, cfg.pkU, cfg.pkS, cfg.idU, cfg.idS);
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  fprintf(stderr, "sizeof(rec): %ld\n",sizeof(rec));
-
-  // register user
-  fprintf(stderr, "\nopaque_Register\n");
-  if(0!=opaque_Register(pwdU, pwdU_len, NULL, &cfg, &ids, rec, export_key)) {
-    fprintf(stderr, "opaque_Register failed.\n");
-    return 1;
-  }
-
-  // initiate login
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
+  uint8_t rec0[OPAQUE_USER_RECORD_LEN];
   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
-  fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
-  opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
-
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
   uint8_t sk[32];
-  uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  Opaque_App_Infos infos={.info=(uint8_t*)"info",.info_len=4,.einfo=(uint8_t*) "einfo",.einfo_len=5};
-  fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, &infos, resp, sk, ctx)) {
-    fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
-    return 1;
-  }
-
-  _dump(sk,32,"sk_s: ");
-
   uint8_t pk[32];
-  fprintf(stderr, "\nopaque_RecoverCredentials\n");
-  uint8_t authU[crypto_auth_hmacsha512_BYTES];
-  uint8_t idU[ids.idU_len], idS[ids.idS_len]; // must be big enough to fit ids
-  Opaque_Ids ids1={sizeof idU,idU, sizeof idS ,idS};
-  if(cfg.idU == NotPackaged) {
-    ids1.idU_len = ids.idU_len;
-    memcpy(idU, ids.idU, ids.idU_len);
-  }
-  if(cfg.idS == NotPackaged) {
-    ids1.idS_len = ids.idS_len;
-    memcpy(idS, ids.idS, ids.idS_len);
-  }
-
-  uint8_t *pkS = NULL;
-  if(cfg.pkS == NotPackaged) {
-    Opaque_UserRecord *_rec = (Opaque_UserRecord *) &rec;
-    pkS = _rec->pkS;
-  }
-
-  if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, &infos, &ids1, pk, authU, export_key_x)) {
-    fprintf(stderr, "opaque_RecoverCredentials failed.\n");
-    return 1;
-  }
-  _dump(pk,32,"sk_u: ");
-  assert(sodium_memcmp(sk,pk,sizeof sk)==0);
-  assert(sodium_memcmp(export_key,export_key_x,sizeof export_key)==0);
-
-  fprintf(stderr, "\nopaque_UserAuth\n");
-  if(-1==opaque_UserAuth(ctx, authU)) {
-    fprintf(stderr, "failed authenticating user\n");
-    return 1;
-  }
+  uint8_t authU0[crypto_auth_hmacsha512_BYTES];
+  uint8_t authU1[crypto_auth_hmacsha512_BYTES];
+  const uint8_t context[4]="test";
 
   fprintf(stderr, "\n\nprivate registration\n\n");
 
@@ -185,50 +51,74 @@ int main(void) {
   // server responds
   uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   fprintf(stderr, "\nopaque_CreateRegistrationResponse\n");
-  if(0!=opaque_CreateRegistrationResponse(M, rsec, rpub)) {
+  if(0!=opaque_CreateRegistrationResponse(M, NULL, rsec, rpub)) {
     fprintf(stderr, "opaque_CreateRegistrationResponse failed.\n");
     return 1;
   }
   // user commits its secrets
-  uint8_t rrec[OPAQUE_USER_RECORD_LEN+envU_len];
   fprintf(stderr, "\nopaque_FinalizeRequest\n");
-  if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &cfg, &ids, rrec, export_key)) {
+  unsigned char rrec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
+  if(0!=opaque_FinalizeRequest(usr_ctx, rpub, &ids, rrec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");
     return 1;
   }
   // server "saves"
   fprintf(stderr, "\nopaque_StoreUserRecord\n");
-  opaque_StoreUserRecord(rsec, rrec);
+  opaque_StoreUserRecord(rsec, rrec, rec);
 
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
   fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
-  if(0!=opaque_CreateCredentialResponse(pub, rrec, &ids, NULL, resp, sk, ctx)) {
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, context, sizeof context, resp, sk, authU0)) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
     return 1;
   }
-  _dump(sk,32,"sk_s: ");
+  dump(sk,32,"sk_s: ");
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
 
-  if(cfg.pkS == NotPackaged) {
-    Opaque_UserRecord *_rec = (Opaque_UserRecord *) &rec;
-    pkS = _rec->pkS;
-  } else {
-    pkS = NULL;
-  }
-  if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, NULL, &ids1, pk, authU, export_key)) return 1;
-  _dump(pk,32,"sk_u: ");
+  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
+  dump(pk,32,"sk_u: ");
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
 
-  if(-1==opaque_UserAuth(ctx, authU)) {
+  if(-1==opaque_UserAuth(authU0, authU1)) {
     fprintf(stderr, "failed authenticating user\n");
     return 1;
   }
 
-  if (0!=register_with_global_server_key())
+  // register user
+  fprintf(stderr, "\nopaque_Register\n");
+  if(0!=opaque_Register(pwdU, pwdU_len, NULL, &ids, rec0, export_key0)) {
+    fprintf(stderr, "opaque_Register failed.\n");
     return 1;
+  }
+
+  // opaque_register should output the same values as the privacy respecting 4 step dance...
+  assert(memcmp(rec, rec0, sizeof rec)==0);
+  assert(memcmp(export_key, export_key0, sizeof export_key)==0);
+
+  fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
+  opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);
+  fprintf(stderr, "\nopaque_CreateCredentialResponse\n");
+  if(0!=opaque_CreateCredentialResponse(pub, rec0, &ids, context, sizeof context, resp, sk, authU0)) {
+    fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
+    return 1;
+  }
+  dump(sk,32,"sk_s: ");
+  fprintf(stderr, "\nopaque_RecoverCredentials\n");
+
+  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
+  dump(pk,32,"sk_u: ");
+  assert(sodium_memcmp(sk,pk,sizeof sk)==0);
+  assert(memcmp(export_key, export_key0, sizeof export_key)==0);
+
+  // authenticate both parties:
+
+  if(-1==opaque_UserAuth(authU0, authU1)) {
+    fprintf(stderr, "failed authenticating user\n");
+    return 1;
+  }
 
   fprintf(stderr, "\nall ok\n\n");
 

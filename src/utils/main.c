@@ -5,107 +5,19 @@
 
 #define MAX_PWD_LEN 1024
 
-static int verbose = 0;
-static Opaque_PkgConfig cfg;
-
-#define log(...) if(verbose) fprintf(stderr, __VA_ARGS__)
-
 static void usage(const char *self) {
-  fprintf(stderr, "%s - libopaque commandline frontend\n(c) Stefan Marsiske 2021\n\n", self);
+  fprintf(stderr, "%s - libopaque commandline frontend\n(c) Stefan Marsiske 2021-22\n\n", self);
   fprintf(stderr, "Create new OPAQUE records\n");
-  fprintf(stderr, "echo -n password | %s init idU idS [cfg] 3>export_key [4<skS] >record                   - create new opaque record\n", self);
-  fprintf(stderr, "echo -n password | %s register >msg 3>ctx                                               - initiate new registration\n", self);
-  fprintf(stderr, "%s respond <msg >rpub 3>rsec                                                            - respond to new registration request\n", self);
-  fprintf(stderr, "%s finalize idU idS [cfg] <ctx 4<rpub 3>export_key >record                              - finalize registration\n", self);
-  fprintf(stderr, "%s store idU idS [cfg] <rec 3<rsec [4<skS] >record                                      - complete record\n", self);
-  fprintf(stderr, "socat | %s server-reg idU idS [cfg] 3>record [4<skS]                                    - server portion of online registration\n", self);
-  fprintf(stderr, "socat | %s user-reg idU idS [cfg] 3< <(echo -n password) 4>export_key                   - server portion of online registration\n", self);
+  fprintf(stderr, "echo -n password | %s init idU idS 3>export_key [4<skS] >record                           - create new opaque record\n", self);
+  fprintf(stderr, "echo -n password | %s register >msg 3>ctx                                                 - initiate new registration\n", self);
+  fprintf(stderr, "%s respond <msg >rpub 3>rsec [4<skS]                                                      - respond to new registration request\n", self);
+  fprintf(stderr, "%s finalize idU idS <ctx 4<rpub 3>export_key >record                                      - finalize registration\n", self);
+  fprintf(stderr, "%s store <rec 3<rsec >record                                                              - complete record\n", self);
+  fprintf(stderr, "socat | %s server-reg 3>record [4<skS]                                                    - server portion of online registration\n", self);
+  fprintf(stderr, "socat | %s user-reg idU idS 3< <(echo -n password) 4>export_key                           - server portion of online registration\n", self);
   fprintf(stderr, "\nRun OPAQUE\n");
-  fprintf(stderr, "socat | %s server idU idS [cfg] 3<record 4>shared_key                                   - server portion of OPAQUE session\n", self);
-  fprintf(stderr, "socat | %s user idU idS [cfg] 3< <(echo -n password) 4>export_key 5>shared_key [6<pkS]  - server portion of OPAQUE session\n", self);
-  fprintf(stderr,"\n[cfg] is specified by providing\n\t[--InSecEnv=<skU,pkU,pkS,idS,idU>]    - encrypted\n\t[--InClrEnv=<pkU,pkS,idS,idU>]        - plaintext\n\t[--NotPackaged=<skU,pkU,pkS,idS,idU>] - known or derived\n");
-}
-
-static int getcfg(const int argc, const char** argv, Opaque_PkgConfig *cfg) {
-  cfg->skU = InSecEnv;
-  cfg->pkU = InSecEnv;
-  cfg->pkS = InSecEnv;
-  cfg->idS = InSecEnv;
-  cfg->idU = InSecEnv;
-
-  const char ise[]="--InSecEnv=";
-  const size_t ise_len = strlen(ise);
-  const char ice[]="--InClrEnv=";
-  const size_t ice_len = strlen(ice);
-  const char np[]="--NotPackaged=";
-  const size_t np_len = strlen(np);
-
-  const char skU[]="skU";
-  const char pkU[]="pkU";
-  const char pkS[]="pkS";
-  const char idS[]="idS";
-  const char idU[]="idU";
-
-  int i;
-  Opaque_PkgTarget tgt;
-  const char *p = NULL;
-  for(i=2;i<argc;i++) {
-    if(strncmp(argv[i], "-v", 2)==0) {
-      verbose=1;
-      continue;
-    }
-    if(strncmp(argv[i], ise, ise_len)==0) {
-      p = argv[i]+ise_len;
-      tgt=InSecEnv;
-    }
-    else if(strncmp(argv[i], ice, ice_len)==0) {
-      p = argv[i]+ice_len;
-      tgt=InClrEnv;
-    }
-    else if(strncmp(argv[i], np, np_len)==0) {
-      p = argv[i]+np_len;
-      tgt=NotPackaged;
-    }
-    else continue;
-    while(*p) {
-      if(strncmp(p, skU, 3)==0) {
-        if(tgt==InClrEnv) {
-          fprintf(stderr, "error: skU cannot be set to InClrEnv.\n");
-          return 1;
-        }
-        cfg->skU = tgt;
-        p+=3;
-      }
-      else if(strncmp(p, pkU, 3)==0) {
-        cfg->pkU = tgt;
-        p+=3;
-      }
-      else if(strncmp(p, pkS, 3)==0) {
-        if(tgt==NotPackaged) {
-          fprintf(stderr, "error: it is currently not supported to set pkS to NotPackaged.\n");
-          return 1;
-        }
-        cfg->pkS = tgt;
-        p+=3;
-      }
-      else if(strncmp(p, idS, 3)==0) {
-        cfg->idS = tgt;
-        p+=3;
-      }
-      else if(strncmp(p, idU, 3)==0) {
-        cfg->idU = tgt;
-        p+=3;
-      }
-      else if(*p==',') {
-        p++;
-      }
-      else {
-        fprintf(stderr,"error: invalid packet config at \"%s\"\n", p);
-        return 1;
-      }
-    }
-  }
-  return 0;
+  fprintf(stderr, "socat | %s server idU idS context 3<record 4>shared_key                                   - server portion of OPAQUE session\n", self);
+  fprintf(stderr, "socat | %s user idU idS context 3< <(echo -n password) 4>export_key 5>shared_key [6<pkS]  - server portion of OPAQUE session\n", self);
 }
 
 static int init(const char** argv) {
@@ -147,11 +59,10 @@ static int init(const char** argv) {
 
   Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
 
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  int ret = opaque_Register((uint8_t*)pwd, pwd_len, skS, &cfg, &ids, rec, export_key);
+  int ret = opaque_Register((const uint8_t*)pwd, pwd_len, skS, &ids, rec, export_key);
   sodium_munlock(pwd,sizeof pwd);
   if(0!=ret) {
     fprintf(stderr,"error: failed to initialize reccord\n");
@@ -233,13 +144,29 @@ static int reg_respond() {
     return 1;
   }
 
+  uint8_t *skS=NULL, skS_buf[crypto_scalarmult_SCALARBYTES];
+  if(-1!=fcntl(4, F_GETFD)) {
+    FILE *f = fdopen(4,"r");
+    if(f==NULL) {
+      perror("error: failed to open fd 4 for skS");
+      return 1;
+    }
+    if(1!=fread(skS_buf,sizeof(skS_buf),1,f)) {
+      perror("error: failed to read skS from fd");
+      fclose(f);
+      return 1;
+    }
+    fclose(f);
+    skS=skS_buf;
+  }
+
   uint8_t rsec[OPAQUE_REGISTER_SECRET_LEN], rpub[OPAQUE_REGISTER_PUBLIC_LEN];
   if(0!=sodium_mlock(rsec,sizeof rsec)) {
     fprintf(stderr, "error: unable to lock memory for server registration context\n");
     return 1;
   }
 
-  if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) {
+  if(0!=opaque_CreateRegistrationResponse(alpha, skS, rsec, rpub)) {
     fprintf(stderr, "opaque_CreateRegistrationResponse failed.\n");
     sodium_munlock(rsec, sizeof rsec);
     return 1;
@@ -311,12 +238,10 @@ static int finalize(const char** argv) {
   }
 
   Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
+  uint8_t export_key[crypto_hash_sha512_BYTES];
+  unsigned char rrec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
 
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t export_key[crypto_hash_sha256_BYTES];
-
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  if(0!=opaque_FinalizeRequest((uint8_t*) usr_ctx, rpub, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_FinalizeRequest((uint8_t*) usr_ctx, rpub, &ids, rrec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");
     fclose(ek_fd);
     return 1;
@@ -329,7 +254,7 @@ static int finalize(const char** argv) {
   }
   fclose(ek_fd);
 
-  if(1!=fwrite(rec, sizeof rec, 1, stdout)) {
+  if(1!=fwrite(rrec, sizeof rrec, 1, stdout)) {
     perror("failed to write record to stdout");
     return 1;
   }
@@ -337,24 +262,7 @@ static int finalize(const char** argv) {
   return 0;
 }
 
-static int store(const char** argv) {
-  // get skS if not-autogenerated
-  uint8_t *skS=NULL, skS_buf[crypto_scalarmult_SCALARBYTES];
-  if(-1!=fcntl(4, F_GETFD)) {
-    FILE *f = fdopen(4,"r");
-    if(f==NULL) {
-      perror("error: failed to open fd 4 for skS");
-      return 1;
-    }
-    if(1!=fread(skS_buf,sizeof(skS_buf),1,f)) {
-      perror("error: failed to read skS from fd");
-      fclose(f);
-      return 1;
-    }
-    fclose(f);
-    skS=skS_buf;
-  }
-
+static int store(void) {
   FILE *rsec_fd = fdopen(3,"r");
   if(rsec_fd==NULL) {
     perror("failed to open fd 3 for server context");
@@ -373,21 +281,16 @@ static int store(const char** argv) {
   }
   fclose(rsec_fd);
 
-  Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  unsigned char rrec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
 
-  if(1!=fread(rec,sizeof rec, 1, stdin)) {
-    perror("failed to read user record");
+  if(1!=fread(rrec,sizeof rrec, 1, stdin)) {
+    perror("failed to read user registration record");
     sodium_munlock(rsec,sizeof rsec);
     return 1;
   }
 
-  if(skS!=NULL) {
-    opaque_Store1kUserRecord(rsec, skS, rec);
-  } else {
-    opaque_StoreUserRecord(rsec, rec);
-  }
+  opaque_StoreUserRecord(rsec, rrec, rec);
   sodium_munlock(rsec,sizeof rsec);
 
   if(1!=fwrite(rec, sizeof rec, 1, stdout)) {
@@ -466,11 +369,10 @@ static int user_reg(const char** argv) {
 
   Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
 
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t export_key[crypto_hash_sha256_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
+  uint8_t rec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
 
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
-  if(0!=opaque_FinalizeRequest((uint8_t*) usr_ctx, rpub, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_FinalizeRequest((uint8_t*) usr_ctx, rpub, &ids, rec, export_key)) {
     fprintf(stderr, "opaque_FinalizeRequest failed.\n");
     fclose(ek_fd);
     return 1;
@@ -493,7 +395,7 @@ static int user_reg(const char** argv) {
 }
 
 // stdin/stdout tcp to client, fd 3 record out, fd 4 optional sks in
-static int server_reg(const char** argv) {
+static int server_reg(void) {
   // get skS if not-autogenerated
   uint8_t *skS=NULL, skS_buf[crypto_scalarmult_SCALARBYTES];
   if(-1!=fcntl(4, F_GETFD)) {
@@ -523,7 +425,7 @@ static int server_reg(const char** argv) {
     return 1;
   }
 
-  if(0!=opaque_CreateRegistrationResponse(alpha, rsec, rpub)) {
+  if(0!=opaque_CreateRegistrationResponse(alpha, skS, rsec, rpub)) {
     fprintf(stderr, "opaque_CreateRegistrationResponse failed.\n");
     sodium_munlock(rsec, sizeof rsec);
     return 1;
@@ -536,21 +438,16 @@ static int server_reg(const char** argv) {
   fflush(stdout);
 
   // server store
-  Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
 
-  if(1!=fread(rec,sizeof rec, 1, stdin)) {
-    perror("failed to read user record");
+  unsigned char rrec[OPAQUE_REGISTRATION_RECORD_LEN]={0};
+  if(1!=fread(rrec,sizeof rrec, 1, stdin)) {
+    perror("failed to read user registration record");
     sodium_munlock(rsec,sizeof rsec);
     return 1;
   }
 
-  if(skS!=NULL) {
-    opaque_Store1kUserRecord(rsec, skS, rec);
-  } else {
-    opaque_StoreUserRecord(rsec, rec);
-  }
+  opaque_StoreUserRecord(rsec, rrec, rec);
   sodium_munlock(rsec,sizeof rsec);
 
   FILE *fd = fdopen(3,"w");
@@ -570,27 +467,6 @@ static int server_reg(const char** argv) {
 // [user] [server] 3<password 4>export_key 5>sk [6<pkS]
 static int user(const char** argv) {
   // initiate session
-  uint8_t *pkS = NULL, pkS_buf[crypto_scalarmult_BYTES];
-  if(cfg.pkS == NotPackaged) {
-    if(-1!=fcntl(6, F_GETFD)) {
-      FILE *f = fdopen(6,"r");
-      if(f==NULL) {
-        perror("error: failed to open fd 6 for pkS");
-        return 1;
-      }
-      if(1!=fread(pkS_buf,sizeof(pkS_buf),1,f)) {
-        perror("error: failed to read pkS from fd 6");
-        fclose(f);
-        return 1;
-      }
-      fclose(f);
-      pkS=pkS_buf;
-    } else {
-      fprintf(stderr,"since pkS is NotPackaged it must be provided via fd 6");
-      return 1;
-    }
-  }
-
   // get password
   char pwdU[MAX_PWD_LEN];
   if(0!=sodium_mlock(pwdU,sizeof pwdU)) {
@@ -620,13 +496,15 @@ static int user(const char** argv) {
 
   FILE *sk_fd = fdopen(5,"w");
   if(ek_fd==NULL) {
-    perror("failed to open fd 4 for export_key");
+    perror("failed to open fd 4 for shared_key");
     sodium_munlock(pwdU,sizeof pwdU);
     fclose(ek_fd);
     return 1;
   }
 
   Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
+  const uint8_t *context = (const uint8_t *) argv[4];
+  const size_t context_len = strlen((const char*) context);
 
   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   opaque_CreateCredentialRequest((uint8_t*) pwdU, pwdU_len, sec, pub);
@@ -641,10 +519,9 @@ static int user(const char** argv) {
   fflush(stdout);
 
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t authU[crypto_auth_hmacsha256_BYTES];
-  uint8_t export_key[crypto_hash_sha256_BYTES];
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t authU[crypto_auth_hmacsha512_BYTES];
+  uint8_t export_key[crypto_hash_sha512_BYTES];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
   if(1!=fread(resp,sizeof resp, 1, stdin)) {
     perror("failed to response from server");
     fclose(ek_fd);
@@ -667,7 +544,7 @@ static int user(const char** argv) {
   }
 
   //Opaque_App_Infos infos;
-  int ret = opaque_RecoverCredentials(resp, sec, pkS, &cfg, NULL, &ids, sk, authU, export_key);
+  int ret = opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key);
   if(0!=ret) {
     fprintf(stderr, "opaque_RecoverCredentials failed.\n");
     sodium_munlock(sk, sizeof sk);
@@ -707,9 +584,10 @@ static int user(const char** argv) {
 // fds: 0 from client, 1 to client, 3<record, 4>sk
 static int server(const char** argv) {
   Opaque_Ids ids={strlen(argv[2]),(uint8_t*) argv[2], strlen(argv[3]),(uint8_t*) argv[3]};
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
+  const uint8_t *context = (const uint8_t *) argv[4];
+  const size_t context_len = strlen((const char*) context);
 
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len]; // get from fd3
+  uint8_t rec[OPAQUE_USER_RECORD_LEN]; // get from fd3
   FILE *f = fdopen(3,"r");
   if(f==NULL) {
     perror("error: failed to open fd 3 for record");
@@ -722,7 +600,7 @@ static int server(const char** argv) {
     return 1;
   }
 
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
   uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]; // get from stdin
   if(1!=fread(pub,sizeof pub, 1, stdin)) {
     perror("failed to read client request from stdin");
@@ -734,24 +612,24 @@ static int server(const char** argv) {
     fprintf(stderr, "failed to lock memory for shared secret.\n");
     return 1;
   }
-  uint8_t ctx[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
-  if(0!=sodium_mlock(ctx,sizeof ctx)) {
-    fprintf(stderr, "failed to lock memory for server context.\n");
+  uint8_t authU0[crypto_auth_hmacsha512_BYTES];
+  if(0!=sodium_mlock(authU0,sizeof authU0)) {
+    fprintf(stderr, "failed to lock memory for expected client auth.\n");
     sodium_munlock(sk,sizeof sk);
     return 1;
   }
 
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, ctx)) {
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, context, context_len, resp, sk, authU0)) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
     sodium_munlock(sk,sizeof sk);
-    sodium_munlock(ctx,sizeof ctx);
+    sodium_munlock(authU0,sizeof authU0);
     return 1;
   }
   f=fdopen(4,"w");
   if(f==NULL) {
     perror("error: failed to open fd 4 for the shared secret");
     sodium_munlock(sk,sizeof sk);
-    sodium_munlock(ctx,sizeof ctx);
+    sodium_munlock(authU0,sizeof authU0);
     return 1;
   }
   ret = fwrite(sk, sizeof sk, 1, f);
@@ -759,26 +637,26 @@ static int server(const char** argv) {
   fclose(f);
   if(1!=ret) {
     fprintf(stderr, "failed to write shared secret to fd 4\n");
-    sodium_munlock(ctx,sizeof ctx);
+    sodium_munlock(authU0,sizeof authU0);
     return 1;
   }
 
   if(1!=fwrite(resp, sizeof resp, 1, stdout)) {
     fprintf(stderr,"failed to write server response to client\n");
-    sodium_munlock(ctx,sizeof ctx);
+    sodium_munlock(authU0,sizeof authU0);
     return 1;
   }
   fflush(stdout);
 
-  uint8_t authU[crypto_auth_hmacsha256_BYTES]; // get from stdin
+  uint8_t authU[crypto_auth_hmacsha512_BYTES]; // get from stdin
   if(1!=fread(authU, sizeof authU, 1, stdin)) {
     fprintf(stderr, "failed to read authU from stdin\n");
-    sodium_munlock(ctx,sizeof ctx);
+    sodium_munlock(authU0,sizeof authU0);
     return 1;
   }
 
-  ret = opaque_UserAuth(ctx, authU);
-  sodium_munlock(ctx,sizeof ctx);
+  ret = opaque_UserAuth(authU0, authU);
+  sodium_munlock(authU0,sizeof authU0);
   if(-1==ret) {
     fprintf(stderr, "failed authenticating user\n");
     return 1;
@@ -792,9 +670,6 @@ int main(const int argc, const char **argv) {
     usage(argv[0]);
     return 0;
   }
-
-  if(0!=getcfg(argc,argv,&cfg)) return 1;
-  log("cfg sku: %d, pku:%d, pks:%d, idu:%d, ids:%d\n", cfg.skU, cfg.pkU, cfg.pkS, cfg.idU, cfg.idS);
 
   if(strcmp(argv[1],"init")==0) {
     if(argc<4) {
@@ -829,14 +704,14 @@ int main(const int argc, const char **argv) {
       usage(argv[0]);
       return 1;
     }
-    return store(argv);
+    return store();
   }
   if(strcmp(argv[1],"server-reg")==0) {
     if(argc<4) {
       usage(argv[0]);
       return 1;
     }
-    return server_reg(argv);
+    return server_reg();
   }
   if(strcmp(argv[1],"user-reg")==0) {
     if(argc<4) {

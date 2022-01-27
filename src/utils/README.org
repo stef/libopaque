@@ -47,18 +47,18 @@ cat rec | ./opaque store user server >record 3<rsec
 *** tcpserver style
 **** server
 ```
-s6-tcpserver 127.0.0.1 23523 bash -c './opaque server user server 3<record 4>shared_secret'
+s6-tcpserver 127.0.0.1 23523 bash -c './opaque server user server context 3<record 4>shared_secret'
 ```
 **** client
 ```
-s6-tcpclient 127.0.0.1 23523 bash -c "./opaque user user server <&6 >&7 3< <(echo -n password) 4>export_key 5>shared_secret"
+s6-tcpclient 127.0.0.1 23523 bash -c "./opaque user user server context <&6 >&7 3< <(echo -n password) 4>export_key 5>shared_secret"
 ```
 *** socat style
 **** server
 ```
-socat tcp-l:23523,reuseaddr,fork system:"bash -c \'./opaque server user server 3<record 4>shared_secret\'"
+socat tcp-l:23523,reuseaddr,fork system:"bash -c \'./opaque server user server context 3<record 4>shared_secret\'"
 ```
 **** client
 ```
-socat tcp:127.0.0.1:23523 exec:'bash -c \"./opaque user user server 3< <(echo -n password) 4>export_key  5>shared_secret\"'
+socat tcp:127.0.0.1:23523 exec:'bash -c \"./opaque user user server context 3< <(echo -n password) 4>export_key  5>shared_secret\"'
 ```

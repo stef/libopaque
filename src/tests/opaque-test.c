@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include "../opaque.h"
-#define TRACE 1
 #include "../common.h"
 
 int main(void) {
@@ -74,11 +73,9 @@ int main(void) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
     return 1;
   }
-  dump(sk,32,"sk_s: ");
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
 
   if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
-  dump(pk,32,"sk_u: ");
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
@@ -106,11 +103,9 @@ int main(void) {
     fprintf(stderr, "opaque_CreateCredentialResponse failed.\n");
     return 1;
   }
-  dump(sk,32,"sk_s: ");
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
 
   if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
-  dump(pk,32,"sk_u: ");
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
   assert(memcmp(export_key, export_key0, sizeof export_key)==0);
 

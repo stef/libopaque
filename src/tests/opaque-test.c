@@ -93,8 +93,10 @@ int main(void) {
   }
 
   // opaque_register should output the same values as the privacy respecting 4 step dance...
+#ifdef NORANDOM
   assert(memcmp(rec, rec0, sizeof rec)==0);
   assert(memcmp(export_key, export_key0, sizeof export_key)==0);
+#endif
 
   fprintf(stderr, "\nopaque_CreateCredentialRequest\n");
   opaque_CreateCredentialRequest(pwdU, pwdU_len, sec, pub);

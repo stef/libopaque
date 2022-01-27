@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "../opaque.h"
+#define TRACE 1
 #include "../common.h"
 
 int main(void) {

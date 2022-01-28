@@ -363,19 +363,4 @@ int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwd
  */
 void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN], uint8_t rec[OPAQUE_USER_RECORD_LEN]);
 
-/**
-   This helper function calculates the length of the envelope in bytes.
-
-   The returned size should be OPAQUE_ENVELOPE_META_LEN + SecEnv_len +
-   ClrEnv_len.
-
-   @param [in] cfg - the configuration of the envelope's secret and cleartext
-   parts
-   @param [in] ids - the IDs of the user and server that are only needed if we
-   pack one of the IDs into the envelope as given by the cfg param
-
-   @return the function returns the size of the envelope.
- */
-size_t opaque_envelope_len(const Opaque_PkgConfig *cfg, const Opaque_Ids *ids);
-
 #endif // opaque_h

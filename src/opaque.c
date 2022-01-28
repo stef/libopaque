@@ -1304,10 +1304,12 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   dump(resp->auth, crypto_auth_hmacsha512_BYTES, "server mac");
   dump((uint8_t*)preamble, sizeof preamble, "auth preamble");
 #endif
-  crypto_auth_hmacsha512(authU,                               // out
-                         (uint8_t*)preamble,                  // in
-                         crypto_hash_sha512_BYTES,            // len(in)
-                         keys.km3);                           // key
+  if(NULL!=authU) {
+    crypto_auth_hmacsha512(authU,                               // out
+                           (uint8_t*)preamble,                  // in
+                           crypto_hash_sha512_BYTES,            // len(in)
+                           keys.km3);                           // key
+  }
 
   memcpy(sk,keys.sk,sizeof(keys.sk));
   sodium_munlock(&keys,sizeof(keys));

@@ -112,6 +112,7 @@ static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYBYTES],
   crypto_auth_hmacsha512_init(&st, key, 64);
   crypto_auth_hmacsha512_update(&st, authenticated, auth_len);
   crypto_auth_hmacsha512_final(&st, mac);
+  sodium_memzero(&st,sizeof st);
 }
 
 /**
@@ -205,11 +206,8 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   crypto_hash_sha512_final(&state, y);
   sodium_munlock(&state, sizeof state);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump((uint8_t*) y, crypto_hash_sha512_BYTES, "output ");
-#endif
-#ifdef TRACE
-  dump((uint8_t*) y, crypto_hash_sha512_BYTES, "y ");
 #endif
 
 #ifdef CFRG_TEST_VEC
@@ -255,6 +253,7 @@ static void expand_loop(const uint8_t *b_0, const uint8_t *b_i, const uint8_t i,
   crypto_hash_sha512_update(&state,(uint8_t*) &i, 1);
   crypto_hash_sha512_update(&state, dst_prime, dst_prime_len);
   crypto_hash_sha512_final(&state, b_ii);
+  sodium_memzero(&state,sizeof state);
 }
 
 /*
@@ -390,11 +389,18 @@ static int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_
   const uint8_t dst[] = "HashToGroup-VOPRF08-\x00\x00\x01";
   const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
-  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) return -1;
+  if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
+    return -1;
+  }
+  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) {
+    sodium_munlock(uniform_bytes,sizeof uniform_bytes);
+    return -1;
+  }
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(uniform_bytes, sizeof uniform_bytes, "uniform_bytes");
 #endif
   crypto_core_ristretto255_from_hash(p, uniform_bytes);
+  sodium_munlock(uniform_bytes,sizeof uniform_bytes);
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(p, crypto_core_ristretto255_BYTES, "hashed-to-curve");
 #endif
@@ -405,11 +411,18 @@ static int voprf_hash_to_scalar(const uint8_t *msg, const uint8_t msg_len, const
   //const uint8_t dst[] = "HashToScalar-VOPRF08-\x00\x00\x01";
   //const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
-  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) return -1;
+  if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
+    return -1;
+  }
+  if(0!=expand_message_xmd(msg, msg_len, dst, dst_len, crypto_core_ristretto255_HASHBYTES, uniform_bytes)) {
+    sodium_munlock(uniform_bytes,sizeof uniform_bytes);
+    return -1;
+  }
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(uniform_bytes, sizeof uniform_bytes, "uniform_bytes");
 #endif
   crypto_core_ristretto255_scalar_reduce(p, uniform_bytes);
+  sodium_munlock(uniform_bytes,sizeof uniform_bytes);
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(p, crypto_core_ristretto255_BYTES, "hashed-to-scalar");
 #endif
@@ -432,7 +445,10 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // H0 ^ k
   uint8_t N[crypto_core_ristretto255_BYTES];
-  sodium_mlock(N,sizeof N);
+  if(0!=sodium_mlock(N,sizeof N)) {
+    sodium_munlock(H0,sizeof H0);
+    return -1;
+  }
   if (crypto_scalarmult_ristretto255(N, kU, H0) != 0) {
     sodium_munlock(H0,sizeof H0);
     sodium_munlock(N,sizeof N);
@@ -513,10 +529,7 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
     return -1;
   }
   sodium_munlock(H0,sizeof H0);
-#ifdef CFRG_TEST_VEC
-  dump(blinded, crypto_core_ristretto255_BYTES, "blinded");
-#endif
-#ifdef TRACE
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(blinded, crypto_core_ristretto255_BYTES, "blinded");
 #endif
   return 0;
@@ -633,7 +646,6 @@ static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf
   memcpy(ptr,label,llen);
   ptr+=llen;
 
-
   if(transcript!=NULL) {
     *(ptr)=crypto_hash_sha512_BYTES;
     ptr+=1;
@@ -651,9 +663,9 @@ static void hkdf_expand_label(uint8_t* res, const uint8_t secret[crypto_kdf_hkdf
 }
 
 // derive keys according to irtf cfrg draft
-static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_BYTES * 3], const char info[crypto_hash_sha512_BYTES]) {
+static int derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_BYTES * 3], const char info[crypto_hash_sha512_BYTES]) {
   uint8_t prk[64];
-  sodium_mlock(prk, sizeof prk);
+  if(-1==sodium_mlock(prk, sizeof prk)) return -1;
 #ifdef TRACE
   dump(ikm, crypto_scalarmult_BYTES*3, "ikm ");
   dump((uint8_t*) info, crypto_hash_sha512_BYTES, "info ");
@@ -666,7 +678,10 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
 
   // 2. handshake_secret = Derive-Secret(., "handshake secret", info)
   uint8_t handshake_secret[OPAQUE_HANDSHAKE_SECRETBYTES];
-  sodium_mlock(handshake_secret, sizeof handshake_secret);
+  if(-1==sodium_mlock(handshake_secret, sizeof handshake_secret)) {
+    sodium_munlock(prk,sizeof(prk));
+    return -1;
+  }
   const char handshake_secret_label[]="HandshakeSecret";
   hkdf_expand_label(handshake_secret, prk, handshake_secret_label, info, sizeof(handshake_secret));
 
@@ -689,25 +704,27 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
   dump(keys->km2, OPAQUE_HMAC_SHA512_KEYBYTES, "keys->km2");
   dump(keys->km3, OPAQUE_HMAC_SHA512_KEYBYTES, "keys->km3");
 #endif
+  return 0;
 }
 
+/** if one of the peers ID is missing, set it to the peers public key */
 static void fix_ids(const uint8_t pkU[crypto_scalarmult_BYTES],
                     const uint8_t pkS[crypto_scalarmult_BYTES],
-                    const Opaque_Ids *ids0,
-                    Opaque_Ids *ids) {
-  if(ids0->idS==NULL || ids0->idS_len==0) {
-    ids->idS=(uint8_t*)pkS;
-    ids->idS_len=crypto_scalarmult_BYTES;
+                    const Opaque_Ids *ids_in,
+                    Opaque_Ids *ids_out) {
+  if(ids_in->idS==NULL || ids_in->idS_len==0) {
+    ids_out->idS=(uint8_t*)pkS;
+    ids_out->idS_len=crypto_scalarmult_BYTES;
   } else {
-    ids->idS=ids0->idS;
-    ids->idS_len=ids0->idS_len;
+    ids_out->idS=ids_in->idS;
+    ids_out->idS_len=ids_in->idS_len;
   }
-  if(ids0->idU==NULL || ids0->idU_len==0) {
-    ids->idU=(uint8_t*)pkU;
-    ids->idU_len=crypto_scalarmult_BYTES;
+  if(ids_in->idU==NULL || ids_in->idU_len==0) {
+    ids_out->idU=(uint8_t*)pkU;
+    ids_out->idU_len=crypto_scalarmult_BYTES;
   } else {
-    ids->idU=ids0->idU;
-    ids->idU_len=ids0->idU_len;
+    ids_out->idU=ids_in->idU;
+    ids_out->idU_len=ids_in->idU_len;
   }
 }
 
@@ -780,7 +797,9 @@ static int server_3dh(Opaque_Keys *keys,
                const uint8_t Ep[crypto_scalarmult_BYTES],
                const char preamble[crypto_hash_sha512_BYTES]) {
   uint8_t sec[crypto_scalarmult_BYTES * 3], *ptr = sec;
-  sodium_mlock(sec, sizeof sec);
+  if(-1==sodium_mlock(sec, sizeof sec)) {
+    return -1;
+  }
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(ix, crypto_scalarmult_SCALARBYTES, "skS");
@@ -798,12 +817,15 @@ static int server_3dh(Opaque_Keys *keys,
   dump(sec, 96, "3dh s ikm");
 #endif
 
-  derive_keys(keys, sec, preamble);
+  if(0!=derive_keys(keys, sec, preamble)) {
+    sodium_munlock(sec,sizeof(sec));
+    return -1;
+  }
+  sodium_munlock(sec,sizeof(sec));
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump((uint8_t*) keys, sizeof(Opaque_Keys), "keys ");
 #endif
 
-  sodium_munlock(sec,sizeof(sec));
   return 0;
 }
 
@@ -815,7 +837,9 @@ static int user_3dh(Opaque_Keys *keys,
              const uint8_t Ep[crypto_scalarmult_BYTES],
              const char preamble[crypto_hash_sha512_BYTES]) {
   uint8_t sec[crypto_scalarmult_BYTES * 3], *ptr = sec;
-  sodium_mlock(sec, sizeof sec);
+  if(-1==sodium_mlock(sec, sizeof sec)) {
+    return -1;
+  }
 
   if(0!=crypto_scalarmult_ristretto255(ptr,ex,Ep)) return 1;
   ptr+=crypto_scalarmult_BYTES;
@@ -827,12 +851,15 @@ static int user_3dh(Opaque_Keys *keys,
 #endif
 
   // and hash for the result SK = f_K(0)
-  derive_keys(keys, sec, preamble);
+  if(0!=derive_keys(keys, sec, preamble)) {
+    sodium_munlock(sec,sizeof(sec));
+    return -1;
+  }
+  sodium_munlock(sec,sizeof(sec));
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump((uint8_t*) keys, sizeof(Opaque_Keys), "keys ");
 #endif
 
-  sodium_munlock(sec,sizeof(sec));
   return 0;
 }
 
@@ -841,12 +868,18 @@ static int skU_from_rwd(const uint8_t rwd[OPAQUE_RWDU_BYTES], const uint8_t nonc
   memcpy(info, nonce, OPAQUE_NONCE_BYTES);
   memcpy(info+OPAQUE_NONCE_BYTES, "PrivateKey", 10);
   uint8_t seed[crypto_core_ristretto255_SCALARBYTES];
+  if(-1==sodium_mlock(seed, sizeof seed)) {
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(seed, crypto_core_ristretto255_SCALARBYTES, info, sizeof info, rwd);
 
   uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
   if(0!=voprf_hash_to_scalar(seed, sizeof seed, dst, sizeof dst, skU)) {
+    sodium_munlock(seed, sizeof seed);
     return -1;
   }
+
+  sodium_munlock(seed, sizeof seed);
   return 0;
 }
 
@@ -923,6 +956,11 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
   }
   memcpy(label, "PrivateKey", 10);
   uint8_t seed[crypto_core_ristretto255_SCALARBYTES];
+  if(-1==sodium_mlock(seed, sizeof seed)) {
+    sodium_munlock(client_secret_key, sizeof client_secret_key);
+    sodium_munlock(auth_key, sizeof auth_key);
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(seed, crypto_core_ristretto255_SCALARBYTES,
                                 (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+10,
                                 rwdU);
@@ -933,10 +971,13 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
   // 6. _, client_public_key = DeriveAuthKeyPair(seed)
   uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
   if(0!=voprf_hash_to_scalar(seed, sizeof seed, dst, sizeof dst, client_secret_key)) {
+    sodium_munlock(seed, sizeof seed);
     sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
+  sodium_munlock(seed, sizeof seed);
+
   // P_u := g^p_u
   crypto_scalarmult_ristretto255_base(client_public_key, client_secret_key);
   sodium_munlock(client_secret_key, sizeof client_secret_key);
@@ -946,20 +987,7 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
 
   // complete ids in case they are NULL and need to be set to the pk[US]
   Opaque_Ids ids_completed;
-  if(ids->idU == NULL || ids->idU_len == 0) {
-    ids_completed.idU=client_public_key;
-    ids_completed.idU_len=crypto_scalarmult_BYTES;
-  } else {
-    ids_completed.idU=(uint8_t*)ids->idU;
-    ids_completed.idU_len=ids->idU_len;
-  }
-  if(ids->idS == NULL || ids->idS_len == 0) {
-    ids_completed.idS=(uint8_t*)server_public_key;
-    ids_completed.idS_len=crypto_scalarmult_BYTES;
-  } else {
-    ids_completed.idS=(uint8_t*)ids->idS;
-    ids_completed.idS_len=ids->idS_len;
-  }
+  fix_ids(client_public_key, server_public_key, ids, &ids_completed);
 
   uint8_t authenticated[OPAQUE_NONCE_BYTES+
                         crypto_scalarmult_BYTES+
@@ -1049,18 +1077,24 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   crypto_scalarmult_ristretto255_base(server_public_key, rec->skS);
 
   uint8_t client_private_key[crypto_scalarmult_SCALARBYTES];
-  // todo mlock this
+  if(-1==sodium_mlock(client_private_key,sizeof client_private_key)) {
+    sodium_munlock(rwdU,sizeof rwdU);
+    return -1;
+  }
   if(0!=skU_from_rwd(rwdU, (uint8_t*) &rec->recU.envelope, client_private_key)) {
+    sodium_munlock(client_private_key,sizeof client_private_key);
     sodium_munlock(rwdU, sizeof rwdU);
     return -1;
   }
   // P_u := g^p_u
   crypto_scalarmult_base(rec->recU.client_public_key, client_private_key);
+  sodium_munlock(client_private_key,sizeof client_private_key);
 
   if(0!=create_envelope(rwdU, server_public_key, ids, &rec->recU.envelope, rec->recU.client_public_key, rec->recU.masking_key, export_key)) {
     sodium_munlock(rwdU, sizeof rwdU);
     return -1;
   }
+  sodium_munlock(rwdU, sizeof rwdU);
 
 #ifdef TRACE
   dump(_rec, OPAQUE_USER_RECORD_LEN, "user rec");
@@ -1189,6 +1223,9 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   randombytes(masking_info.nonce, sizeof masking_info.nonce);
 #endif
   uint8_t response_pad[crypto_scalarmult_BYTES+sizeof(Opaque_Envelope)];
+  if(-1==sodium_mlock(response_pad, sizeof response_pad)) {
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(response_pad, sizeof response_pad,
                                 (const char*) &masking_info, sizeof masking_info,
                                 rec->recU.masking_key);
@@ -1209,6 +1246,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
     resp->masked_response[i] = response_pad[i] ^ resp->masked_response[i];
   for(;i<crypto_scalarmult_BYTES+sizeof(Opaque_Envelope);i++)
     resp->masked_response[i] = response_pad[i] ^ ((uint8_t*)(&rec->recU.envelope))[i-crypto_scalarmult_BYTES];
+  sodium_munlock(response_pad, sizeof response_pad);
 
 #ifdef CFRG_TEST_VEC
   dump(_resp, sizeof (resp->Z) + crypto_scalarmult_BYTES+sizeof(Opaque_Envelope) + sizeof(masking_info.nonce), "resp(z+mn+mr)" );
@@ -1264,7 +1302,10 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   crypto_hash_sha512_state preamble_state;
   calc_preamble(preamble, &preamble_state, rec->recU.client_public_key, pkS, _pub, resp, ctx, ctx_len, (Opaque_Ids*) ids);
   Opaque_Keys keys;
-  sodium_mlock(&keys,sizeof(keys));
+  if(-1==sodium_mlock(&keys,sizeof(keys))) {
+    sodium_munlock(x_s,sizeof x_s);
+    return -1;
+  }
 
   // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f_K(0);
 #ifdef TRACE
@@ -1387,6 +1428,10 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 1.3. masking_key = HKDF-Expand(randomized_pwd, "MaskingKey", Nh)
   const uint8_t masking_key_info[10]="MaskingKey";
   uint8_t masking_key[crypto_hash_sha512_BYTES];
+  if(-1==sodium_mlock(masking_key,sizeof masking_key)) {
+    sodium_munlock(rwdU,sizeof rwdU);
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(masking_key, crypto_hash_sha512_BYTES,
                                 (const char*) masking_key_info, sizeof masking_key_info,
                                 rwdU);
@@ -1404,19 +1449,31 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   memcpy(masking_info.nonce, resp->masking_nonce, sizeof masking_info.nonce);
 
   uint8_t response_pad[crypto_scalarmult_BYTES+sizeof(Opaque_Envelope)];
+  if(-1==sodium_mlock(response_pad,sizeof response_pad)) {
+    sodium_munlock(masking_key,sizeof masking_key);
+    sodium_munlock(rwdU,sizeof rwdU);
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(response_pad, sizeof response_pad,
                                 (const char*) &masking_info, sizeof masking_info,
                                 masking_key);
+  sodium_munlock(masking_key,sizeof masking_key);
 
   // 1.5. concat(server_public_key, envelope) = xor(credential_response_pad,
   //                                            response.masked_response)
   Opaque_Envelope env;
+  if(-1==sodium_mlock(&env,sizeof env)) {
+    sodium_mlock(response_pad,sizeof response_pad);
+    sodium_munlock(rwdU,sizeof rwdU);
+    return -1;
+  }
   uint8_t server_public_key[crypto_scalarmult_BYTES], *env_ptr=(uint8_t*) &env;
   unsigned i;
   for(i=0;i<crypto_scalarmult_BYTES;i++)
     server_public_key[i] = response_pad[i] ^ resp->masked_response[i];
   for(;i<crypto_scalarmult_BYTES+sizeof(Opaque_Envelope);i++)
     env_ptr[i-crypto_scalarmult_BYTES] = response_pad[i] ^ resp->masked_response[i];
+  sodium_mlock(response_pad,sizeof response_pad);
 
 #ifdef CFRG_TEST_VEC
   dump(server_public_key, sizeof server_public_key, "server_public_key");
@@ -1435,6 +1492,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 1.6.1. auth_key = Expand(randomized_pwd, concat(envelope.nonce, "AuthKey"), Nh)
   uint8_t auth_key[OPAQUE_HMAC_SHA512_KEYBYTES];
   if(-1==sodium_mlock(auth_key, sizeof auth_key)) {
+    sodium_munlock(rwdU,sizeof rwdU);
     return -1;
   }
   memcpy(label, "AuthKey", 7);
@@ -1463,22 +1521,31 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 1.6.3. seed = Expand(randomized_pwd, concat(envelope.nonce, "PrivateKey"), Nseed)
   memcpy(label, "PrivateKey", 10);
   uint8_t seed[crypto_core_ristretto255_SCALARBYTES];
+  if(-1==sodium_mlock(seed, sizeof seed)) {
+    sodium_munlock(auth_key, sizeof auth_key);
+    sodium_munlock(rwdU,sizeof rwdU);
+    return -1;
+  }
   crypto_kdf_hkdf_sha512_expand(seed, crypto_core_ristretto255_SCALARBYTES,
                                 (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+10,
                                 rwdU);
+  sodium_munlock(rwdU,sizeof rwdU);
 
   // 1.6.4. client_private_key, client_public_key = DeriveAuthKeyPair(seed)
   uint8_t client_secret_key[crypto_scalarmult_SCALARBYTES];
   if(-1==sodium_mlock(client_secret_key, sizeof client_secret_key)) {
+    sodium_munlock(seed, sizeof seed);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
   uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
   if(0!=voprf_hash_to_scalar(seed, sizeof seed, dst, sizeof dst, client_secret_key)) {
     sodium_munlock(client_secret_key, sizeof client_secret_key);
+    sodium_munlock(seed, sizeof seed);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
+  sodium_munlock(seed, sizeof seed);
   // P_u := g^p_u
   uint8_t client_public_key[crypto_scalarmult_BYTES];
   crypto_scalarmult_ristretto255_base(client_public_key, client_secret_key);
@@ -1551,15 +1618,19 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   calc_preamble(preamble, &preamble_state, client_public_key, server_public_key, _pub, resp, ctx, ctx_len, &ids);
 
   Opaque_Keys keys;
-  sodium_mlock(&keys,sizeof(keys));
-
+  if(-1==sodium_mlock(&keys,sizeof(keys))) {
+    sodium_munlock(client_secret_key, sizeof client_secret_key);
+    return -1;
+  }
   // 2.1. ikm = TripleDHIKM(state.client_secret, ke2.server_keyshare,
   //  state.client_secret, server_public_key, client_private_key, ke2.server_keyshare)
   // 2.3. Km2, Km3, session_key = DeriveKeys(ikm, preamble)
   if(0!=user_3dh(&keys, client_secret_key, sec->x_u, server_public_key, resp->X_s, preamble)) {
+    sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(&keys, sizeof(keys));
     return -1;
   }
+  sodium_munlock(client_secret_key, sizeof client_secret_key);
 
   // 2.4. expected_server_mac = MAC(Km2, Hash(preamble))
   uint8_t authS[crypto_auth_hmacsha512_BYTES];

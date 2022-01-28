@@ -59,7 +59,7 @@ typedef struct {
 } __attribute((packed)) Opaque_UserRecord;
 
 typedef struct {
-  uint8_t M[crypto_core_ristretto255_BYTES];
+  uint8_t blinded[crypto_core_ristretto255_BYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t X_u[crypto_scalarmult_BYTES];
 } __attribute((packed)) Opaque_UserSession;
@@ -68,7 +68,7 @@ typedef struct {
   uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
-  uint8_t M[crypto_core_ristretto255_BYTES];
+  uint8_t blinded[crypto_core_ristretto255_BYTES];
   uint16_t pwdU_len;
   uint8_t pwdU[];
 } __attribute((packed)) Opaque_UserSession_Secret;
@@ -455,7 +455,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 
 /**
  * This function converts input x into an element of the OPRF group, randomizes it
- * by some scalar r, producing M, and outputs (r, M).
+ * by some scalar r, producing blinded, and outputs (r, blinded).
  *
  * This is the Blind OPRF function defined in the RFC.
  *
@@ -463,13 +463,13 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
  * password)
  * @param [in] x_len - the length of param x in bytes
  * @param [out] r - an OPRF scalar value used for randomization
- * @param [out] M - a serialized OPRF group element, a byte array of fixed length,
+ * @param [out] blinded - a serialized OPRF group element, a byte array of fixed length,
  * the blinded version of x, an input to oprf_Evaluate
  * @return The function returns 0 if everything is correct.
  */
 static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                       uint8_t r[crypto_core_ristretto255_SCALARBYTES],
-                      uint8_t M[crypto_core_ristretto255_BYTES]) {
+                      uint8_t blinded[crypto_core_ristretto255_BYTES]) {
 #ifdef CFRG_TEST_VEC
   dump(x, x_len, "input");
 #endif
@@ -508,29 +508,29 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
   dump(r, crypto_core_ristretto255_SCALARBYTES, "r");
 #endif
   // H^0(pw)^r
-  if (crypto_scalarmult_ristretto255(M, r, H0) != 0) {
+  if (crypto_scalarmult_ristretto255(blinded, r, H0) != 0) {
     sodium_munlock(H0,sizeof H0);
     return -1;
   }
   sodium_munlock(H0,sizeof H0);
 #ifdef CFRG_TEST_VEC
-  dump(M, crypto_core_ristretto255_BYTES, "blinded");
+  dump(blinded, crypto_core_ristretto255_BYTES, "blinded");
 #endif
 #ifdef TRACE
-  dump(M, crypto_core_ristretto255_BYTES, "M");
+  dump(blinded, crypto_core_ristretto255_BYTES, "blinded");
 #endif
   return 0;
 }
 
 /**
- * This function evaluates input element M using private key k, yielding output
+ * This function evaluates input element blinded using private key k, yielding output
  * element Z.
  *
  * This is the Evaluate OPRF function defined in the RFC.
  *
  * @param [in] k - a private key (for OPAQUE, this is kU, the user's OPRF private
  * key)
- * @param [in] M - a serialized OPRF group element, a byte array of fixed length,
+ * @param [in] blinded - a serialized OPRF group element, a byte array of fixed length,
  * an output of oprf_Blind (for OPAQUE, this is the blinded pwdU, the user's
  * password)
  * @param [out] Z - a serialized OPRF group element, a byte array of fixed length,
@@ -538,7 +538,7 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
  * @return The function returns 0 if everything is correct.
  */
 static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
-                         const uint8_t M[crypto_core_ristretto255_BYTES],
+                         const uint8_t blinded[crypto_core_ristretto255_BYTES],
                          uint8_t Z[crypto_core_ristretto255_BYTES]) {
 #ifdef CFRG_TEST_VEC
   // cheating here, the current draft unecessarily uses a poprf not
@@ -559,7 +559,7 @@ static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
   return 0;
 #endif
 
-  return crypto_scalarmult_ristretto255(Z, k, M);
+  return crypto_scalarmult_ristretto255(Z, k, blinded);
 }
 
 /**
@@ -1079,13 +1079,13 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
-  // 1. (blind, M) = Blind(pwdU)
-  if(0!=oprf_Blind(pwdU, pwdU_len, sec->blind, pub->M)) return -1;
+  // 1. (blind, blinded) = Blind(pwdU)
+  if(0!=oprf_Blind(pwdU, pwdU_len, sec->blind, pub->blinded)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
-  memcpy(sec->M, pub->M, crypto_core_ristretto255_BYTES);
+  memcpy(sec->blinded, pub->blinded, crypto_core_ristretto255_BYTES);
 
   // x_u ←_R Z_q
 #ifdef CFRG_TEST_VEC
@@ -1147,18 +1147,18 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #endif
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(pub->M)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(pub->blinded)!=1) return -1;
 
   // (b) Retrieves file[sid] = {k_s, p_s, P_s, P_u, c};
   // provided as parameter rec
 #ifdef TRACE
   dump(rec->kU, sizeof(rec->kU), "session srv kU ");
-  dump(pub->M, sizeof(pub->M), "session srv M ");
+  dump(pub->blinded, sizeof(pub->blinded), "session srv blinded ");
 #endif
 
   // computes β := α^k_s
   // 1. Z = Evaluate(DeserializeScalar(credentialFile.kU), request.data)
-  if (oprf_Evaluate(rec->kU, pub->M, resp->Z) != 0) {
+  if (oprf_Evaluate(rec->kU, pub->blinded, resp->Z) != 0) {
     return -1;
   }
 #ifdef CFRG_TEST_VEC
@@ -1602,12 +1602,12 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const ui
 
 // U computes: blinded PW
 // called CreateRegistrationRequest in the irtf cfrg rfc draft
-int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]) {
+int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t blinded[crypto_core_ristretto255_BYTES]) {
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   memcpy(&sec->pwdU, pwdU, pwdU_len);
   sec->pwdU_len = pwdU_len;
-  // 1. (blind, M) = Blind(pwdU)
-  return oprf_Blind(pwdU, pwdU_len, sec->blind, M);
+  // 1. (blind, blinded) = Blind(pwdU)
+  return oprf_Blind(pwdU, pwdU_len, sec->blind, blinded);
 }
 
 // initUser: S
@@ -1616,12 +1616,12 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the irtf cfrg rfc draft
-int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristretto255_BYTES], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
-  if(crypto_core_ristretto255_is_valid_point(M)!=1) return -1;
+  if(crypto_core_ristretto255_is_valid_point(blinded)!=1) return -1;
 
   // k_s ←_R Z_q
   // 1. (kU, _) = KeyGen()
@@ -1629,7 +1629,7 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
 
   // computes β := α^k_s
   // 2. Z = Evaluate(kU, request.data)
-  if (oprf_Evaluate(sec->kU, M, pub->Z) != 0) {
+  if (oprf_Evaluate(sec->kU, blinded, pub->Z) != 0) {
     return -1;
   }
 #ifdef CFRG_TEST_VEC

@@ -34,7 +34,7 @@
    OPAQUE_REGISTRATION_RECORD_LEN)
 
 #define OPAQUE_USER_SESSION_PUBLIC_LEN (               \
-   /* M */ crypto_core_ristretto255_BYTES+             \
+   /* blinded */ crypto_core_ristretto255_BYTES+       \
    /* X_u */ crypto_scalarmult_BYTES+                  \
    /* nonceU */ OPAQUE_NONCE_BYTES)
 
@@ -42,7 +42,7 @@
    /* r */ crypto_core_ristretto255_SCALARBYTES+       \
    /* x_u */ crypto_scalarmult_SCALARBYTES+            \
    /* nonceU */ OPAQUE_NONCE_BYTES+                    \
-   /* M */  crypto_core_ristretto255_BYTES+            \
+   /* blinded */  crypto_core_ristretto255_BYTES+      \
    /* pwdU_len */ sizeof(uint16_t))
 
 #define OPAQUE_SERVER_SESSION_LEN (                    \
@@ -217,8 +217,8 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const ui
 /**
    Initial step to start registering a new user/client with the server.
    The user inputs its password pwdU, and receives a secret context sec
-   and a blinded value M as output. sec should be protected until
-   step 3 of this registration protocol and the value M should be
+   and a blinded value blinded as output. sec should be protected until
+   step 3 of this registration protocol and the value blinded should be
    passed to the server.
    @param [in] pwdU - the users password
    @param [in] pwdU_len - length of the users password
@@ -247,7 +247,7 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
    server secret.
 
    This function is called CreateRegistrationResponse in the rfc.
-   The server receives M from the users invocation of its
+   The server receives blinded from the users invocation of its
    opaque_CreateRegistrationRequest() function, it outputs a value sec
    which needs to be protected until step 4 by the server. This
    function also outputs a value pub which needs to be passed to the

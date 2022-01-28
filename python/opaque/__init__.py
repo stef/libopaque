@@ -368,7 +368,7 @@ def CreateRegistrationRequest(pwdU):
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_USER_SEC_LEN+len(pwdU))
     M = ctypes.create_string_buffer(crypto_core_ristretto255_BYTES)
-    opaquelib.opaque_CreateRegistrationRequest(pwdU, len(pwdU), sec, M)
+    __check(opaquelib.opaque_CreateRegistrationRequest(pwdU, len(pwdU), sec, M))
     return sec.raw, M.raw
 
 #  Server evaluates OPRF and creates a user-specific public/private keypair

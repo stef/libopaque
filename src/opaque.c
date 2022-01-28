@@ -51,12 +51,6 @@ typedef struct {
 } __attribute((packed)) Opaque_RegistrationRecord;
 
 
-typedef struct {
-  uint8_t skU[crypto_scalarmult_SCALARBYTES];
-  uint8_t pkU[crypto_scalarmult_BYTES];
-  uint8_t pkS[crypto_scalarmult_BYTES];
-} __attribute((packed)) Opaque_Credentials;
-
 // user specific record stored at server upon registration
 typedef struct {
   uint8_t kU[crypto_core_ristretto255_SCALARBYTES];
@@ -109,20 +103,6 @@ typedef struct {
   uint8_t km2[OPAQUE_HMAC_SHA512_KEYSIZE];
   uint8_t km3[OPAQUE_HMAC_SHA512_KEYSIZE];
 } __attribute((packed)) Opaque_Keys;
-
-/**
- * struct Opaque_ServerAuthCTX for storing context information for
- * explicit authentication.
- *
- * In case the Opaque session requires explicit authentication of the
- * user, the client needs to retain this information from the
- * opaque_CreateCredentialResponse() to use during the authentication of the user
- * via the opaque_UserAuth() function.
- */
-typedef struct {
-  uint8_t km3[crypto_auth_hmacsha512_KEYBYTES];
-  crypto_hash_sha512_state xcript_state;
-} Opaque_ServerAuthCTX;
 
 // sodium defines an hmac with 32B as key, opaque as 64
 static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYSIZE],

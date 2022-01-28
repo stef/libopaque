@@ -22,12 +22,6 @@
 #define OPAQUE_HMAC_SHA512_BYTES 64
 #define OPAQUE_HMAC_SHA512_KEYBYTES 64
 
-#define OPAQUE_ENVELOPE_META_LEN (                     \
-  /* envU nonce */ OPAQUE_ENVELOPE_NONCEBYTES+         \
-  /* SecEnv_len */ sizeof(uint16_t)+                   \
-  /* ClrEnv_len */ sizeof(uint16_t)+                   \
-  /* auth tag */ crypto_hash_sha512_BYTES)
-
 #define OPAQUE_REGISTRATION_RECORD_LEN (               \
    /* client_public_key */ crypto_scalarmult_BYTES+    \
    /* masking_key */       crypto_hash_sha512_BYTES+   \
@@ -82,55 +76,6 @@ typedef struct {
   uint16_t idS_len;    /**< length of idS, needed for binary ids */
   uint8_t *idS;        /**< pointer to the id of the server in the opaque protocol */
 } Opaque_Ids;
-
-/**
-   struct to store various extra protocol information.
-
-   This is defined by the RFC to be used to bind extra
-   session-specific parameters to the current session.
-*/
-typedef struct {
-  uint8_t *info;
-  size_t info_len;
-  uint8_t *einfo;
-  size_t einfo_len;
-} Opaque_App_Infos;
-
-/**
- * enum to define the handling of various fields packed in the opaque envelope
- */
-typedef enum {
-  NotPackaged = 0,
-  InSecEnv = 1,     /**< field is encrypted */
-  InClrEnv = 2      /**< field is plaintext, but authenticated */
-} __attribute((packed)) Opaque_PkgTarget;
-
-/**
- * configuration of the opaque envelope fields
- */
-typedef struct {
-  Opaque_PkgTarget skU : 2;  /**< users secret key - must not be
-                                InClrEnv, if it is NotPackaged then
-                                rwdU is used to seed a keygen() via
-                                hkdf-expand() */
-  Opaque_PkgTarget pkU : 2;  /**< users public key - if not included
-                                it can be derived from the private
-                                key */
-  Opaque_PkgTarget pkS : 2;  /**< servers public key - currently this
-                                is not allowed to set to NotPackaged -
-                                TODO if set to NotPackaged allow to
-                                specify the pubkey explicitly as a
-                                param to the functions that require
-                                this info */
-  Opaque_PkgTarget idU : 2;  /**< id of the user - the RFC specifies
-                                this to be possible to pack into the
-                                envelope */
-  Opaque_PkgTarget idS : 2;  /**< id of the server - the RFC specifies
-                                this to be possible to pack into the
-                                envelope */
-} __attribute((packed)) Opaque_PkgConfig;
-
-extern const Opaque_PkgConfig IRTF_Cfg;
 
 /**
    This function implements the storePwdFile function from the paper

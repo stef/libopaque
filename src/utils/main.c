@@ -543,7 +543,6 @@ static int user(const char** argv) {
     return 1;
   }
 
-  //Opaque_App_Infos infos;
   int ret = opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key);
   if(0!=ret) {
     fprintf(stderr, "opaque_RecoverCredentials failed.\n");

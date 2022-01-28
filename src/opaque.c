@@ -100,14 +100,14 @@ typedef struct {
 
 typedef struct {
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t km2[OPAQUE_HMAC_SHA512_KEYSIZE];
-  uint8_t km3[OPAQUE_HMAC_SHA512_KEYSIZE];
+  uint8_t km2[OPAQUE_HMAC_SHA512_KEYBYTES];
+  uint8_t km3[OPAQUE_HMAC_SHA512_KEYBYTES];
 } __attribute((packed)) Opaque_Keys;
 
 // sodium defines an hmac with 32B as key, opaque as 64
-static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYSIZE],
+static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYBYTES],
                               const uint8_t *authenticated, const size_t auth_len,
-                              uint8_t mac[OPAQUE_HMAC_SHA512_SIZE]) {
+                              uint8_t mac[OPAQUE_HMAC_SHA512_BYTES]) {
   crypto_auth_hmacsha512_state st;
   crypto_auth_hmacsha512_init(&st, key, 64);
   crypto_auth_hmacsha512_update(&st, authenticated, auth_len);
@@ -678,16 +678,16 @@ static void derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_B
   // 4. Km2 = Derive-Secret(handshake_secret, "ServerMAC", "")
   //Km2 = HKDF-Expand-Label(handshake_secret, "server mac", "", Hash.length)
   const char server_mac_label[]="ServerMAC";
-  hkdf_expand_label(keys->km2, handshake_secret, server_mac_label, NULL, OPAQUE_HMAC_SHA512_KEYSIZE);
+  hkdf_expand_label(keys->km2, handshake_secret, server_mac_label, NULL, OPAQUE_HMAC_SHA512_KEYBYTES);
   // 5. Km3 = Derive-Secret(handshake_secret, "ClientMAC", "")
   //Km3 = HKDF-Expand-Label(handshake_secret, "client mac", "", Hash.length)
   const char client_mac_label[]="ClientMAC";
-  hkdf_expand_label(keys->km3, handshake_secret, client_mac_label, NULL, OPAQUE_HMAC_SHA512_KEYSIZE);
+  hkdf_expand_label(keys->km3, handshake_secret, client_mac_label, NULL, OPAQUE_HMAC_SHA512_KEYBYTES);
   sodium_munlock(handshake_secret, sizeof handshake_secret);
 #ifdef TRACE
   dump(keys->sk, OPAQUE_SHARED_SECRETBYTES, "keys->sk");
-  dump(keys->km2, OPAQUE_HMAC_SHA512_KEYSIZE, "keys->km2");
-  dump(keys->km3, OPAQUE_HMAC_SHA512_KEYSIZE, "keys->km3");
+  dump(keys->km2, OPAQUE_HMAC_SHA512_KEYBYTES, "keys->km2");
+  dump(keys->km3, OPAQUE_HMAC_SHA512_KEYBYTES, "keys->km3");
 #endif
 }
 
@@ -888,7 +888,7 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
 #endif
 
   // 3. auth_key = HKDF-Expand(randomized_pwd, concat(envelope_nonce, "AuthKey"), Nh)
-  uint8_t auth_key[OPAQUE_HMAC_SHA512_KEYSIZE];
+  uint8_t auth_key[OPAQUE_HMAC_SHA512_KEYBYTES];
   if(-1==sodium_mlock(auth_key, sizeof auth_key)) {
     return -1;
   }
@@ -1283,8 +1283,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   sodium_munlock(x_s, sizeof(x_s));
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(keys.sk, sizeof(keys.sk), "srv sk ");
-  dump(keys.km2,OPAQUE_HMAC_SHA512_KEYSIZE,"session srv km2 ");
-  dump(keys.km3,OPAQUE_HMAC_SHA512_KEYSIZE,"session srv km3 ");
+  dump(keys.km2,OPAQUE_HMAC_SHA512_KEYBYTES,"session srv km2 ");
+  dump(keys.km3,OPAQUE_HMAC_SHA512_KEYBYTES,"session srv km3 ");
 #endif
 
   // 7. server_mac = MAC(Km2, Hash(preamble))
@@ -1429,7 +1429,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   memcpy(concated, env.nonce, OPAQUE_ENVELOPE_NONCEBYTES);
 
   // 1.6.1. auth_key = Expand(randomized_pwd, concat(envelope.nonce, "AuthKey"), Nh)
-  uint8_t auth_key[OPAQUE_HMAC_SHA512_KEYSIZE];
+  uint8_t auth_key[OPAQUE_HMAC_SHA512_KEYBYTES];
   if(-1==sodium_mlock(auth_key, sizeof auth_key)) {
     return -1;
   }

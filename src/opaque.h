@@ -69,6 +69,13 @@
 
 /**
    struct to store the IDs of the user/server.
+
+   If the ids are the default, then set these values to NULL/0.  The
+   defaults are always the long-term public keys of the respective
+   party. If your system needs different user ids, like for example
+   the server DNS host name or the users email addres, then provide
+   them via this struct. If only one is "custom" and the other is
+   default, that is also ok.
  */
 typedef struct {
   uint16_t idU_len;    /**< length of idU, most useful if idU is binary */
@@ -89,8 +96,6 @@ typedef struct {
    @param [in] skS - in case of global server keys this is the servers
         private key, should be set to NULL if per/user keys are to be
         generated
-   @param [in] cfg - configuration of the opaque envelope, see
-        Opaque_PkgConfig
    @param [in] ids - the ids of the user and server, see Opaque_Ids
    @param [out] rec - the opaque record the server needs to
         store. this is a pointer to memory allocated by the caller,
@@ -105,7 +110,7 @@ typedef struct {
 int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
                     const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                     const Opaque_Ids *ids,
-                    uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                    uint8_t rec[OPAQUE_USER_RECORD_LEN],
                     uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 /**
@@ -121,7 +126,9 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
    @param [out] pub - the message to be sent to the server
    @return the function returns 0 if everything is correct
  */
-int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
+                                   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
+                                   uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
    This is the same function as defined in the paper with name
@@ -135,10 +142,10 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    @param [in] pub - the pub output of the opaque_CreateCredentialRequest()
    @param [in] rec - the recorded created during "registration" and stored by the server
    @param [in] ids - the id if the client and server
-   @param [in] infos - various extra (unspecified) protocol information as recommended by the rfc.
+   @param [in] ctx - a context of this instantiation of this protocol, e.g. "AppABCv12.34"
+   @param [in] ctx_len - a context of this instantiation of this protocol
    @param [out] resp - servers response to be sent to the client where
-   it is used as input into opaque_RecoverCredentials() - caller must allocate including envU_len: e.g.:
-   uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+   it is used as input into opaque_RecoverCredentials()
    @param [out] sk - the shared secret established between the user & server
    @param [out] sec - the current context necessary for the explicit
    authentication of the user in opaque_UserAuth(). This
@@ -146,8 +153,13 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    set to NULL
    @return the function returns 0 if everything is correct
  */
- // TODO do not pass cfg here, but instead size of rec, and from that envU_len=rec_len - OPAQUE_USER_RECORD_LEN. let the client check the length of rec being correct in recover_creds
-int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const uint8_t *ctx, const uint16_t ctx_len, uint8_t resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES]);
+int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
+                                    const uint8_t rec[OPAQUE_USER_RECORD_LEN],
+                                    const Opaque_Ids *ids,
+                                    const uint8_t *ctx, const uint16_t ctx_len,
+                                    uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
+                                    uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                                    uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 /**
    This is the same function as defined in the paper with the
@@ -163,26 +175,22 @@ int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC
    @param [in] resp - the response sent from the server running opaque_CreateCredentialResponse()
    @param [in] sec - the private sec output of the client initiating
    this instantiation of this protocol using opaque_CreateCredentialRequest()
-   @param [in] pkS - if cfg.pkS == NotPackaged pkS *must* be supplied here, otherwise it must be NULL
-   @param [in] cfg - the configuration of the envelope secret and cleartext part
-   @param [in] infos - various extra (unspecified) protocol information
-   as recommended by the rfc
-   @param [in/out] ids - if ids were packed in the envelope - as given by
-   the cfg param -, they are returned in this struct - if either
-   cfg.idS or cfg.idU is NotPackaged, then the according value must be
-   set in this struct before calling opaque_RecoverCredentials
+   @param [in] ctx - a context of this instantiation of this protocol, e.g. "AppABCv12.34"
+   @param [in] ctx_len - a context of this instantiation of this protocol
+   @param [in] ids - The ids of the server/client in case they are not the default.
    @param [out] sk - the shared secret established between the user & server
-   @param [out] authU - the authentication code to be sent to the server
-   in case explicit user authentication is required
+   @param [out] authU - the authentication code to be sent to the
+   server in case explicit user authentication is required, optional
+   set to NULL if not needed
    @param [out] export_key - key used to encrypt/authenticate extra
    material not stored directly in the envelope
    @return the function returns 0 if the protocol is executed correctly
 */
-int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
-                              const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
+                              const uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                               const uint8_t *ctx, const uint16_t ctx_len,
                               const Opaque_Ids *ids,
-                              const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
+                              const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES],
                               uint8_t export_key[crypto_hash_sha512_BYTES]);
@@ -195,7 +203,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
    transcript with different keys coming out of a hkdf after the key
    exchange.
 
-   @param [in] sec - the context returned by opaque_CreateCredentialResponse()
+   @param [in] authU0 - the authU value returned by opaque_CreateCredentialResponse()
    @param [in] authU is the authentication token sent by the user.
    @return the function returns 0 if the hmac verifies correctly.
  */
@@ -203,14 +211,6 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const ui
 
 /**
    Alternative user initialization, user registration as specified by the RFC
-
-   The paper originally proposes a very simple 1 shot interface for
-   registering a new "user", however this has the drawback that in
-   that case the users secrets and its password are exposed in
-   cleartext at registration to the server. There is an alternative 4
-   message registration protocol specified by the rfc, which avoids
-   the exposure of the secrets and the password to the server which
-   can be instantiated by following for registration functions.
  */
 
 
@@ -225,13 +225,16 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const ui
    @param [out] sec - a secret context needed for the 3rd step in this
    registration protocol - this needs to be protected and sanitized
    after usage.
-   @param [out] M - the blinded hashed password as per the OPRF,
+   @param [out] request - the blinded hashed password as per the OPRF,
    this needs to be sent to the server together with any other
    important and implementation specific info such as user/client id,
    envelope configuration etc.
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len], uint8_t M[crypto_core_ristretto255_BYTES]);
+int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
+                                     const uint16_t pwdU_len,
+                                     uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len],
+                                     uint8_t request[crypto_core_ristretto255_BYTES]);
 
 /**
    2nd step of registration: Server evaluates OPRF - Global Server Key Version
@@ -249,14 +252,17 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
    which needs to be protected until step 4 by the server. This
    function also outputs a value pub which needs to be passed to the
    user.
-   @param [in] M - the blinded password as per the OPRF.
+   @param [in] request - the blinded password as per the OPRF.
    @param [in] skS - the servers long-term private key
    @param [out] sec - the private key and the OPRF secret of the server.
    @param [out] pub - the evaluated OPRF and pubkey of the server to
    be passed to the client into opaque_FinalizeRequest()
    @return the function returns 0 if everything is correct.
  */
-int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+int opaque_CreateRegistrationResponse(const uint8_t request[crypto_core_ristretto255_BYTES],
+                                      const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                      uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
+                                      uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating
@@ -271,18 +277,20 @@ int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_B
    should be sanitized after usage.
    @param [in] pub - response from the server running
    opaque_CreateRegistrationResponse()
-   @param [in] ids - if ids are to be packed in the envelope - as given by
-   the cfg param
-   @param [out] rec - the opaque record to be stored at the server
-   this is a pointer to memory allocated by the caller, and must be
-   large enough to hold the record and take into account the variable
-   length of idU and idS in case these are included in the envelope.
+   @param [in] ids - if ids are not the default value
+   @param [out] reg_rec - the opaque registration record containing
+   the users data.
    @param [out] export_key - key used to encrypt/authenticate extra
-   material not stored directly in the envelope
+   material not stored directly in the envelope. Optional, if not
+   needed set to NULL.
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/, const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_Ids *ids, uint8_t rec[OPAQUE_REGISTRATION_RECORD_LEN], uint8_t export_key[crypto_hash_sha512_BYTES]);
+int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+                           const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                           const Opaque_Ids *ids,
+                           uint8_t reg_rec[OPAQUE_REGISTRATION_RECORD_LEN],
+                           uint8_t export_key[crypto_hash_sha512_BYTES]);
 
 /**
    Final Registration step - server adds own info to the record to be stored.
@@ -299,13 +307,12 @@ int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwd
    @param [in] sec - the private value of the server running
    opaque_CreateRegistrationResponse() in step 2 of the registration
    protocol
-   @param [in/out] rec - input the record from the client running
-   opaque_FinalizeRequest() - output the final record to be
-   stored by the server this is a pointer to memory allocated by the
-   caller, and must be large enough to hold the record and take into
-   account the variable length of idU and idS in case these are
-   included in the envelope.
+   @param [in] reg_rec - the registration record from the client running
+   opaque_FinalizeRequest()
+   @param [out] rec - the final record to be stored by the server.
  */
-void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN], uint8_t rec[OPAQUE_USER_RECORD_LEN]);
+void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
+                            const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN],
+                            uint8_t rec[OPAQUE_USER_RECORD_LEN]);
 
 #endif // opaque_h

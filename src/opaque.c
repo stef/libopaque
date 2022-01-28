@@ -902,16 +902,18 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
 #endif
 
   // 4. export_key = HKDF-Expand(randomized_pwd, concat(envelope_nonce, "ExportKey"), Nh)
-  memcpy(label, "ExportKey", 9);
+  if(NULL!=export_key) {
+    memcpy(label, "ExportKey", 9);
 #if (defined CFRG_TEST_VEC || defined TRACE)
-  dump(concated, OPAQUE_ENVELOPE_NONCEBYTES+9, "export_key_info");
+    dump(concated, OPAQUE_ENVELOPE_NONCEBYTES+9, "export_key_info");
 #endif
-  crypto_kdf_hkdf_sha512_expand(export_key, crypto_hash_sha512_BYTES,
-                                (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+9,
-                                rwdU);
+    crypto_kdf_hkdf_sha512_expand(export_key, crypto_hash_sha512_BYTES,
+                                  (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+9,
+                                  rwdU);
 #if (defined CFRG_TEST_VEC || defined TRACE)
-  dump(export_key,crypto_hash_sha512_BYTES, "export_key ");
+    dump(export_key,crypto_hash_sha512_BYTES, "export_key ");
 #endif
+  }
 
   // 5. seed = Expand(randomized_pwd, concat(envelope_nonce, "PrivateKey"), Nseed)
   uint8_t client_secret_key[crypto_scalarmult_SCALARBYTES];
@@ -1444,17 +1446,19 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   dump(auth_key,sizeof auth_key, "auth_key ");
 #endif
 
-  // 1.6.2. export_key = Expand(randomized_pwd, concat(envelope.nonce, "ExportKey", Nh)
-  memcpy(label, "ExportKey", 9);
+  if(NULL!=export_key) {
+    // 1.6.2. export_key = Expand(randomized_pwd, concat(envelope.nonce, "ExportKey", Nh)
+    memcpy(label, "ExportKey", 9);
 #ifdef CFRG_TEST_VEC
-  dump(concated, OPAQUE_ENVELOPE_NONCEBYTES+9, "export_key_info");
+    dump(concated, OPAQUE_ENVELOPE_NONCEBYTES+9, "export_key_info");
 #endif
-  crypto_kdf_hkdf_sha512_expand(export_key, crypto_hash_sha512_BYTES,
-                                (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+9,
-                                rwdU);
+    crypto_kdf_hkdf_sha512_expand(export_key, crypto_hash_sha512_BYTES,
+                                  (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+9,
+                                  rwdU);
 #ifdef TRACE
-  dump(export_key,crypto_hash_sha512_BYTES, "export_key ");
+    dump(export_key,crypto_hash_sha512_BYTES, "export_key ");
 #endif
+  }
 
   // 1.6.3. seed = Expand(randomized_pwd, concat(envelope.nonce, "PrivateKey"), Nseed)
   memcpy(label, "PrivateKey", 10);
@@ -1574,10 +1578,12 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 2.6. client_mac = MAC(Km3, Hash(concat(preamble, expected_server_mac))
   crypto_hash_sha512_update(&preamble_state, authS, crypto_auth_hmacsha512_BYTES);
   crypto_hash_sha512_final(&preamble_state, (uint8_t *) preamble);
-  crypto_auth_hmacsha512(authU,                               // out
-                         (uint8_t*)preamble,                  // in
-                         crypto_hash_sha512_BYTES,            // len(in)
-                         keys.km3);                           // key
+  if(NULL!=authU) {
+    crypto_auth_hmacsha512(authU,                               // out
+                           (uint8_t*)preamble,                  // in
+                           crypto_hash_sha512_BYTES,            // len(in)
+                           keys.km3);                           // key
+  }
 
   // 2.7. Create KE3 ke3 with client_mac
   // 2.8. Output (ke3, session_key)

@@ -24,49 +24,12 @@ see test.lua
 
 ## API
 
-There are 3 data structures that are used by libopaque:
+There is one data structure that is used by libopaque:
 
 ### `Ids`
 
 The IDs of the client (idU) and the server (idS) are passed directly
 as seperate parameters to functions that need to handle IDs.
-
-### `PkgConfig`
-
-Configuration of the envelope is handled via a simple associative array.
-
-The keys in this array correspond to the envelope fields: `skU`,
-`pkU`, `pkS`, `idU`, `idS`. Each value in this array must be one of the
-following constants:
-
- - InSecEnv: the value is encrypted in the envelope,
- - InClrEnv: the value is unencrypted in the envelope,
- - NotPackaged: the value is not present in the envelope.
-
-Important to note is that the value for the `skU` key cannot be
-`InClrEnv` since this value is the clients secret key, and thus must
-either be encrypted or not packaged at all to be derived. For more
-information how `NotPackaged` values are derived see the main
-libopaque documentation.
-
-Example:
-```
-cfg = {["skU"] = o.InSecEnv,
-       ["pkU"] = o.NotPackaged,
-       ["pkS"] = o.InSecEnv,
-       ["idU"] = o.InSecEnv,
-       ["idS"] = o.InClrEnv}
-```
-
-### `App_Infos`
-
-The IRTF CFRG draft mentions `info` and `einfo` parameters that can be
-used to be bound into the session, these are passed as a simple
-two-element array:
-
-```lua
-infos={"some info", "some einfo"};
-```
 
 ## 1-step registration
 
@@ -79,14 +42,13 @@ password rules (e.g., occurrence in common password lists, please obey
 has the drawback that the password is exposed to the server.
 
 ```lua
-rec, export_key = register(pwd, skS, cfg, idU, idS);
+rec, export_key = register(pwd, skS, idU, idS);
 ```
 
 The function expects these paramters:
 
  - `pwd` is the user's password.
  - `skS` is an optional explicitly specified server long-term key
- - `cfg` is an array containing the envelope configuration,
  - `idU` is the clients ID,
  - `idS` is the servers ID,
 
@@ -117,17 +79,11 @@ step 2.
 ### Step 2: The server responds to the registration request.
 
 ```lua
-sec, resp = createRegistrationResp(req);
-```
-
-Alternatively, for explicitly providing the server long term private key:
-
-```lua
-sec, resp = create1kRegistrationResp(req, pkS);
+sec, resp = createRegistrationResp(req, skS);
 ```
 
  - `req` comes from the user running the previous step.
- - `pkS` is an optional explicitly specified server long-term public key
+ - `skS` is an optional explicitly specified server long-term private key
 
 The server should hold onto `sec` securely until step 4 of the registration process.
 `resp` should be passed to the user running step 3.
@@ -135,12 +91,11 @@ The server should hold onto `sec` securely until step 4 of the registration proc
 ### Step 3: The user finalizes the registration using the response from the server.
 
 ```lua
-rec, export_key = finalizeReq(sec, resp, cfg, idU, idS);
+rec, export_key = finalizeReq(sec, resp, idU, idS);
 ```
 
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
  - `resp` comes from the server running the previous step.
- - `cfg` is an array containing the envelope configuration,
  - `idU` is the clients ID,
  - `idS` is the servers ID,
 
@@ -199,41 +154,31 @@ resp, sk, sec = createCredentialResp(req, rec, cfg, idU, idS, infos);
 
  - `req` comes from the user running the previous step.
  - `rec` is the user's record stored by the server at the end of the registration protocol.
- - `cfg` is an array containing the envelope configuration,
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
  - `idU` is the clients ID,
  - `idS` is the servers ID,
- - `infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to use this.
 
 This function returns:
 
  - `resp` needs to be passed to the user running step 3.
  - `sk` is a shared secret, the result of the AKE.
  - `sec` is the servers sensitive context. The server should hold onto
-   this valuesecurely until the optional step 4 of the protocol, if
+   this values ecurely until the optional step 4 of the protocol, if
    needed. otherwise this value should be discarded securely.
 
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```lua
-sk, authU, export_key, idU, idS = recoverCredentials(resp, sec, pkS, cfg, infos, idU, idS);
+sk, authU, export_key = recoverCredentials(resp, sec, context, pub, idU, idS);
 ```
 
  - `resp` comes from the server running the previous step.
  - `sec` contains the client sensitive data from the first step and
    should be disposed securely after this step.
- - `pkS` is the server's optional public key, this must be specified
-   if the 3rd item in cfg is `NotPackaged` otherwise it must be nil
- - `cfg` is an array containing the envelope configuration,
- - `infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to
-   use this.
- - `idU` is the clients ID, this must be specified even if just an
-   empty string if the 4th element of `cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
- - `idS` is the servers ID,t his must be specified even if just an
-   empty string if the 5th element of `cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `pub` comes from the user running the `createCredentialRequest()` in the first step.
+ - `idU` is the client ID.
+ - `idS` is the server ID.
 
 This function returns:
 
@@ -241,8 +186,6 @@ This function returns:
  - `authU` is an authentication tag that can be passed in step 4 for
    explicit user authentication.
  - `export_key` can be used to decrypt additional data stored by the server.
- - `idU` and `idS` are the IDs of the user and the server, this is
-   useful if these are packaged in the envelope.
 
 ### Step 4 (Optional): The server authenticates the user.
 

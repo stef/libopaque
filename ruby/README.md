@@ -25,45 +25,12 @@ see test.rb
 
 ## API
 
-There are 3 data structures that are used by libopaque:
+There is one data structure that is used by libopaque:
 
 ### `Ids`
 
 The IDs of the client (idU) and the server (idS) are passed directly
 as seperate parameters to functions that need to handle IDs.
-
-### `PkgConfig`
-
-Configuration of the envelope is handled via a simple array.
-
-The items in this array correspond to the envelope fields in this
-order: `skU`, `pkU`, `pkS`, `idU`, `idS`. Each item in this array must
-be one of the following constants:
-
- - InSecEnv: the value is encrypted in the envelope,
- - InClrEnv: the value is unencrypted in the envelope,
- - NotPackaged: the value is not present in the envelope.
-
-Important to note is that the first value for the `skU` cannot be
-`InClrEnv` since this value is the clients secret key, and thus must
-either be encrypted or not packaged at all to be derived. For more
-information how `NotPackaged` values are derived see the main
-libopaque documentation.
-
-Example:
-```
-cfg = [InSecEnv, InSecEnv, InSecEnv, InSecEnv, InSecEnv]
-```
-
-### `App_Infos`
-
-The IRTF CFRG draft mentions `info` and `einfo` parameters that can be
-used to be bound into the session, these are passed as a simple
-two-element array:
-
-```ruby
-infos=["some info", "some einfo"];
-```
 
 ## One-key Server convenience function
 
@@ -78,12 +45,11 @@ key-pair. The function returns `pkS` and `skS` in this order.
 specified by the IRTF CFRG draft. 1-step registration has the benefit
 that the supplied password (`pwd`) can be checked on the server for
 password rules (e.g., occurrence in common password lists, please obey
-[NIST SP
-800-63-3b](https://pages.nist.gov/800-63-3/sp800-63b.html#memsecret)). It
-has the drawback that the password is exposed to the server.
+[NIST SP 800-63-3b](https://pages.nist.gov/800-63-3/sp800-63b.html#memsecret)). It
+has the drawback that the password is exposed during registration to the server.
 
 ```ruby
-rec, export_key = register(pwd, idU, idS, cfg, skS);
+rec, export_key = register(pwd, idU, idS, skS);
 ```
 
 The function expects these paramters:
@@ -121,17 +87,11 @@ step 2.
 ### Step 2: The server responds to the registration request.
 
 ```ruby
-sec, resp = create_registration_response(req);
-```
-
-Alternatively, for explicitly providing the server long term private key:
-
-```ruby
-sec, resp = create_1k_registration_response(req, pkS);
+sec, resp = create_registration_response(req, skS);
 ```
 
  - `req` comes from the user running the previous step.
- - `pkS` is an optional explicitly specified server long-term public key
+ - `skS` is an optional explicitly specified server long-term private-key
 
 The server should hold onto `sec` securely until step 4 of the registration process.
 `resp` should be passed to the user running step 3.
@@ -139,14 +99,13 @@ The server should hold onto `sec` securely until step 4 of the registration proc
 ### Step 3: The user finalizes the registration using the response from the server.
 
 ```ruby
-rec, export_key = finalize_request(sec, resp, idU, idS, cfg);
+rec, export_key = finalize_request(sec, resp, idU, idS);
 ```
 
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
  - `resp` comes from the server running the previous step.
  - `idU` is the clients ID,
  - `idS` is the servers ID,
- - `cfg` is an array containing the envelope configuration,
 
 The function outputs:
 
@@ -161,14 +120,7 @@ The function outputs:
 rec = store_user_record(sec, rec);
 ```
 
-or alternatively with explicitly specified long-term server private key:
-
-```ruby
-rec = store_1k_user_record(sec, skS, rec);
-```
-
  - `rec` comes from the client running the previous step.
- - `skS` is an explicitly specified server long-term key
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
 
 The function returns:
@@ -198,16 +150,14 @@ The user should hold onto `sec` securely until step 3 of the protocol.
 ### Step 2: The server responds to the credential request.
 
 ```ruby
-resp, sk, sec = create_credential_response(req, rec, idU, idS, cfg, infos);
+resp, sk, sec = create_credential_response(req, rec, idU, idS, context);
 ```
 
  - `req` comes from the user running the previous step.
  - `rec` is the user's record stored by the server at the end of the registration protocol.
  - `idU` is the clients ID,
  - `idS` is the servers ID,
- - `cfg` is an array containing the envelope configuration,
- - `infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to use this.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
 
 This function returns:
 
@@ -220,24 +170,16 @@ This function returns:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```ruby
-sk, authU, export_key, idU, idS = recover_credentials(resp, sec, cfg, infos, pkS, idU, idS);
+sk, authU, export_key = recover_credentials(resp, sec, context, pub, idU, idS);
 ```
 
  - `resp` comes from the server running the previous step.
  - `sec` contains the client sensitive data from the first step and
    should be disposed securely after this step.
- - `cfg` is an array containing the envelope configuration,
- - `infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to
-   use this.
- - `pkS` is the server's optional public key, this must be specified
-   if the 3rd item in cfg is `NotPackaged` otherwise it must be nil
- - `idU` is the clients ID, this must be specified even if just an
-   empty string if the 4th element of `cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
- - `idS` is the servers ID,t his must be specified even if just an
-   empty string if the 5th element of `cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `pub` comes from the user running the `create_credential_request()` in the first step.
+ - `idU` is the client ID
+ - `idS` is the server ID
 
 This function returns:
 
@@ -245,8 +187,6 @@ This function returns:
  - `authU` is an authentication tag that can be passed in step 4 for
    explicit user authentication.
  - `export_key` can be used to decrypt additional data stored by the server.
- - `idU` and `idS` are the IDs of the user and the server, this is
-   useful if these are packaged in the envelope.
 
 ### Step 4 (Optional): The server authenticates the user.
 

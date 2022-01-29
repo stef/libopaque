@@ -13,32 +13,13 @@ These bindings depend on the following:
 
 ## API
 
-There are 3 data structures that are used by libopaque:
+There is one data structure that is used by libopaque:
 
 ### `Ids`
 The IDs of the peers are passed around as a struct:
 ```python
 # wrap the IDs into an opaque.Ids struct:
 ids=opaque.Ids("user", "server")
-```
-
-### `PkgConfig`
-Configuration of the envelope is handled via a `PkgConfig` struct:
-```python
-# Wrap the envelope config into an opaque PkgConfig struct.
-cfg=opaque.PkgConfig()
-cfg.skU=opaque.InSecEnv        # The user's private key is encrypted.
-cfg.pkU=opaque.NotPackaged     # The user's public key is not packaged.
-cfg.pkS=opaque.InClrEnv        # The server's public key is plaintext.
-cfg.idU=opaque.InSecEnv        # The user's ID is encrypted.
-cfg.idS=opaque.InClrEnv        # The server's ID is plaintext.
-```
-
-### `App_Infos`
-The IRTF CFRG draft mentions `info` and `einfo` parameters that can
-be used to be bound into the session:
-```python
-infos=opaque.App_Infos(info="1", einfo="e")
 ```
 
 ## 1-step registration
@@ -49,8 +30,11 @@ on the server for password rules (e.g., occurrence in common password
 lists). It has the drawback that the password is exposed to the server.
 
 ```python
-rec, export_key = opaque.Register(pwdU, cfg, ids, skS)
+rec, export_key = opaque.Register(pwdU, ids, skS)
 ```
+ - `pwdU` is the user's password.
+ - `ids` is an `Ids` struct that contains the IDs of the user and the server.
+ - `skS` is an optional server long-term private-key
 
 ## 4-step registration
 
@@ -71,10 +55,11 @@ The user should hold on to `secU` securely until step 3 of the registration proc
 ### Step 2: The server responds to the registration request.
 
 ```python
-secS, pub = opaque.CreateRegistrationResponse(M)
+secS, pub = opaque.CreateRegistrationResponse(M, skS)
 ```
 
  - `M` comes from the user running the previous step.
+ - `skS` is an optional server long-term private-key
 
 The server should hold onto `secS` securely until step 4 of the registration process.
 `pub` should be passed to the user running step 3.
@@ -82,12 +67,11 @@ The server should hold onto `secS` securely until step 4 of the registration pro
 ### Step 3: The user finalizes the registration using the response from the server.
 
 ```python
-rec0, export_key = opaque.FinalizeRequest(secU, pub, cfg, ids)
+rec0, export_key = opaque.FinalizeRequest(secU, pub, ids)
 ```
 
  - `secU` contains sensitive data and should be disposed securely after usage in this step.
  - `pub` comes from the server running the previous step.
- - `cfg` is a `PkgConfig` struct either known or passed by the server.
  - `ids` is an `Ids` struct that contains the IDs of the user and the server.
 
  - `rec0` should be passed to the server running step 4.
@@ -129,14 +113,13 @@ The user should hold onto `secU` securely until step 3 of the protocol.
 ### Step 2: The server responds to the credential request.
 
 ```python
-resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, infos)
+resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, ids, context)
 ```
 
  - `pub` comes from the user running the previous step.
  - `rec` is the user's record stored by the server at the end of the registration protocol.
- - `cfg` is a `PkgConfig` struct either known or passed by the server.
  - `ids` is an `Ids` struct that contains the IDs of the user and the server.
- - `infos` is an optional `App_Infos` struct.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
 
  - `resp` needs to be passed to the user running step 3.
  - `sk` is a shared secret, the result of the AKE.
@@ -147,19 +130,17 @@ resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, cfg, ids, infos)
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```python
-sk, authU, export_key, ids = opaque.RecoverCredentials(resp, secU, cfg, infos, pkS)
+sk, authU, export_key = opaque.RecoverCredentials(resp, secU, ctx, pub, ids)
 ```
 
  - `resp` comes from the server running the previous step.
  - `secU` contains sensitive data and should be disposed securely after usage in this step.
- - `cfg` is a `PkgConfig` struct either known or passed by the server.
- - `infos` is an optional `App_Infos` struct.
- - `pkS` is the server's public key.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `pub` comes from the user running the `opaque.CreateCredentialRequest()` in the first step.
 
  - `sk` is a shared secret, the result of the AKE.
  - `authU` is an authentication tag that can be passed in step 4 for explicit user authentication.
  - `export_key` can be used to decrypt additional data stored by the server.
- - `ids` is an `Ids` struct containing the IDs of the user and the server.
 
 ### Step 4 (Optional): The server authenticates the user.
 

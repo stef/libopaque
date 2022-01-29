@@ -50,44 +50,12 @@ examples please check the test-cases: `002.phpt`, `003.phpt,
 
 ## API
 
-There are 3 data structures that are used by libopaque:
+There is one data structure which is used by libopaque:
 
 ### `Ids`
 
 The IDs of the client (idU) and the server (idS) are passed directly
 as seperate parameters to functions that need to handle IDs.
-
-### `PkgConfig`
-
-Configuration of the envelope is handled via a simple array.
-
-The items in this array correspond to the envelope fields in this
-order: `skU`, `pkU`, `pkS`, `idU`, `idS`. Each item in this array must
-be one of the following constants:
-
- - opaque_InSecEnv: the value is encrypted in the envelope,
- - opaque_InClrEnv: the value is unencrypted in the envelope,
- - opaque_NotPackaged: the value is not present in the envelope.
-
-Important to note is that the first value for the `skU` cannot be
-`InClrEnv` since this value is the clients secret key, and thus must
-either be encrypted or not packaged at all to be derived. For more
-information how `NotPackaged` values are derived see the main
-libopaque documentation.
-
-Example:
-```
-$cfg=[opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv, opaque_InSecEnv];
-```
-
-### `App_Infos`
-
-The IRTF CFRG draft mentions `info` and `einfo` parameters that can
-be used to be bound into the session, these are passed as a simple two-element array:
-
-```php
-$infos=["some info", "some einfo"];
-```
 
 ## One-key Server convenience function
 
@@ -104,15 +72,14 @@ on the server for password rules (e.g., occurrence in common password
 lists). It has the drawback that the password is exposed to the server.
 
 ```php
-$rec, $export_key = opaque_register($pwd, $idU, $idS, $cfg, $skS);
+$rec, $export_key = opaque_register($pwd, $idU, $idS, $skS);
 ```
 
 The function expects these paramters:
 
  - `$pwd` is the user's password.
- - `$idU` is the clients ID,
- - `$idS` is the servers ID,
- - `$cfg` is an array containing the envelope configuration,
+ - `$idU` is the optional client ID,
+ - `$idS` is the optional server ID,
  - `$skS` is an optional explicitly specified server long-term key
 
 This function returns:
@@ -142,17 +109,11 @@ step 2.
 ### Step 2: The server responds to the registration request.
 
 ```php
-$sec, $resp = opaque_create_registration_response($req);
-```
-
-alternatively, for explicitly providing the server long term private key:
-
-```php
-$sec, $resp = opaque_create_registration_response($req, $pkS);
+$sec, $resp = opaque_create_registration_response($req, $skS);
 ```
 
  - `$req` comes from the user running the previous step.
- - `$pkS` is an optional explicitly specified server long-term public key
+ - `$skS` is an optional explicitly specified server long-term private-key
 
 The server should hold onto `$sec` securely until step 4 of the registration process.
 `$resp` should be passed to the user running step 3.
@@ -160,15 +121,13 @@ The server should hold onto `$sec` securely until step 4 of the registration pro
 ### Step 3: The user finalizes the registration using the response from the server.
 
 ```php
-$rec, $export_key = opaque_finalize_request($sec, $resp, $idU, $idS, $cfg);
+$rec, $export_key = opaque_finalize_request($sec, $resp, $idU, $idS);
 ```
-
 
  - `$sec` contains sensitive data and should be disposed securely after usage in this step.
  - `$resp` comes from the server running the previous step.
  - `$idU` is the clients ID,
  - `$idS` is the servers ID,
- - `$cfg` is an array containing the envelope configuration,
 
  - `$rec` should be passed to the server running step 4.
  - `$export_key` is an extra secret that can be used to encrypt
@@ -209,16 +168,14 @@ The user should hold onto `$sec` securely until step 3 of the protocol.
 ### Step 2: The server responds to the credential request.
 
 ```php
-$resp, $sk, $sec = opaque_create_credential_response($req, $rec, $idU, $idS, $cfg, $infos);
+$resp, $sk, $sec = opaque_create_credential_response($req, $rec, $context, $idU, $idS);
 ```
 
  - `$req` comes from the user running the previous step.
  - `$rec` is the user's record stored by the server at the end of the registration protocol.
- - `$idU` is the clients ID,
- - `$idS` is the servers ID,
- - `$cfg` is an array containing the envelope configuration,
- - `infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to use this.
+ - `$context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `$idU` is the client ID,
+ - `$idS` is the server ID,
 
 This function returns:
 
@@ -231,31 +188,22 @@ This function returns:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```php
-$sk, $authU, $export_key, $idU, $idS = opaque_recover_credentials($resp, $sec, $cfg, $infos, $pkS, $idU, $idS);
+$sk, $authU, $export_key = opaque_recover_credentials($resp, $sec, $context, $req, $idU, $idS);
 ```
 
  - `$resp` comes from the server running the previous step.
- - `$secU` contains sensitive data and should be disposed securely after usage in this step.
- - `$cfg` is an array containing the envelope configuration,
- - `$infos` is an optional array containing two info strings, check the
-   IRTF CFRG specification if you need this (probably not) and how to
-   use this.
- - `$pkS` is the server's public key, this must be specified if the
-   3rd item in cfg is `NotPackaged` otherwise it must be nil
- - `$idU` is the clients ID, this must be specified even if just an
-   empty string if the 4th element of `$cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
- - `$idS` is the servers ID,t his must be specified even if just an
-   empty string if the 5th element of `$cfg` is `NotPackaged`,
-   otherwise it must be `nil`.
+ - `$sec` contains sensitive data and should be disposed securely after usage in this step.
+ - `$context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `$req` comes from the user running the `opaque_create_credential_request()`
+   in the first step.
+ - `$idU` is the clients ID.
+ - `$idS` is the servers ID.
 
 This function returns:
 
  - `$sk` is a shared secret, the result of the AKE.
  - `$authU` is an authentication tag that can be passed in step 4 for explicit user authentication.
  - `$export_key` can be used to decrypt additional data stored by the server.
- - `$idU` and `$idS` are the IDs of the user and the server, this is
-   useful if these are packaged in the envelope.
 
 ### Step 4 (Optional): The server authenticates the user.
 
@@ -266,7 +214,9 @@ towards the server using the shared secret.
 opaque_user_auth($sec, $authU);
 ```
 
- - `$sec` contains sensitive data and should be disposed securely after usage in this step.
+ - `$sec` is the `$sec` output of `opaque_create_credential_response()`, it
+   contains sensitive data and should be disposed securely after usage in this
+   step.
  - `$authU` comes from the user running the previous step.
 
 The function returns a boolean `false` in case the authentication failed, otherwise `true`.

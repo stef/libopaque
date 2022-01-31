@@ -15,12 +15,8 @@
  * the algorithm to calculate sk changes, we can just change it in one place.
  */
 #define OPAQUE_SHARED_SECRETBYTES 64
-#define OPAQUE_HANDSHAKE_SECRETBYTES 64
-#define OPAQUE_NONCE_BYTES 32
 #define OPAQUE_ENVELOPE_NONCEBYTES 32
-#define OPAQUE_ENVELOPE_BYTES (OPAQUE_ENVELOPE_NONCEBYTES + crypto_auth_hmacsha512_BYTES)
-#define OPAQUE_HMAC_SHA512_BYTES 64
-#define OPAQUE_HMAC_SHA512_KEYBYTES 64
+#define OPAQUE_NONCE_BYTES 32
 
 #define OPAQUE_REGISTRATION_RECORD_LEN (               \
    /* client_public_key */ crypto_scalarmult_BYTES+    \

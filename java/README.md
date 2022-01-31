@@ -189,7 +189,7 @@ has three member variables:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```java
-OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, context, ids, pub);
+OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, context, ids);
 ```
 
 The input parameters:
@@ -199,7 +199,6 @@ The input parameters:
    should be disposed securely after this step.
  - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
  - `ids` is an instance of `OpaqueIds`.
- - `pub` comes from the user running the `createCredReq()` in the first step.
 
 This function returns an instance of the `OpaqueCreds` class, which
 has four member variables:

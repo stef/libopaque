@@ -66,6 +66,7 @@ OPAQUE_USER_SESSION_SECRET_LEN = (
     crypto_scalarmult_SCALARBYTES+             # x_u
     OPAQUE_NONCE_BYTES+                        # nonceU
     crypto_core_ristretto255_BYTES+            # blinded
+    OPAQUE_USER_SESSION_PUBLIC_LEN+            # ke1
     2)                                         # pwdU_len
 
 OPAQUE_SERVER_SESSION_LEN = (
@@ -237,16 +238,14 @@ def CreateCredentialResponse(pub, rec, ids, ctx):
 #                              const uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
 #                              const uint8_t *ctx, const uint16_t ctx_len,
 #                              const Opaque_Ids *ids,
-#                              const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
 #                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
 #                              uint8_t authU[crypto_auth_hmacsha512_BYTES],
 #                              uint8_t export_key[crypto_hash_sha512_BYTES]);
-def RecoverCredentials(resp, sec, ctx, pub, ids=None):
-    if None in (resp, sec, pub):
+def RecoverCredentials(resp, sec, ctx, ids=None):
+    if None in (resp, sec):
         raise ValueError("invalid parameter")
     if len(resp) != OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
     if len(sec) <= OPAQUE_USER_SESSION_SECRET_LEN: raise ValueError("invalid sec param")
-    if len(pub) != OPAQUE_USER_SESSION_PUBLIC_LEN: raise ValueError("invalid pub param")
 
     sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
     authU = ctypes.create_string_buffer(crypto_auth_hmacsha512_BYTES)
@@ -254,7 +253,7 @@ def RecoverCredentials(resp, sec, ctx, pub, ids=None):
 
     if ids is None: ids = Ids()
 
-    __check(opaquelib.opaque_RecoverCredentials(resp, sec, ctx, len(ctx), ctypes.pointer(ids), pub, sk, authU, export_key))
+    __check(opaquelib.opaque_RecoverCredentials(resp, sec, ctx, len(ctx), ctypes.pointer(ids), sk, authU, export_key))
     return sk.raw, authU.raw, export_key.raw
 
 #  Explicit User Authentication.

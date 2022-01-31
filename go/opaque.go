@@ -204,19 +204,18 @@ func CreateCredResp(pub []byte, rec []byte, ids OpaqueIDS, context string) ([]by
 // This is the same function as defined in the paper with the
 // usrSessionEnd name. It is run by the user and receives as input the
 // response from the previous server CreateCredResp() function as well
-// as the sec and pub values from running the CreateCredReq() function
+// as the sec value from running the CreateCredReq() function
 // that initiated this instantiation of this protocol, All these input
 // parameters are transformed into a shared/secret session key pk,
 // which should be the same as the one calculated by the
 // CreateCredResp() function.
-func RecoverCred(resp []byte, sec []byte, context string, ids OpaqueIDS, pub []byte) ([]byte, []byte, []byte, error) {
+func RecoverCred(resp []byte, sec []byte, context string, ids OpaqueIDS) ([]byte, []byte, []byte, error) {
 	// int opaque_RecoverCredentials(
 	// in:
 	//       const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
 	//       const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/],
 	//       const uint8_t *context, const size_t context_len,
 	//       Opaque_Ids *ids,
-	//       const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
 	// out:
 	//       uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
 	//       uint8_t authU[crypto_auth_hmacsha512_BYTES],
@@ -247,10 +246,6 @@ func RecoverCred(resp []byte, sec []byte, context string, ids OpaqueIDS, pub []b
 		idS_len: C.ushort(len(ids.IdS)),
 	}
 
-	if len(pub) != C.OPAQUE_USER_SESSION_PUBLIC_LEN {
-		return nil, nil, nil, errors.New("invalid pub param")
-	}
-
 	sk := C.malloc(C.OPAQUE_SHARED_SECRETBYTES)
 	if sk == nil {
 		return nil, nil, nil, errors.New("out of memory")
@@ -273,7 +268,6 @@ func RecoverCred(resp []byte, sec []byte, context string, ids OpaqueIDS, pub []b
 		(*C.uchar)(C.CBytes(ctxB)),
 		C.ushort(len(ctxB)),
 		&idCC,
-		(*C.uchar)(C.CBytes(pub)),
 		(*C.uchar)(sk),
 		(*C.uchar)(authU),
 		(*C.uchar)(export_key),

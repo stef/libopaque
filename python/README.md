@@ -130,13 +130,12 @@ resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, ids, context)
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```python
-sk, authU, export_key = opaque.RecoverCredentials(resp, secU, ctx, pub, ids)
+sk, authU, export_key = opaque.RecoverCredentials(resp, secU, ctx, ids)
 ```
 
  - `resp` comes from the server running the previous step.
  - `secU` contains sensitive data and should be disposed securely after usage in this step.
  - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
- - `pub` comes from the user running the `opaque.CreateCredentialRequest()` in the first step.
 
  - `sk` is a shared secret, the result of the AKE.
  - `authU` is an authentication tag that can be passed in step 4 for explicit user authentication.

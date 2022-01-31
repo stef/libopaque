@@ -160,7 +160,7 @@ This function returns:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```erlang
-{Sk, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, Context, Ids, Pub).
+{Sk, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, Context, Ids).
 ```
 
  - `Resp` comes from the server running the previous step.
@@ -170,8 +170,6 @@ This function returns:
    protocol from others, e.g. "MyApp-v0.2"
  - `Ids` is an array containing the clients and/or servers ID, these
    must be specified in case they are marked `notPackaged` in `Cfg`.
- - `Pub` comes from the user running the `opaque:create_cred_req()` in
-   the first step.
 
 This function returns:
 

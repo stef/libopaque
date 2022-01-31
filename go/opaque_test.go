@@ -37,7 +37,7 @@ func TestRegister(t *testing.T) {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids, pub)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -92,7 +92,7 @@ func TestRegisterSks(t *testing.T) {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids, pub)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -163,7 +163,7 @@ func TestRegDance(t *testing.T) {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids, pub)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -239,7 +239,7 @@ func TestRegDance1k(t *testing.T) {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids, pub)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {

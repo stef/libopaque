@@ -1,17 +1,16 @@
 -module(test).
--import(opaque,[register/3,
-                register/4,
+-compile({no_auto_import,[register/2]}).
+-import(opaque,[register/2,
+                register/3,
                 create_cred_req/1,
-                create_cred_resp/5,
-                recover_cred/5,
-                recover_cred/6,
+                create_cred_resp/4,
+                recover_cred/4,
                 user_auth/2,
                 create_reg_req/1,
                 create_reg_resp/1,
                 create_reg_resp/2,
-                finalize_reg/4,
-                store_rec/2,
-                store_rec/3]).
+                finalize_reg/3,
+                store_rec/2]).
 
 test_reg_no_sks() ->
     Ids = {<<"idU">>, <<"idS">>},
@@ -34,7 +33,7 @@ test_reg_no_sks() ->
     io:format("sk: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sk_serv ]]),
     io:format("sec: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sec_serv ]]),
 
-    {Sk_user, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, "context", Ids, Pub),
+    {Sk_user, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, "context", Ids),
     io:format("sk: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sk_user ]]),
     io:format("authU: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= AuthU ]]),
     io:format("ek: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Export_key ]]),
@@ -50,7 +49,7 @@ test_private_reg() ->
 
     {SSec, SPub} = opaque:create_cred_req("asdf"),
     {Resp, Sk, SSec_serv} = opaque:create_cred_resp(SPub, Rec, Ids, "context"),
-    {Sk, AuthU, Export_key} = opaque:recover_cred(Resp, SSec, "context", Ids, SPub),
+    {Sk, AuthU, Export_key} = opaque:recover_cred(Resp, SSec, "context", Ids),
     ok = opaque:user_auth(SSec_serv, AuthU).
 
 test_private_1kreg() ->
@@ -63,7 +62,7 @@ test_private_1kreg() ->
 
     {SSec, SPub} = opaque:create_cred_req("asdf"),
     {Resp, Sk, SSec_serv} = opaque:create_cred_resp(SPub, Rec, Ids, "context"),
-    {Sk, AuthU, Export_key} = opaque:recover_cred(Resp, SSec, "context", Ids, SPub),
+    {Sk, AuthU, Export_key} = opaque:recover_cred(Resp, SSec, "context", Ids),
     ok = opaque:user_auth(SSec_serv, AuthU).
 
 test_reg_sks() ->
@@ -83,7 +82,7 @@ test_reg_sks() ->
     io:format("sk: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sk_serv ]]),
     io:format("sec: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sec_serv ]]),
 
-    {Sk_user, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, "context", Ids, Pub),
+    {Sk_user, AuthU, Export_key} = opaque:recover_cred(Resp, Sec, "context", Ids),
     io:format("sk: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Sk_user ]]),
     io:format("authU: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= AuthU ]]),
     io:format("ek: ~s~n", [[io_lib:format("~2.16.0b",[X]) || <<X:8>> <= Export_key ]]),
@@ -92,8 +91,8 @@ test_reg_sks() ->
 
 
 main([]) ->
-    test_reg_no_sks(),
-    test_reg_sks(),
-    test_private_reg(),
-    test_private_1kreg(),
-    io:format("all ok~n", []).
+   test_reg_no_sks(),
+   test_reg_sks(),
+   test_private_reg(),
+   test_private_1kreg(),
+   io:format("all ok~n", []).

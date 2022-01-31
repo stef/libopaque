@@ -543,7 +543,7 @@ static int user(const char** argv) {
     return 1;
   }
 
-  int ret = opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key);
+  int ret = opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key);
   if(0!=ret) {
     fprintf(stderr, "opaque_RecoverCredentials failed.\n");
     sodium_munlock(sk, sizeof sk);

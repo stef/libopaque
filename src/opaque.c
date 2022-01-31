@@ -69,6 +69,7 @@ typedef struct {
   uint8_t x_u[crypto_scalarmult_SCALARBYTES];
   uint8_t nonceU[OPAQUE_NONCE_BYTES];
   uint8_t blinded[crypto_core_ristretto255_BYTES];
+  uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint16_t pwdU_len;
   uint8_t pwdU[];
 } __attribute((packed)) Opaque_UserSession_Secret;
@@ -1154,6 +1155,9 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   sec->pwdU_len = pwdU_len;
   memcpy(sec->pwdU, pwdU, pwdU_len);
 
+  // keep ke1 for later
+  memcpy(sec->ke1, _pub, OPAQUE_USER_SESSION_PUBLIC_LEN);
+
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
@@ -1377,7 +1381,6 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                               const uint8_t *ctx, const uint16_t ctx_len,
                               const Opaque_Ids *ids0,
-                              const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES],
                               uint8_t export_key[crypto_hash_sha512_BYTES]) {
@@ -1615,7 +1618,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 2.2. preamble = Preamble(client_identity, state.ke1, server_identity, ke2.inner_ke2)
   char preamble[crypto_hash_sha512_BYTES];
   crypto_hash_sha512_state preamble_state;
-  calc_preamble(preamble, &preamble_state, client_public_key, server_public_key, _pub, resp, ctx, ctx_len, &ids);
+  calc_preamble(preamble, &preamble_state, client_public_key, server_public_key, sec->ke1, resp, ctx, ctx_len, &ids);
 
   Opaque_Keys keys;
   if(-1==sodium_mlock(&keys,sizeof(keys))) {

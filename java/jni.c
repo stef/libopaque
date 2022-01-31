@@ -215,7 +215,7 @@ static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyte
   return retlist(env, "OpaqueCredResp", ret);
 }
 
-static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jstring context_, jobject ids_, jbyteArray pub_) {
+static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jstring context_, jobject ids_) {
 
   Opaque_Ids ids = {0};
   IdGC gc={0};
@@ -239,14 +239,6 @@ static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, 
   sec_jb = (*env)->GetByteArrayElements(env, sec_, NULL);
   sec = (char*) sec_jb;
 
-  uint8_t *pub=0;
-  jbyte *pub_jb=NULL;
-  if((*env)->GetArrayLength(env, pub_)!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
-    exception(env, "invalid pub size");
-  }
-  pub_jb = (*env)->GetByteArrayElements(env, pub_, NULL);
-  pub = (char*) pub_jb;
-
   const char *context;
   size_t context_len;
   context  = (*env)->GetStringUTFChars(env, context_, 0);
@@ -257,7 +249,7 @@ static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, 
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key)) {
     exception(env,"opaque recoverCredentials() failed...");
   }
 
@@ -269,7 +261,6 @@ static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, 
   }
   (*env)->ReleaseByteArrayElements(env, resp_, resp_jb, JNI_ABORT);
   (*env)->ReleaseByteArrayElements(env, sec_, sec_jb, JNI_ABORT);
-  (*env)->ReleaseByteArrayElements(env, pub_, pub_jb, JNI_ABORT);
   (*env)->ReleaseStringUTFChars(env, context_, context);
 
   RetVal retvals[] = {{.key = "authU", .val = authU, .len = sizeof(authU) },
@@ -464,7 +455,7 @@ static JNINativeMethod funcs[] = {
   { "c_register", "(Ljava/lang/String;)LOpaqueRecExpKey;", (void *)&c_register1 },
   { "c_createCredReq", "(Ljava/lang/String;)LOpaqueCredReq;", (void *)&c_createCredReq },
   { "c_createCredResp", "([B[BLOpaqueIds;Ljava/lang/String;)LOpaqueCredResp;", (void *)&c_createCredResp },
-  { "c_recoverCreds", "([B[BLjava/lang/String;LOpaqueIds;[B)LOpaqueCreds;", (void *)&c_recoverCredentials },
+  { "c_recoverCreds", "([B[BLjava/lang/String;LOpaqueIds;)LOpaqueCreds;", (void *)&c_recoverCredentials },
   { "c_userAuth", "([B[B)Z", (void *)&c_userAuth },
   { "c_createRegReq", "(Ljava/lang/String;)LOpaqueRegReq;", (void *)&c_createRegReq },
   { "c_createRegResp", "([B[B)LOpaqueRegResp;", (void *)&c_createRegResp},

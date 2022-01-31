@@ -209,20 +209,11 @@ static ERL_NIF_TERM c_recover_cred(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
   Opaque_Ids ids={0};
   getids(env, argv[3], &ids);
 
-  uint8_t *pub=NULL;
-  if(!enif_inspect_binary(env, argv[4], &bin)) {
-    return enif_raise_exception(env, enif_make_atom(env, "pub_not_binary"));
-  }
-  if(bin.size!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
-      return enif_raise_exception(env, enif_make_atom(env, "pub_invalid_size"));
-  }
-  pub=(uint8_t*) bin.data;
-
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key)) {
     return enif_raise_exception(env, enif_make_atom(env, "recover_cred_failed"));
   }
 
@@ -396,7 +387,7 @@ static ErlNifFunc nif_funcs[] = {
  {"register", 3, c_register},
  {"create_cred_req", 1, c_create_cred_req},
  {"create_cred_resp", 4, c_create_cred_resp},
- {"recover_cred", 5, c_recover_cred},
+ {"recover_cred", 4, c_recover_cred},
  {"user_auth", 2, c_user_auth},
  {"create_reg_req", 1, c_create_reg_req},
  {"create_reg_resp", 1, c_create_reg_resp},

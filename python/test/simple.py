@@ -24,7 +24,7 @@ pub, secU = opaque.CreateCredentialRequest(pwdU)
 resp, sk, authU0 = opaque.CreateCredentialResponse(pub, rec, ids, context)
 
 # user recovers its credentials from the servers response
-sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, pub, ids)
+sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, ids)
 
 # server authenticates user
 opaque.UserAuth(authU0, authU)
@@ -53,7 +53,7 @@ pub, secU = opaque.CreateCredentialRequest(pwdU)
 resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, ids, context)
 
 # 3. user recovers its credentials from the server ressponse
-sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, pub, ids)
+sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, ids)
 
 # 4. server authenicates user
 opaque.UserAuth(secS, authU)
@@ -79,7 +79,7 @@ def register_with_global_server_key():
     rec = opaque.StoreUserRecord(secS, rec)
     pub, secU = opaque.CreateCredentialRequest(pwdU)
     resp, sk, secS = opaque.CreateCredentialResponse(pub, rec, ids, context)
-    sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, pub, ids)
+    sk1, authU, export_key1 = opaque.RecoverCredentials(resp, secU, context, ids)
     opaque.UserAuth(secS, authU)
     assert export_key==export_key1, "export_key must equal export_key1."
     assert sk==sk1, "sk must equal sk1."

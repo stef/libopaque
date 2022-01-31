@@ -267,7 +267,7 @@ int main(void) {
   uint8_t authUu[crypto_auth_hmacsha512_BYTES];
   uint8_t export_keyU[crypto_hash_sha512_BYTES];
   Opaque_Ids ids1={0};
-  opaque_RecoverCredentials(cresp, sec, context, sizeof context, &ids1, req, skU, authUu, export_keyU);
+  opaque_RecoverCredentials(cresp, sec, context, sizeof context, &ids1, skU, authUu, export_keyU);
 
   if(memcmp(session_key, skU, sizeof session_key)!=0) {
     fprintf(stderr,"failed to reproduce session_key\n");

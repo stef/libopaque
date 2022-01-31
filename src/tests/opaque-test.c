@@ -75,7 +75,7 @@ int main(void) {
   }
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
+  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pk, authU1, export_key)) return 1;
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
 
   // authenticate both parties:
@@ -107,7 +107,7 @@ int main(void) {
   }
   fprintf(stderr, "\nopaque_RecoverCredentials\n");
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pub, pk, authU1, export_key)) return 1;
+  if(0!=opaque_RecoverCredentials(resp, sec, context, sizeof context, &ids, pk, authU1, export_key)) return 1;
   assert(sodium_memcmp(sk,pk,sizeof sk)==0);
   assert(memcmp(export_key, export_key0, sizeof export_key)==0);
 

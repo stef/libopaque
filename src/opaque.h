@@ -43,6 +43,7 @@
    /* x_u */ crypto_scalarmult_SCALARBYTES+            \
    /* nonceU */ OPAQUE_NONCE_BYTES+                    \
    /* blinded */  crypto_core_ristretto255_BYTES+      \
+   /* ke1 */ OPAQUE_USER_SESSION_PUBLIC_LEN+           \
    /* pwdU_len */ sizeof(uint16_t))
 
 #define OPAQUE_SERVER_SESSION_LEN (                    \
@@ -190,7 +191,6 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                               const uint8_t *ctx, const uint16_t ctx_len,
                               const Opaque_Ids *ids,
-                              const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES],
                               uint8_t export_key[crypto_hash_sha512_BYTES]);
@@ -207,7 +207,8 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
    @param [in] authU is the authentication token sent by the user.
    @return the function returns 0 if the hmac verifies correctly.
  */
-int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
+int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES],
+                    const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 /**
    Alternative user initialization, user registration as specified by the RFC
@@ -253,7 +254,9 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
    function also outputs a value pub which needs to be passed to the
    user.
    @param [in] request - the blinded password as per the OPRF.
-   @param [in] skS - the servers long-term private key
+   @param [in] skS - the servers long-term private key, optional, set
+   to NULL if you want this implementation to generate a unique key
+   for this record.
    @param [out] sec - the private key and the OPRF secret of the server.
    @param [out] pub - the evaluated OPRF and pubkey of the server to
    be passed to the client into opaque_FinalizeRequest()

@@ -158,21 +158,15 @@ static int recover_creds(lua_State *L) {
 
   context=(const uint8_t *) luaL_checklstring(L,3,&context_len);
 
-  pub=(uint8_t *) luaL_optlstring(L,4,NULL,&pub_len);
-  if(pub_len!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
-    lua_pushstring(L, "pub has invalid size");
-    return lua_error(L);
-  }
-
   Opaque_Ids ids;
   size_t id_len;
-  ids.idU=(uint8_t *) luaL_optlstring(L,5,NULL,&id_len);
+  ids.idU=(uint8_t *) luaL_optlstring(L,4,NULL,&id_len);
   if(id_len>(2<<16)-1) {
     lua_pushstring(L, "idU too long");
     return lua_error(L);
   }
   ids.idU_len=id_len;
-  ids.idS=(uint8_t *) luaL_optlstring(L,6,NULL,&id_len);
+  ids.idS=(uint8_t *) luaL_optlstring(L,5,NULL,&id_len);
   if(id_len>(2<<16)-1) {
     lua_pushstring(L, "idU too long");
     return lua_error(L);
@@ -183,7 +177,7 @@ static int recover_creds(lua_State *L) {
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key)) {
     lua_pushstring(L, "opaque recover credentials failed.");
     return lua_error(L);
   }

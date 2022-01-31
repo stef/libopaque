@@ -23,7 +23,7 @@ class Main {
         OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
@@ -42,7 +42,7 @@ class Main {
         OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
@@ -65,7 +65,7 @@ class Main {
         OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
@@ -90,7 +90,7 @@ class Main {
         OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }

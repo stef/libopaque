@@ -188,14 +188,12 @@ This function returns:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```php
-$sk, $authU, $export_key = opaque_recover_credentials($resp, $sec, $context, $req, $idU, $idS);
+$sk, $authU, $export_key = opaque_recover_credentials($resp, $sec, $context, $idU, $idS);
 ```
 
  - `$resp` comes from the server running the previous step.
  - `$sec` contains sensitive data and should be disposed securely after usage in this step.
  - `$context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
- - `$req` comes from the user running the `opaque_create_credential_request()`
-   in the first step.
  - `$idU` is the clients ID.
  - `$idS` is the servers ID.
 

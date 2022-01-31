@@ -19,7 +19,7 @@ secU, pub = create_credential_request(pwd)
 resp, skS, secS = create_credential_response(pub, rec, idU, idS, context)
 
 # client recovers keys, sets up session
-skU, authU, export_keyU = recover_credentials(resp, secU, context, pub, idU, idS)
+skU, authU, export_keyU = recover_credentials(resp, secU, context, idU, idS)
 
 raise "fail" unless skS == skU
 raise "fail" unless export_key == export_keyU
@@ -42,7 +42,7 @@ secU, pub = create_credential_request(pwd)
 resp, skS, secS = create_credential_response(pub, rec, idU, idS, context)
 
 # client recovers keys, sets up session
-skU, authU, export_keyU = recover_credentials(resp, secU, context, pub, idU, idS)
+skU, authU, export_keyU = recover_credentials(resp, secU, context, idU, idS)
 
 raise "fail" unless skS == skU
 raise "fail" unless export_key == export_keyU
@@ -67,7 +67,7 @@ secU, pub = create_credential_request(pwd)
 resp, skS, secS = create_credential_response(pub, rec, idU, idS, context)
 
 # client recovers keys, sets up session
-skU, authU, export_keyU = recover_credentials(resp, secU, context, pub, idU, idS)
+skU, authU, export_keyU = recover_credentials(resp, secU, context, idU, idS)
 
 raise "fail" unless skS == skU
 raise "fail" unless export_key == export_keyU

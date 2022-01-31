@@ -142,7 +142,7 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
   }
   fprintf(stderr,"\nopaque_RecoverCredentials\n");
 
-  if(0!=opaque_RecoverCredentials(resp, sec, (uint8_t*)"munit", 5, &ids, pub, pk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, (uint8_t*)"munit", 5, &ids, pk, authU, export_key)) {
     fprintf(stderr,"opaque_RecoverCredentials failed.\n");
     return MUNIT_FAIL;
   }

@@ -169,14 +169,13 @@ This function returns:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```lua
-sk, authU, export_key = recoverCredentials(resp, sec, context, pub, idU, idS);
+sk, authU, export_key = recoverCredentials(resp, sec, context, idU, idS);
 ```
 
  - `resp` comes from the server running the previous step.
  - `sec` contains the client sensitive data from the first step and
    should be disposed securely after this step.
  - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
- - `pub` comes from the user running the `createCredentialRequest()` in the first step.
  - `idU` is the client ID.
  - `idS` is the server ID.
 

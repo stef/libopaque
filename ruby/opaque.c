@@ -117,7 +117,7 @@ VALUE opaque_create_credential_response(int argc, VALUE *argv, VALUE obj) {
 }
 
 VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
-  rb_check_arity(argc, 4, 6);
+  rb_check_arity(argc, 3, 5);
 
   char *resp;
   size_t resp_len;
@@ -125,8 +125,6 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   size_t sec_len;
   char *context;
   size_t context_len;
-  char *pub=NULL;
-  size_t pub_len=0;
   char *idU=NULL;
   size_t idU_len=0;
   char *idS=NULL;
@@ -142,16 +140,11 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
 
   extract_str(argv[2], &context, &context_len, "context is not a string");
 
-  extract_str(argv[3], &pub, &pub_len, "pub is not a string");
-  if(pub_len!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
-    rb_raise(rb_eTypeError, "invalid pub param.");
+  if(argc>3 && RB_TYPE_P(argv[3], T_STRING) == 1) {
+    extract_str(argv[3], &idU, &idU_len, "");
   }
-
   if(argc>4 && RB_TYPE_P(argv[4], T_STRING) == 1) {
-    extract_str(argv[4], &idU, &idU_len, "");
-  }
-  if(argc>5 && RB_TYPE_P(argv[5], T_STRING) == 1) {
-    extract_str(argv[5], &idS, &idS_len, "");
+    extract_str(argv[4], &idS, &idS_len, "");
   }
 
   Opaque_Ids ids={.idU_len=idU_len,.idU=idU,.idS_len=idS_len,.idS=idS};
@@ -160,7 +153,7 @@ VALUE opaque_recover_credentials(int argc, VALUE *argv, VALUE obj) {
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key)) {
     rb_raise(rb_eRuntimeError, "recover credentials failed");
   }
 

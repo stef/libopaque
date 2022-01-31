@@ -72,8 +72,8 @@ class Opaque {
         return c_createCredResp(req, rec, ids, context);
     }
 
-    public OpaqueCreds recoverCreds(byte[] resp, byte[] sec, String context, OpaqueIds ids, byte[] pub) {
-        return c_recoverCreds(resp, sec, context, ids, pub);
+    public OpaqueCreds recoverCreds(byte[] resp, byte[] sec, String context, OpaqueIds ids) {
+        return c_recoverCreds(resp, sec, context, ids);
     }
 
     public boolean userAuth(byte[] sec, byte[] authU) {
@@ -106,7 +106,7 @@ class Opaque {
     private static native OpaqueRecExpKey c_register(String pwd);
     private static native OpaqueCredReq c_createCredReq(String pwd);
     private static native OpaqueCredResp c_createCredResp(byte[] req, byte[] rec, OpaqueIds ids, String context);
-    private static native OpaqueCreds c_recoverCreds(byte[] resp, byte[] sec, String context, OpaqueIds ids, byte[] pub);
+    private static native OpaqueCreds c_recoverCreds(byte[] resp, byte[] sec, String context, OpaqueIds ids);
     private static native boolean c_userAuth(byte[] sec, byte[] authU);
     private static native OpaqueRegReq c_createRegReq(String pwd);
     private static native OpaqueRegResp c_createRegResp(byte[] M, byte[] skS);

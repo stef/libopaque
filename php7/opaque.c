@@ -142,14 +142,11 @@ PHP_FUNCTION(opaque_recover_credentials) {
   size_t idS_len=0;
   char *context=NULL;
   size_t context_len=0;
-  char *pub=NULL;
-  size_t pub_len=0;
 
-  ZEND_PARSE_PARAMETERS_START(4, 6)
+  ZEND_PARSE_PARAMETERS_START(3, 5)
     Z_PARAM_STRING(resp, resp_len)
     Z_PARAM_STRING(sec, sec_len)
     Z_PARAM_STRING(context, context_len)
-    Z_PARAM_STRING(pub, pub_len)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING(idU, idU_len)
     Z_PARAM_STRING(idS, idS_len)
@@ -165,11 +162,6 @@ PHP_FUNCTION(opaque_recover_credentials) {
     return;
   }
 
-  if(pub_len!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
-    php_error_docref(NULL, E_WARNING, "invalid pub param.");
-    return;
-  }
-
   Opaque_Ids ids={.idU_len=idU_len,.idU=idU,.idS_len=idS_len,.idS=idS};
 
 
@@ -177,7 +169,7 @@ PHP_FUNCTION(opaque_recover_credentials) {
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) return;
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, sk, authU, export_key)) return;
 
   zend_array *ret = zend_new_array(3);
   zval zarr;
@@ -416,7 +408,6 @@ ZEND_BEGIN_ARG_INFO(arginfo_opaque_recover_credentials, 0)
 	ZEND_ARG_INFO(0, resp)
 	ZEND_ARG_INFO(0, sec)
 	ZEND_ARG_INFO(0, context)
-	ZEND_ARG_INFO(0, pub)
 	ZEND_ARG_INFO(0, idU)
 	ZEND_ARG_INFO(0, idS)
 ZEND_END_ARG_INFO()

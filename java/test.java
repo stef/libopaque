@@ -10,74 +10,39 @@ class Main {
 	}
 
     private static void test1() {
-        OpaqueConfig cfg = new OpaqueConfig(OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.InSecEnv);
         OpaqueIds ids = new OpaqueIds("idU".getBytes(Charset.forName("UTF-8")),
                                       "idS".getBytes(Charset.forName("UTF-8")));
-		System.out.println("cfg.skU: " + cfg.skU + " ");
-		System.out.println("cfg.pkU: " + cfg.pkU + " ");
-		System.out.println("cfg.pkS: " + cfg.pkS + " ");
-		System.out.println("cfg.idU: " + cfg.idU + " ");
-		System.out.println("cfg.idS: " + cfg.idS + "\n");
-
         Opaque o = new Opaque();
 
-        OpaqueRecExpKey ret = o.register("password", cfg, ids);
+        OpaqueRecExpKey ret = o.register("password", ids);
 		System.out.println("rec=" + ret.rec + ", ek=" + ret.export_key);
 
         OpaqueCredReq creq = o.createCredReq("password");
 		System.out.println("sec=" + creq.sec + ", pub=" + creq.pub);
 
-        OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, cfg, ids);
+        OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueIds ids0 = new OpaqueIds();
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, cfg, ids0);
-
-        String idU = new String(creds.ids.idU);
-        String idS = new String(creds.ids.idS);
-		System.out.println("idS: " + idS);
-		System.out.println("idU: " + idU);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
 
     private static void test_noPks_noIds() {
-        OpaqueConfig cfg = new OpaqueConfig(OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.NotPackaged);
         OpaqueIds ids = new OpaqueIds("idU".getBytes(Charset.forName("UTF-8")),
                                       "idS".getBytes(Charset.forName("UTF-8")));
-		System.out.println("cfg.skU: " + cfg.skU + " ");
-		System.out.println("cfg.pkU: " + cfg.pkU + " ");
-		System.out.println("cfg.pkS: " + cfg.pkS + " ");
-		System.out.println("cfg.idU: " + cfg.idU + " ");
-		System.out.println("cfg.idS: " + cfg.idS + "\n");
-
         Opaque o = new Opaque();
-
         byte[] skS = fromHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
-        OpaqueRecExpKey ret =o.register("password", skS, cfg, ids);
+        OpaqueRecExpKey ret =o.register("password", skS, ids);
 		System.out.println("rec=" + ret.rec + ", ek=" + ret.export_key);
 
         OpaqueCredReq creq = o.createCredReq("password");
 		System.out.println("sec=" + creq.sec + ", pub=" + creq.pub);
 
-        OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, cfg, ids);
+        OpaqueCredResp cresp = o.createCredResp(creq.pub, ret.rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        byte[] pkS = fromHex("8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f");
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, pkS, cfg, ids);
-
-        String idU = new String(creds.ids.idU);
-        String idS = new String(creds.ids.idS);
-		System.out.println("idS: " + idS);
-		System.out.println("idU: " + idU);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
@@ -87,20 +52,9 @@ class Main {
         OpaqueRegReq regReq = o.createRegReq("password");
         OpaqueRegResp regResp = o.createRegResp(regReq.M);
 
-        OpaqueConfig cfg = new OpaqueConfig(OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.InSecEnv);
         OpaqueIds ids = new OpaqueIds("idU".getBytes(Charset.forName("UTF-8")),
                                       "idS".getBytes(Charset.forName("UTF-8")));
-		System.out.println("cfg.skU: " + cfg.skU + " ");
-		System.out.println("cfg.pkU: " + cfg.pkU + " ");
-		System.out.println("cfg.pkS: " + cfg.pkS + " ");
-		System.out.println("cfg.idU: " + cfg.idU + " ");
-		System.out.println("cfg.idS: " + cfg.idS + "\n");
-
-        OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, cfg, ids);
+        OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, ids);
 
         byte[] rec = o.storeRec(regResp.sec, prerec.rec);
 		System.out.println("rec: " + toHex(rec) + "\n");
@@ -108,15 +62,10 @@ class Main {
         OpaqueCredReq creq = o.createCredReq("password");
 		System.out.println("sec=" + creq.sec + ", pub=" + creq.pub);
 
-        OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, cfg, ids);
+        OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, cfg, ids);
-
-        String idU = new String(creds.ids.idU);
-        String idS = new String(creds.ids.idS);
-		System.out.println("idS: " + idS);
-		System.out.println("idU: " + idU);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }
@@ -124,39 +73,24 @@ class Main {
     private static void test_priv1kreg() {
         Opaque o = new Opaque();
         OpaqueRegReq regReq = o.createRegReq("password");
-        byte[] pkS = fromHex("8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f");
-        OpaqueRegResp regResp = o.createRegResp(regReq.M, pkS);
+        byte[] skS = fromHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+        OpaqueRegResp regResp = o.createRegResp(regReq.M, skS);
 
-        OpaqueConfig cfg = new OpaqueConfig(OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.NotPackaged,
-                                            OpaqueConfig.PkgTarget.InSecEnv,
-                                            OpaqueConfig.PkgTarget.InSecEnv);
         OpaqueIds ids = new OpaqueIds("idU".getBytes(Charset.forName("UTF-8")),
                                       "idS".getBytes(Charset.forName("UTF-8")));
-		System.out.println("cfg.skU: " + cfg.skU + " ");
-		System.out.println("cfg.pkU: " + cfg.pkU + " ");
-		System.out.println("cfg.pkS: " + cfg.pkS + " ");
-		System.out.println("cfg.idU: " + cfg.idU + " ");
-		System.out.println("cfg.idS: " + cfg.idS + "\n");
-        OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, cfg, ids);
 
-        byte[] skS = fromHex("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
-        byte[] rec = o.storeRec(regResp.sec, skS, prerec.rec);
+        OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, ids);
+
+        byte[] rec = o.storeRec(regResp.sec, prerec.rec);
 		System.out.println("rec: " + toHex(rec) + "\n");
 
         OpaqueCredReq creq = o.createCredReq("password");
 		System.out.println("sec=" + creq.sec + ", pub=" + creq.pub);
 
-        OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, cfg, ids);
+        OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, ids, "context");
 		System.out.println("sec=" + cresp.sec + ", pub=" + cresp.pub);
 
-        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, pkS, cfg, ids);
-
-        String idU = new String(creds.ids.idU);
-        String idS = new String(creds.ids.idS);
-		System.out.println("idS: " + idS);
-		System.out.println("idU: " + idU);
+        OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, "context", ids, creq.pub);
 
         assert o.userAuth(cresp.sec, creds.authU);
     }

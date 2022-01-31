@@ -12,7 +12,7 @@ static void exception(JNIEnv *env, const char* msg) {
 }
 
 typedef struct {
-  const char *key;    /**< length of idU, most useful if idU is binary */
+  const char *key;
   char* val;
   size_t len;
 } RetVal;
@@ -40,31 +40,6 @@ static jobject retlist(JNIEnv *env, const char* cls, RetVal *vals) {
   (*env)->DeleteLocalRef(env, clazz);
 
   return obj;
-}
-
-static Opaque_PkgTarget getitem(JNIEnv *env, jobject obj, const char* cls, const char *key) {
-  jclass clazz = (*env)->FindClass(env, cls);
-  jfieldID attr = (*env)->GetFieldID(env, clazz, key, "LOpaqueConfig$PkgTarget;");
-  jobject val = (*env)->GetObjectField(env, obj, attr);
-  jclass ecls = (*env)->FindClass(env, "OpaqueConfig$PkgTarget");
-  jmethodID mid = (*env)->GetMethodID(env, ecls, "ordinal", "()I");
-  jint res = (*env)->CallIntMethod(env, val, mid);
-  if(res != NotPackaged && res != InSecEnv && res != InClrEnv) {
-    exception(env,"item is not packaged in envelope");
-  }
-  (*env)->ExceptionClear(env);
-  (*env)->DeleteLocalRef(env, clazz);
-  (*env)->DeleteLocalRef(env, val);
-  (*env)->DeleteLocalRef(env, ecls);
-  return res;
-}
-
-static void getcfg(JNIEnv *env, jobject cfg_, Opaque_PkgConfig *cfg) {
-  cfg->skU = getitem(env, cfg_, "OpaqueConfig", "skU");
-  cfg->pkU = getitem(env, cfg_, "OpaqueConfig", "pkU");
-  cfg->pkS = getitem(env, cfg_, "OpaqueConfig", "pkS");
-  cfg->idU = getitem(env, cfg_, "OpaqueConfig", "idU");
-  cfg->idS = getitem(env, cfg_, "OpaqueConfig", "idS");
 }
 
 typedef struct {
@@ -113,8 +88,7 @@ static void getids(JNIEnv *env, jobject ids_, Opaque_Ids *ids, IdGC *gc) {
     }
 }
 
-static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS_, jobject cfg_, jobject ids_) {
-  //int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len, const uint8_t skS[crypto_scalarmult_SCALARBYTES], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids, uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
+static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS_, jobject ids_) {
   const char *pwdU, *skS=NULL;
   jbyte *skS_jb=NULL;
   size_t pwdU_len;
@@ -131,25 +105,24 @@ static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS
   pwdU_len = (*env)->GetStringLength(env, pwd_);
   //fprintf(stderr,"pwdU: %s, pwdU_len: %ld\n", pwdU, pwdU_len);
 
-  Opaque_PkgConfig cfg = {0};
-  getcfg(env, cfg_, &cfg);
   Opaque_Ids ids = {0};
   IdGC gc;
-  getids(env, ids_, &ids, &gc);
+  if(NULL!=ids_) getids(env, ids_, &ids, &gc);
 
   uint8_t export_key[crypto_hash_sha512_BYTES];
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
 
-  if(0!=opaque_Register(pwdU, pwdU_len, skS, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_Register(pwdU, pwdU_len, skS, &ids, rec, export_key)) {
     exception(env,"opaque register() failed...");
   }
   (*env)->ReleaseStringUTFChars(env, pwd_, pwdU);
   if(skS_!=NULL) {
     (*env)->ReleaseByteArrayElements(env, skS_, skS_jb, JNI_ABORT);
   }
-  (*env)->ReleaseByteArrayElements(env, gc.idU, gc.idU_jb, JNI_ABORT);
-  (*env)->ReleaseByteArrayElements(env, gc.idS, gc.idS_jb, JNI_ABORT);
+  if(NULL!=ids_) {
+    (*env)->ReleaseByteArrayElements(env, gc.idU, gc.idU_jb, JNI_ABORT);
+    (*env)->ReleaseByteArrayElements(env, gc.idS, gc.idS_jb, JNI_ABORT);
+  }
 
   RetVal ret[] = {{.key = "rec", .val = rec, .len = sizeof(rec) },
                   {.key = "export_key", .val = export_key, .len = sizeof(export_key)},
@@ -158,11 +131,18 @@ static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS
   return retlist(env, "OpaqueRecExpKey", ret);
 }
 
-static jobject c_register_noskS(JNIEnv *env, jobject obj, jstring pwd_, jobject cfg_, jobject ids_) {
-  return c_register(env, obj, pwd_, NULL, cfg_, ids_);
+static jobject c_register_noIds(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray sks_) {
+  return c_register(env, obj, pwd_, sks_, NULL);
 }
 
-//int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+static jobject c_register_noSks(JNIEnv *env, jobject obj, jstring pwd_, jobject ids_) {
+  return c_register(env, obj, pwd_, NULL, ids_);
+}
+
+static jobject c_register1(JNIEnv *env, jobject obj, jstring pwd_) {
+  return c_register(env, obj, pwd_, NULL, NULL);
+}
+
 static jobject c_createCredReq(JNIEnv *env, jobject obj, jstring pwd_) {
   const char *pwdU;
   size_t pwdU_len;
@@ -186,8 +166,7 @@ static jobject c_createCredReq(JNIEnv *env, jobject obj, jstring pwd_) {
   return retlist(env, "OpaqueCredReq", ret);
 }
 
-//int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], const Opaque_Ids *ids, const Opaque_App_Infos *infos, uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
-static jobject _c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyteArray rec_, jobject cfg_, jobject ids_) {
+static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyteArray rec_, jobject ids_, jstring context_) {
   const uint8_t *pub, // OPAQUE_USER_SESSION_PUBLIC_LEN
                 *rec; // OPAQUE_USER_RECORD_LEN+envU_len
 
@@ -198,27 +177,27 @@ static jobject _c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyt
   pub_jb = (*env)->GetByteArrayElements(env, pub_, NULL);
   pub = (char*) pub_jb;
 
+  if((*env)->GetArrayLength(env, rec_)!=OPAQUE_USER_RECORD_LEN) {
+    exception(env, "invalid record size");
+  }
   jbyte *rec_jb=NULL;
   rec_jb = (*env)->GetByteArrayElements(env, rec_, NULL);
   rec = (char*) rec_jb;
 
-  Opaque_PkgConfig cfg = {0};
-  getcfg(env, cfg_, &cfg);
+  const char *context;
+  size_t context_len;
+  context  = (*env)->GetStringUTFChars(env, context_, 0);
+  context_len = (*env)->GetStringLength(env, context_);
+
   Opaque_Ids ids = {0};
   IdGC gc;
   getids(env, ids_, &ids, &gc);
 
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-
-  if((*env)->GetArrayLength(env, rec_)!=OPAQUE_USER_RECORD_LEN+envU_len) {
-    exception(env, "invalid record size");
-  }
-
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN+envU_len];
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
-  uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]={0};
+  uint8_t sec[crypto_auth_hmacsha512_BYTES]={0};
 
-  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, NULL, resp, sk, sec)) {
+  if(0!=opaque_CreateCredentialResponse(pub, rec, &ids, context, context_len, resp, sk, sec)) {
     exception(env,"opaque createCredResp() failed...");
   }
 
@@ -226,6 +205,7 @@ static jobject _c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyt
   (*env)->ReleaseByteArrayElements(env, rec_, rec_jb, JNI_ABORT);
   (*env)->ReleaseByteArrayElements(env, gc.idU, gc.idU_jb, JNI_ABORT);
   (*env)->ReleaseByteArrayElements(env, gc.idS, gc.idS_jb, JNI_ABORT);
+  (*env)->ReleaseStringUTFChars(env, context_, context);
 
   RetVal ret[] = {{.key = "sec", .val = sec, .len = sizeof(sec) },
                   {.key = "sk", .val = sk, .len = sizeof(sk)},
@@ -235,25 +215,14 @@ static jobject _c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyt
   return retlist(env, "OpaqueCredResp", ret);
 }
 
-static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyteArray rec_, jobject cfg_, jobject ids_) {
-  return _c_createCredResp(env,obj,pub_,rec_,cfg_,ids_);
-}
-
-
-//int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/], const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/], const uint8_t pkS[crypto_scalarmult_BYTES], const Opaque_PkgConfig *cfg, const Opaque_App_Infos *infos, Opaque_Ids *ids, uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES], uint8_t export_key[crypto_hash_sha512_BYTES]);
-static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jbyteArray pkS_, jobject cfg_, jobject ids_) {
-
-  Opaque_PkgConfig cfg = {0};
-  getcfg(env, cfg_, &cfg);
+static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jstring context_, jobject ids_, jbyteArray pub_) {
 
   Opaque_Ids ids = {0};
   IdGC gc={0};
   getids(env, ids_, &ids, &gc);
 
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-
   const size_t resp_len = (*env)->GetArrayLength(env, resp_);
-  if(resp_len<OPAQUE_SERVER_SESSION_LEN+envU_len) {
+  if(resp_len!=OPAQUE_SERVER_SESSION_LEN) {
     exception(env, "invalid response size");
   }
   uint8_t *resp;
@@ -270,51 +239,25 @@ static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_,
   sec_jb = (*env)->GetByteArrayElements(env, sec_, NULL);
   sec = (char*) sec_jb;
 
-  uint8_t *pkS=0;
-  jbyte *pkS_jb=NULL;
-  if(NULL!=pkS_) {
-    if (cfg.pkS!=NotPackaged) {
-      exception(env, "pkS is packaged according to cfg and also provided as param");
-    }
-    if((*env)->GetArrayLength(env, sec_)!=crypto_scalarmult_BYTES) {
-      exception(env, "invalid pkS size");
-    }
-    pkS_jb = (*env)->GetByteArrayElements(env, pkS_, NULL);
-    pkS = (char*) pkS_jb;
-  } else if (cfg.pkS==NotPackaged) {
-    exception(env, "pkS is NotPackaged in cfg and also not provided as param");
+  uint8_t *pub=0;
+  jbyte *pub_jb=NULL;
+  if((*env)->GetArrayLength(env, pub_)!=OPAQUE_USER_SESSION_PUBLIC_LEN) {
+    exception(env, "invalid pub size");
   }
+  pub_jb = (*env)->GetByteArrayElements(env, pub_, NULL);
+  pub = (char*) pub_jb;
 
-  uint8_t idU[1024]={0}, idS[1024]={0};
-  if (cfg.idU==NotPackaged) {
-    if (ids.idU==NULL) {
-      exception(env, "ids.idU cannot be nil if cfg.idU is NotPackaged.");
-    }
-  } else {
-    if(ids.idS!=NULL) {
-      exception(env, "ids.idU cannot be provided if cfg.idU is packaged.");
-    }
-    ids.idU = idU;
-    ids.idU_len = sizeof(idU);
-  }
-  if (cfg.idS==NotPackaged) {
-    if (ids.idS==NULL) {
-      exception(env, "ids.idS cannot be nil if cfg.idS is NotPackaged.");
-    }
-  } else {
-    if(ids.idS!=NULL) {
-      exception(env, "ids.idS cannot be provided if cfg.idS is packaged.");
-    }
-    ids.idS = idS;
-    ids.idS_len = sizeof(idS);
-  }
+  const char *context;
+  size_t context_len;
+  context  = (*env)->GetStringUTFChars(env, context_, 0);
+  context_len = (*env)->GetStringLength(env, context_);
 
   //  exception(env,"opaque createCredResp() failed...");
   uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t export_key[crypto_hash_sha512_BYTES];
 
-  if(0!=opaque_RecoverCredentials(resp, sec, pkS, &cfg, NULL, &ids, sk, authU, export_key)) {
+  if(0!=opaque_RecoverCredentials(resp, sec, context, context_len, &ids, pub, sk, authU, export_key)) {
     exception(env,"opaque recoverCredentials() failed...");
   }
 
@@ -326,9 +269,8 @@ static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_,
   }
   (*env)->ReleaseByteArrayElements(env, resp_, resp_jb, JNI_ABORT);
   (*env)->ReleaseByteArrayElements(env, sec_, sec_jb, JNI_ABORT);
-  if(NULL!=pkS_) {
-    (*env)->ReleaseByteArrayElements(env, pkS_, pkS_jb, JNI_ABORT);
-  }
+  (*env)->ReleaseByteArrayElements(env, pub_, pub_jb, JNI_ABORT);
+  (*env)->ReleaseStringUTFChars(env, context_, context);
 
   RetVal retvals[] = {{.key = "authU", .val = authU, .len = sizeof(authU) },
                   {.key = "sk", .val = sk, .len = sizeof(sk)},
@@ -337,32 +279,8 @@ static jobject _c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_,
 
   jobject ret = retlist(env, "OpaqueCreds", retvals);
   jclass clazz = (*env)->FindClass(env, "OpaqueCreds");
-  jfieldID attr = (*env)->GetFieldID(env, clazz, "ids", "LOpaqueIds;");
-  (*env)->SetObjectField(env, ret, attr, ids_);
-  (*env)->DeleteLocalRef(env, clazz);
-
-  jclass oidcls=(*env)->FindClass(env, "OpaqueIds");
-  if(cfg.idU!=NotPackaged) {
-    jfieldID attr = (*env)->GetFieldID(env, oidcls, "idU", "[B");
-    jbyteArray arr = (*env)->NewByteArray(env, ids.idU_len);
-    (*env)->SetByteArrayRegion(env, arr, 0, ids.idU_len, ids.idU);
-    (*env)->SetObjectField(env, ids_, attr, arr);
-    (*env)->DeleteLocalRef(env, arr);
-  }
-  if(cfg.idS!=NotPackaged) {
-    jfieldID attr = (*env)->GetFieldID(env, oidcls, "idS", "[B");
-    jbyteArray arr = (*env)->NewByteArray(env, ids.idS_len);
-    (*env)->SetByteArrayRegion(env, arr, 0, ids.idS_len, ids.idS);
-    (*env)->SetObjectField(env, ids_, attr, arr);
-    (*env)->DeleteLocalRef(env, arr);
-  }
-  (*env)->DeleteLocalRef(env, oidcls);
 
   return ret;
-}
-
-static jobject _c_recoverCredentials_NP(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jobject cfg_, jobject ids_) {
-  return _c_recoverCredentials(env,obj,resp_,sec_,NULL,cfg_,ids_);
 }
 
 static jboolean c_userAuth(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray authU_) {
@@ -370,7 +288,7 @@ static jboolean c_userAuth(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray
   const uint8_t *sec,
                 *authU;
 
-  if((*env)->GetArrayLength(env, sec_)!=OPAQUE_SERVER_AUTH_CTX_LEN) {
+  if((*env)->GetArrayLength(env, sec_)!=crypto_auth_hmacsha512_BYTES) {
     exception(env, "invalid secret context size");
     return JNI_FALSE;
   }
@@ -421,8 +339,7 @@ static jobject c_createRegReq(JNIEnv *env, jobject obj, jstring pwd_) {
   return retlist(env, "OpaqueRegReq", ret);
 }
 
-static jobject c_createRegResp(JNIEnv *env, jobject obj, jbyteArray M_) {
-  // int opaque_CreateRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+static jobject c_createRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteArray sks_) {
   const char *M=NULL;
   jbyte *M_jb=NULL;
 
@@ -432,53 +349,24 @@ static jobject c_createRegResp(JNIEnv *env, jobject obj, jbyteArray M_) {
   M_jb = (*env)->GetByteArrayElements(env, M_, NULL);
   M = (char*) M_jb;
 
-  uint8_t sec[OPAQUE_REGISTER_SECRET_LEN];
-  uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN];
+  const char *sks=NULL;
+  jbyte *sks_jb=NULL;
 
-  int res = opaque_CreateRegistrationResponse(M, sec, pub);
-
-  (*env)->ReleaseByteArrayElements(env, M_, M_jb, JNI_ABORT);
-
-  if(0!=res) {
-    exception(env,"opaque create registration response () failed...");
-    return NULL;
-  }
-
-  RetVal ret[] = {{.key = "sec", .val = sec, .len = sizeof(sec) },
-                  {.key = "pub", .val = pub, .len = sizeof(pub)},
-                  { .key = NULL, .val = NULL}};
-
-  return retlist(env, "OpaqueRegResp", ret);
-}
-
-static jobject c_create1kRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteArray pkS_) {
-  // int opaque_Create1kRegistrationResponse(const uint8_t M[crypto_core_ristretto255_BYTES], const uint8_t pkS[crypto_scalarmult_BYTES], uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
-  const char *pkS=NULL, *M=NULL;
-  jbyte *pkS_jb=NULL, *M_jb=NULL;
-
-  if(NULL!=pkS_) {
-    if((*env)->GetArrayLength(env, pkS_)!=crypto_scalarmult_BYTES) {
-      exception(env, "pkS has invalid size");
+  if(sks_!=NULL) {
+    if((*env)->GetArrayLength(env, sks_)!=crypto_scalarmult_SCALARBYTES) {
+      exception(env, "skS has invalid size");
     }
-    pkS_jb = (*env)->GetByteArrayElements(env, pkS_, NULL);
-    pkS = (char*) pkS_jb;
+    sks_jb = (*env)->GetByteArrayElements(env, sks_, NULL);
+    sks = (char*) sks_jb;
   }
-
-  if((*env)->GetArrayLength(env, M_)!=crypto_core_ristretto255_BYTES) {
-    exception(env, "M has invalid size");
-  }
-  M_jb = (*env)->GetByteArrayElements(env, M_, NULL);
-  M = (char*) M_jb;
 
   uint8_t sec[OPAQUE_REGISTER_SECRET_LEN];
   uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN];
 
-  int res = opaque_Create1kRegistrationResponse(M, pkS, sec, pub);
+  int res = opaque_CreateRegistrationResponse(M, sks, sec, pub);
 
-  if(pkS_!=NULL) {
-    (*env)->ReleaseByteArrayElements(env, pkS_, pkS_jb, JNI_ABORT);
-  }
   (*env)->ReleaseByteArrayElements(env, M_, M_jb, JNI_ABORT);
+  if(sks_!=NULL) (*env)->ReleaseByteArrayElements(env, sks_, sks_jb, JNI_ABORT);
 
   if(0!=res) {
     exception(env,"opaque create registration response () failed...");
@@ -492,9 +380,11 @@ static jobject c_create1kRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteA
   return retlist(env, "OpaqueRegResp", ret);
 }
 
-static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray pub_, jobject cfg_, jobject ids_) {
-// int opaque_FinalizeRequest(const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/], const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN], const Opaque_PkgConfig *cfg, const Opaque_Ids *ids,
-// uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/], uint8_t export_key[crypto_hash_sha512_BYTES]);
+static jobject c_createRegResp1(JNIEnv *env, jobject obj, jbyteArray M_) {
+  return c_createRegResp(env, obj, M_, NULL);
+}
+
+static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray pub_, jobject ids_) {
   const char *sec=NULL, *pub=NULL;
   jbyte *sec_jb=NULL, *pub_jb = NULL;
 
@@ -510,17 +400,14 @@ static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   pub_jb = (*env)->GetByteArrayElements(env, pub_, NULL);
   pub = (char*) pub_jb;
 
-  Opaque_PkgConfig cfg = {0};
-  getcfg(env, cfg_, &cfg);
   Opaque_Ids ids = {0};
   IdGC gc;
   getids(env, ids_, &ids, &gc);
 
   uint8_t export_key[crypto_hash_sha512_BYTES];
-  const uint32_t envU_len = opaque_envelope_len(&cfg, &ids);
-  uint8_t rec[OPAQUE_USER_RECORD_LEN+envU_len];
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
 
-  if(0!=opaque_FinalizeRequest(sec, pub, &cfg, &ids, rec, export_key)) {
+  if(0!=opaque_FinalizeRequest(sec, pub, &ids, rec, export_key)) {
     exception(env,"opaque register() failed...");
   }
 
@@ -537,12 +424,10 @@ static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   return retlist(env, "OpaquePreRecExpKey", ret);
 }
 
-static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray rec_) {
-// void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-// uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
+static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray recU_) {
   const char *sec=NULL;
-  char *rec=NULL;
-  jbyte *sec_jb=NULL, *rec_jb = NULL;
+  char *recU=NULL;
+  jbyte *sec_jb=NULL, *recU_jb = NULL;
 
   if((*env)->GetArrayLength(env, sec_)<=OPAQUE_REGISTER_USER_SEC_LEN) {
     exception(env, "sec has invalid size");
@@ -551,75 +436,41 @@ static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   sec_jb = (*env)->GetByteArrayElements(env, sec_, NULL);
   sec = (char*) sec_jb;
 
-  size_t rec_len= (*env)->GetArrayLength(env, rec_);
-  if(rec_len<=OPAQUE_USER_RECORD_LEN) {
-    exception(env, "rec has invalid size");
+  size_t recU_len= (*env)->GetArrayLength(env, recU_);
+  if(recU_len<=OPAQUE_REGISTRATION_RECORD_LEN) {
+    exception(env, "recU has invalid size");
     return NULL;
   }
-  rec_jb = (*env)->GetByteArrayElements(env, rec_, NULL);
-  rec = (char*) rec_jb;
+  recU_jb = (*env)->GetByteArrayElements(env, recU_, NULL);
+  recU = (char*) recU_jb;
 
-  opaque_StoreUserRecord(sec, rec);
+  uint8_t rec[OPAQUE_USER_RECORD_LEN];
+  opaque_StoreUserRecord(sec, recU, rec);
 
   (*env)->ReleaseByteArrayElements(env, sec_, sec_jb, JNI_ABORT);
-  (*env)->ReleaseByteArrayElements(env, rec_, rec_jb, 0);
+  (*env)->ReleaseByteArrayElements(env, recU_, recU_jb, 0);
+
+  jbyteArray rec_ = (*env)->NewByteArray(env, sizeof rec);
+  (*env)->SetByteArrayRegion(env, rec_, 0, sizeof rec, rec);
 
   return rec_;
 }
 
-static jbyteArray c_store1kRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray skS_, jbyteArray rec_) {
-// void opaque_Store1kUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN], const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-// uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
-
-  const char *sec=NULL, *skS=NULL;
-  char *rec=NULL;
-  jbyte *sec_jb=NULL, *rec_jb = NULL, *skS_jb = NULL;
-
-  if((*env)->GetArrayLength(env, sec_)<=OPAQUE_REGISTER_USER_SEC_LEN) {
-    exception(env, "sec has invalid size");
-    return NULL;
-  }
-  sec_jb = (*env)->GetByteArrayElements(env, sec_, NULL);
-  sec = (char*) sec_jb;
-
-  size_t rec_len= (*env)->GetArrayLength(env, rec_);
-  if(rec_len<=OPAQUE_USER_RECORD_LEN) {
-    exception(env, "rec has invalid size");
-    return NULL;
-  }
-  rec_jb = (*env)->GetByteArrayElements(env, rec_, NULL);
-  rec = (char*) rec_jb;
-
-  if((*env)->GetArrayLength(env, skS_)!=crypto_scalarmult_SCALARBYTES) {
-    exception(env, "skS has invalid size");
-    return NULL;
-  }
-  skS_jb = (*env)->GetByteArrayElements(env, skS_, NULL);
-  skS = (char*) skS_jb;
-
-  opaque_Store1kUserRecord(sec, skS, rec);
-
-  (*env)->ReleaseByteArrayElements(env, sec_, sec_jb, JNI_ABORT);
-  (*env)->ReleaseByteArrayElements(env, rec_, rec_jb, 0);
-  (*env)->ReleaseByteArrayElements(env, skS_, skS_jb, JNI_ABORT);
-
-  return rec_;
-}
 
 static JNINativeMethod funcs[] = {
-    { "c_register", "(Ljava/lang/String;[BLOpaqueConfig;LOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register },
-    { "c_register", "(Ljava/lang/String;LOpaqueConfig;LOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register_noskS },
-    { "c_createCredReq", "(Ljava/lang/String;)LOpaqueCredReq;", (void *)&c_createCredReq },
-    { "c_createCredResp", "([B[BLOpaqueConfig;LOpaqueIds;)LOpaqueCredResp;", (void *)&c_createCredResp },
-    { "c_recoverCreds", "([B[B[BLOpaqueConfig;LOpaqueIds;)LOpaqueCreds;", (void *)&_c_recoverCredentials },
-    { "c_recoverCreds", "([B[BLOpaqueConfig;LOpaqueIds;)LOpaqueCreds;", (void *)&_c_recoverCredentials_NP },
-    { "c_userAuth", "([B[B)Z", (void *)&c_userAuth },
-    { "c_createRegReq", "(Ljava/lang/String;)LOpaqueRegReq;", (void *)&c_createRegReq },
-    { "c_createRegResp", "([B)LOpaqueRegResp;", (void *)&c_createRegResp},
-    { "c_createRegResp", "([B[B)LOpaqueRegResp;", (void *)&c_create1kRegResp },
-    { "c_finalizeReg", "([B[BLOpaqueConfig;LOpaqueIds;)LOpaquePreRecExpKey;", (void *)&c_finalizeReg },
-    { "c_storeRec", "([B[B)[B", (void *)&c_storeRec },
-    { "c_storeRec", "([B[B[B)[B", (void *)&c_store1kRec },
+  { "c_register", "(Ljava/lang/String;[BLOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register },
+  { "c_register", "(Ljava/lang/String;[B)LOpaqueRecExpKey;", (void *)&c_register_noIds },
+  { "c_register", "(Ljava/lang/String;LOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register_noSks },
+  { "c_register", "(Ljava/lang/String;)LOpaqueRecExpKey;", (void *)&c_register1 },
+  { "c_createCredReq", "(Ljava/lang/String;)LOpaqueCredReq;", (void *)&c_createCredReq },
+  { "c_createCredResp", "([B[BLOpaqueIds;Ljava/lang/String;)LOpaqueCredResp;", (void *)&c_createCredResp },
+  { "c_recoverCreds", "([B[BLjava/lang/String;LOpaqueIds;[B)LOpaqueCreds;", (void *)&c_recoverCredentials },
+  { "c_userAuth", "([B[B)Z", (void *)&c_userAuth },
+  { "c_createRegReq", "(Ljava/lang/String;)LOpaqueRegReq;", (void *)&c_createRegReq },
+  { "c_createRegResp", "([B[B)LOpaqueRegResp;", (void *)&c_createRegResp},
+  { "c_createRegResp", "([B)LOpaqueRegResp;", (void *)&c_createRegResp1},
+  { "c_finalizeReg", "([B[BLOpaqueIds;)LOpaquePreRecExpKey;", (void *)&c_finalizeReg },
+  { "c_storeRec", "([B[B)[B", (void *)&c_storeRec },
 };
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)

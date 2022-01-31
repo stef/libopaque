@@ -25,7 +25,7 @@ see test.java
 
 ## API
 
-There are 3 data structures that are used by libopaque:
+There is onedata structure that is used by libopaque:
 
 ### `Ids`
 
@@ -40,41 +40,6 @@ OpaqueIds ids = new OpaqueIds("idU".getBytes(Charset.forName("UTF-8")),
                               "idS".getBytes(Charset.forName("UTF-8")));
 ```
 
-### `PkgConfig`
-
-Configuration of the envelope is handled via instances of the
-`OpaqueConfig` class.
-
-The parameters passed to the constructor of this class correspond to
-the envelope fields in this order: `skU`, `pkU`, `pkS`, `idU`,
-`idS`. Each of these parameters must be one of the following
-constants:
-
- - `OpaqueConfig.PkgTarget.InSecEnv`: the value is encrypted in the envelope,
- - `OpaqueConfig.PkgTarget.InClrEnv`: the value is unencrypted in the envelope,
- - `OpaqueConfig.PkgTarget.NotPackaged`: the value is not present in the envelope.
-
-Important to note is that the first value for the `skU` cannot be
-`InClrEnv` since this value is the clients secret key, and thus must
-either be encrypted or not packaged at all to be derived. For more
-information how `NotPackaged` values are derived see the main
-libopaque documentation.
-
-Example:
-```
-OpaqueConfig cfg = new OpaqueConfig(OpaqueConfig.PkgTarget.InSecEnv,
-                                    OpaqueConfig.PkgTarget.NotPackaged,
-                                    OpaqueConfig.PkgTarget.NotPackaged,
-                                    OpaqueConfig.PkgTarget.InSecEnv,
-                                    OpaqueConfig.PkgTarget.InSecEnv);
-```
-
-### `App_Infos`
-
-The IRTF CFRG draft mentions `info` and `einfo` parameters that can be
-used to be bound into the session. Info parameters cannot be passed to
-the functions via the java bindings.
-
 ## 1-step registration
 
 1-step registration is only specified in the original paper. It is not
@@ -87,14 +52,13 @@ has the drawback that the password is exposed to the server.
 
 ```java
 Opaque o = new Opaque();
-OpaqueRecExpKey ret = o.register(pwd, skS, cfg, ids);
+OpaqueRecExpKey ret = o.register(pwd, skS, ids);
 ```
 
 The function expects these paramters:
 
  - `pwd` is the user's password,
- - `skS` is an optional explicitly specified server long-term key,
- - `cfg` is an array containing the envelope configuration,
+ - `skS` is an optional explicitly specified server long-term private key,
  - `ids` is an `OpaqueIds` instance containing the IDs of the client and server.
 
 This function returns an instance of the `OpaqueRecExpKey` class, this
@@ -128,12 +92,12 @@ has two member variables:
 ### Step 2: The server responds to the registration request.
 
 ```java
-OpaqueRegResp regResp = o.createRegResp(regReq.M, pkS);
+OpaqueRegResp regResp = o.createRegResp(regReq.M, skS);
 ```
 
 The input parameters are:
  - `req` comes from the user running the previous step.
- - `pkS` is an optional explicitly specified server long-term public key
+ - `skS` is an optional explicitly specified server long-term private key
 
 The function returns an instance of the `OpaqueRegResp` class, which
 has two member variables:
@@ -145,14 +109,13 @@ has two member variables:
 ### Step 3: The user finalizes the registration using the response from the server.
 
 ```java
-OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, cfg, ids);
+OpaquePreRecExpKey prerec = o.finalizeReg(regReq.sec, regResp.pub, ids);
 ```
 
 The input parameters are:
 
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
  - `pub` comes from the server running the previous step.
- - `cfg` is an array containing the envelope configuration,
  - `ids` is the an `OpaqueIds` instance containing the clients and servers ID.
 
 The function outputs an instance of the `OpaquePreRecExpKey` class,
@@ -166,13 +129,12 @@ which has two member variables:
 ### Step 4: The server finalizes the user's record.
 
 ```java
-byte[] rec = o.storeRec(regResp.sec, skS, prerec.rec);
+byte[] rec = o.storeRec(regResp.sec, prerec.rec);
 ```
 
 The input parameters are:
 
  - `rec` comes from the client running the previous step.
- - `skS` is an explicitly specified server long-term key
  - `sec` contains sensitive data and should be disposed securely after usage in this step.
 
 The function returns a byte array:
@@ -205,15 +167,15 @@ class, which has two member variables:
 ### Step 2: The server responds to the credential request.
 
 ```java
-OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, cfg, ids);
+OpaqueCredResp cresp = o.createCredResp(creq.pub, rec, ids, context);
 ```
 
 The input parameters:
 
  - `pub` comes from the user running the previous step.
  - `rec` is the user's record stored by the server at the end of the registration protocol.
- - `cfg` is an array containing the envelope configuration,
  - `ids` is the an `OpaqueIds` instance containing the clients and servers ID.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
 
 This function returns an instance of the `OpaqueCredResp` class, which
 has three member variables:
@@ -227,7 +189,7 @@ has three member variables:
 ### Step 3: The user recovers its credentials from the server's response.
 
 ```java
-OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, pkS, cfg, ids);
+OpaqueCreds creds = o.recoverCreds(cresp.pub, creq.sec, context, ids, pub);
 ```
 
 The input parameters:
@@ -235,12 +197,9 @@ The input parameters:
  - `pub` comes from the server running the previous step.
  - `sec` contains the client sensitive data from the first step and
    should be disposed securely after this step.
- - `pkS` is the server's optional public key, this must be specified
-   if the 3rd item in cfg is `NotPackaged` otherwise it must be nil
- - `cfg` is an array containing the envelope configuration,
- - `ids` is an instance of `OpaqueIds`, `idU` must be specified if the
-   `idU` element of `cfg` is `NotPackaged`. Similarly `idS` must be
-   specified if the `idU` element of `cfg` is `NotPackaged`.
+ - `context` is a string distinguishing this instantiation of the protocol from others, e.g. "MyApp-v0.2"
+ - `ids` is an instance of `OpaqueIds`.
+ - `pub` comes from the user running the `createCredReq()` in the first step.
 
 This function returns an instance of the `OpaqueCreds` class, which
 has four member variables:
@@ -249,8 +208,6 @@ has four member variables:
  - `authU` is an authentication tag that can be passed in step 4 for
    explicit user authentication.
  - `export_key` can be used to decrypt additional data stored by the server.
- - `ids` is an instance of `OpaqueIds` containing IDs of the user and
-   the server, this is useful if these are packaged in the envelope.
 
 ### Step 4 (Optional): The server authenticates the user.
 

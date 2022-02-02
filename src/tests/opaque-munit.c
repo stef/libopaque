@@ -82,8 +82,8 @@ MunitResult opaque_test(const MunitParameter params[], void* user_data_or_fixtur
 
   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
-  uint8_t sk[32];
-  uint8_t pk[32];
+  uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
+  uint8_t pk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t authU[crypto_auth_hmacsha512_BYTES];
   uint8_t authUs[crypto_auth_hmacsha512_BYTES];
   // in case we omit the id* in the envelope we must provide it before-hand.

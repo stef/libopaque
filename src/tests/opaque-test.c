@@ -31,8 +31,8 @@ int main(void) {
   uint8_t rec0[OPAQUE_USER_RECORD_LEN];
   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], pub[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint8_t resp[OPAQUE_SERVER_SESSION_LEN];
-  uint8_t sk[32];
-  uint8_t pk[32];
+  uint8_t sk[OPAQUE_SHARED_SECRETBYTES];
+  uint8_t pk[OPAQUE_SHARED_SECRETBYTES];
   uint8_t authU0[crypto_auth_hmacsha512_BYTES];
   uint8_t authU1[crypto_auth_hmacsha512_BYTES];
   const uint8_t context[4]="test";

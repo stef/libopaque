@@ -13,6 +13,4 @@ src/tests/opaque-test.js
 src/tests/opaque-tv1
 src/tests/opaque-tv1.html
 src/tests/opaque-tv1.js
-src/tests/opaque-tv2
-src/tests/opaque-tv2.html
-src/tests/opaque-tv2.js
+src/utils/opaque

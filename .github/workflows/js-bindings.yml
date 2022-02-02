@@ -26,5 +26,6 @@ jobs:
        source ./emsdk_env.sh
        cd ..
        make
-       rm -rf emsdk # We do not want to format emsdk.
+       echo emsdk >.prettierignore
+       echo libsodium.js >>.prettierignore
        make format es-check test

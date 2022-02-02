@@ -8,7 +8,12 @@
 //#define TRACE 1
 //#define NORANDOM 1
 
-#if (defined TRACE || defined VOPRF_TEST_VEC)
+#ifdef CFRG_TEST_VEC
+#undef TRACE
+#undef NORANDOM
+#endif
+
+#if (defined TRACE || defined CFRG_TEST_VEC)
 #include <stdio.h>
 void dump(const uint8_t *p, const size_t len, const char* msg);
 #endif

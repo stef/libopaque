@@ -22,10 +22,6 @@
       "opaquejs_crypto_scalarmult_SCALARBYTES",
       "number"
     )();
-    Module["crypto_secretbox_KEYBYTES"] = Module.cwrap(
-      "opaquejs_crypto_secretbox_KEYBYTES",
-      "number"
-    )();
     Module["OPAQUE_USER_RECORD_LEN"] = Module.cwrap(
       "opaquejs_OPAQUE_USER_RECORD_LEN",
       "number"
@@ -54,14 +50,14 @@
       "opaquejs_OPAQUE_USER_SESSION_SECRET_LEN",
       "number"
     )();
-    Module["OPAQUE_SERVER_AUTH_CTX_LEN"] = Module.cwrap(
-      "opaquejs_OPAQUE_SERVER_AUTH_CTX_LEN",
+    Module["OPAQUE_SHARED_SECRETBYTES"] = Module.cwrap(
+      "opaquejs_OPAQUE_SHARED_SECRETBYTES",
       "number"
     )();
-
-    Module["NotPackaged"] = 0;
-    Module["InSecEnv"] = 1;
-    Module["InClrEnv"] = 2;
+    Module["OPAQUE_REGISTRATION_RECORD_LEN"] = Module.cwrap(
+      "opaquejs_OPAQUE_REGISTRATION_RECORD_LEN",
+      "number"
+    )();
 
     Module["genServerKeyPair"] = () => {
       return genServerKeyPair(Module);
@@ -119,16 +115,11 @@
       "string", // const uint8_t *pwdU,
       "number", // const uint16_t pwdU_len,
       "number", // const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-      "number", // const uint8_t cfg_skU,
-      "number", // const uint8_t cfg_pkU,
-      "number", // const uint8_t cfg_pkS,
-      "number", // const uint8_t cfg_idS,
-      "number", // const uint8_t cfg_idU,
       "string", // const uint8_t *ids_idU,
       "number", // const uint16_t ids_idU_len,
       "string", // const uint8_t *ids_idS,
       "number", // const uint16_t ids_idS_len,
-      "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
+      "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN],
       "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
     ]);
     function register(module, params) {
@@ -137,12 +128,10 @@
         const {
           pwdU, // required
           skS, // optional
-          cfg, // required
           ids, // required
         } = params;
         validateRequiredStrings({ pwdU });
         validateRequiredStrings(ids);
-        validatePkgConfig(cfg);
         const pwdU_len = pwdU.length;
 
         let skS_pointer;
@@ -156,9 +145,8 @@
           pointers.push(skS_pointer);
         }
 
-        const envU_len = module.getEnvelopeLen({ cfg, ids });
         const rec_pointer = new AllocatedBuf(
-          module.OPAQUE_USER_RECORD_LEN + envU_len,
+          module.OPAQUE_USER_RECORD_LEN,
           module
         );
         pointers.push(rec_pointer);
@@ -174,11 +162,6 @@
             pwdU,
             pwdU_len,
             skS_pointer ? skS_pointer.address : null,
-            cfg.skU,
-            cfg.pkU,
-            cfg.pkS,
-            cfg.idS,
-            cfg.idU,
             ids.idU,
             ids.idU.length,
             ids.idS,
@@ -280,13 +263,11 @@
         "number", // const uint16_t ids_idU_len,
         "string", // const uint8_t *ids_idS,
         "number", // const uint16_t ids_idS_len,
-        "string", // const uint8_t *app_info,
-        "number", // const size_t app_info_len,
-        "string", // const uint8_t *app_einfo,
-        "number", // const size_t app_einfo_len,
-        "number", // uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
-        "number", // uint8_t sk[crypto_secretbox_KEYBYTES],
-        "number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]);
+        "string", // const uint8_t *context,
+        "number", // const size_t context_len,
+        "number", // uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
+        "number", // uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+        "number", // uint8_t sec[crypto_auth_hmacsha512_BYTES]);
       ]
     );
     function createCredentialResponse(module, params) {
@@ -295,15 +276,12 @@
         const {
           pub, // required
           rec, // required
-          cfg, // required
           ids, // required
-          infos, // optional
+          context, // required
         } = params;
-        const app_info = infos || {};
         validateUint8Arrays({ pub, rec });
         validateRequiredStrings(ids);
-        validateOptionalStrings(app_info);
-        validatePkgConfig(cfg);
+        validateRequiredStrings({ context });
 
         const pub_pointer = AllocatedBuf.fromUint8Array(
           pub,
@@ -311,30 +289,28 @@
           module
         );
         pointers.push(pub_pointer);
-        const envU_len = module.getEnvelopeLen({ cfg, ids });
         const rec_pointer = AllocatedBuf.fromUint8Array(
           rec,
-          module.OPAQUE_USER_RECORD_LEN + envU_len,
+          module.OPAQUE_USER_RECORD_LEN,
           module
         );
         pointers.push(rec_pointer);
 
         const resp_pointer = new AllocatedBuf(
-          module.OPAQUE_SERVER_SESSION_LEN + envU_len,
+          module.OPAQUE_SERVER_SESSION_LEN,
           module
         );
         pointers.push(resp_pointer);
         const sk_pointer = new AllocatedBuf(
-          module.crypto_secretbox_KEYBYTES,
+          module.OPAQUE_SHARED_SECRETBYTES,
           module
         );
         pointers.push(sk_pointer);
         const sec_pointer = new AllocatedBuf(
-          module.OPAQUE_SERVER_AUTH_CTX_LEN,
+          module.crypto_auth_hmacsha512_BYTES,
           module
         );
         pointers.push(sec_pointer);
-        sec_pointer.zero();
 
         if (
           0 !==
@@ -345,10 +321,8 @@
             ids.idU.length,
             ids.idS,
             ids.idS.length,
-            app_info.info,
-            app_info.info != null ? app_info.info.length : 0,
-            app_info.einfo,
-            app_info.einfo != null ? app_info.einfo.length : 0,
+            context,
+            context.length,
             resp_pointer.address,
             sk_pointer.address,
             sec_pointer.address
@@ -383,23 +357,15 @@
       "opaquejs_RecoverCredentials",
       "number",
       [
-        "number", // const uint8_t resp[OPAQUE_SERVER_SESSION_LEN/*+envU_len*/],
+        "number", // const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
         "number", // const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/],
-        "number", // const uint8_t pkS[crypto_scalarmult_BYTES],
-        "number", // const uint8_t cfg_skU,
-        "number", // const uint8_t cfg_pkU,
-        "number", // const uint8_t cfg_pkS,
-        "number", // const uint8_t cfg_idS,
-        "number", // const uint8_t cfg_idU,
-        "string", // const uint8_t *app_info,
-        "number", // const size_t app_info_len,
-        "string", // const uint8_t *app_einfo,
-        "number", // const size_t app_einfo_len,
-        "number", // const uint8_t **ids_idU,
-        "number", // const uint16_t *ids_idU_len,
-        "number", // const uint8_t **ids_idS,
-        "number", // const uint16_t *ids_idS_len,
-        "number", // uint8_t *sk,
+        "string", // const uint8_t *context,
+        "number", // const size_t context_len,
+        "string", // const uint8_t *ids_idU,
+        "number", // const uint16_t ids_idU_len,
+        "string", // const uint8_t *ids_idS,
+        "number", // const uint16_t ids_idS_len,
+        "number", // uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
         "number", // uint8_t authU[crypto_auth_hmacsha512_BYTES],
         "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
       ]
@@ -410,21 +376,16 @@
         const {
           resp, // required
           sec, // required
-          pkS, // optional (required if cfg_pkS == NotPackaged)
-          cfg, // required
-          infos, // optional
-          ids, // optional (required if cfg_idU == NotPackaged or cfg_idS == NotPackaged)
-          max_ids_idU_len, // optional (only applicable if cfg_idU != NotPackaged; the default is 64)
-          max_ids_idS_len, // optional (only applicable if cfg_idU != NotPackaged; the default is 64)
+          context, // required
+          ids, // required
         } = params;
-        const app_info = infos || {};
         validateUint8Arrays({ resp, sec });
-        validateOptionalStrings(app_info);
-        validatePkgConfig(cfg);
+        validateRequiredStrings(ids);
+        validateRequiredStrings({ context });
 
-        const resp_pointer = AllocatedBuf.fromUint8ArrayInexact(
+        const resp_pointer = AllocatedBuf.fromUint8Array(
           resp,
-          module.OPAQUE_SERVER_SESSION_LEN /*+envU_len*/,
+          module.OPAQUE_SERVER_SESSION_LEN,
           module
         );
         pointers.push(resp_pointer);
@@ -435,104 +396,8 @@
         );
         pointers.push(sec_pointer);
 
-        let pkS_pointer;
-        if (cfg.pkS == module.NotPackaged) {
-          validateUint8Arrays({ pkS });
-          pkS_pointer = AllocatedBuf.fromUint8Array(
-            pkS,
-            module.crypto_scalarmult_BYTES,
-            module
-          );
-          pointers.push(pkS_pointer);
-        }
-
-        // uint16_t has 16 bits = 2 bytes.
-        const ids1_idU_len_pointer = new AllocatedBuf(2, module);
-        pointers.push(ids1_idU_len_pointer);
-        const ids1_idS_len_pointer = new AllocatedBuf(2, module);
-        pointers.push(ids1_idS_len_pointer);
-        // 32 bits handles the maximum memory size in bytes (2 GB = 2147483648
-        // bytes). See
-        // https://github.com/emscripten-core/emscripten/blob/2.0.11/src/settings.js .
-        // 32 bits = 4 bytes.
-        const ids1_idU_pointer_pointer = new AllocatedBuf(4, module);
-        pointers.push(ids1_idU_pointer_pointer);
-        const ids1_idS_pointer_pointer = new AllocatedBuf(4, module);
-        pointers.push(ids1_idS_pointer_pointer);
-
-        // If the IDs are not in the envelope, we must provide them beforehand. If
-        // they are in the envelope, we use the IDs in the envelope.
-        let ids1_idU_pointer;
-        if (cfg.idU === module.NotPackaged) {
-          validateRequiredStrings({ ids_idU: ids.idU });
-          module.setValue(ids1_idU_len_pointer.address, ids.idU.length, "i16");
-          // ccall uses stringToUTF8 for string arguments. See
-          // https://github.com/emscripten-core/emscripten/blob/2.0.11/src/preamble.js.
-          // At most there are 4 bytes per UTF-8 code point. Add +1 for the
-          // trailing '\0'.
-          ids1_idU_pointer = new AllocatedBuf(
-            (ids.idU.length << 2) + 1,
-            module
-          );
-          pointers.push(ids1_idU_pointer);
-          module.stringToUTF8(
-            ids.idU,
-            ids1_idU_pointer.address,
-            ids1_idU_pointer.length
-          );
-        } else {
-          // ids1_idU_pointer must be big enough to fit idU.
-          const ids1_idU_len =
-            Number.isInteger(max_ids_idU_len) && max_ids_idU_len > 0
-              ? max_ids_idU_len
-              : 64;
-          module.setValue(ids1_idU_len_pointer.address, ids1_idU_len, "i16");
-          ids1_idU_pointer = new AllocatedBuf(ids1_idU_len, module);
-          pointers.push(ids1_idU_pointer);
-        }
-        module.setValue(
-          ids1_idU_pointer_pointer.address,
-          ids1_idU_pointer.address,
-          "i32"
-        );
-
-        let ids1_idS_pointer;
-        if (cfg.idS === module.NotPackaged) {
-          validateRequiredStrings({ ids_idS: ids.idS });
-          let ids_idS_len = ids.idS.length;
-          module.setValue(ids1_idS_len_pointer.address, ids_idS_len, "i16");
-          // ccall uses stringToUTF8 for string arguments. See
-          // https://github.com/emscripten-core/emscripten/blob/2.0.11/src/preamble.js.
-          // At most there are 4 bytes per UTF-8 code point. Add +1 for the
-          // trailing '\0'.
-          ids1_idS_pointer = new AllocatedBuf(
-            (ids.idS.length << 2) + 1,
-            module
-          );
-          pointers.push(ids1_idS_pointer);
-          module.stringToUTF8(
-            ids.idS,
-            ids1_idS_pointer.address,
-            ids1_idS_pointer.length
-          );
-        } else {
-          // ids1_idS_pointer must be big enough to fit idS.
-          const ids1_idS_len =
-            Number.isInteger(max_ids_idS_len) && max_ids_idS_len > 0
-              ? max_ids_idS_len
-              : 64;
-          module.setValue(ids1_idS_len_pointer.address, ids1_idS_len, "i16");
-          ids1_idS_pointer = new AllocatedBuf(ids1_idS_len, module);
-          pointers.push(ids1_idS_pointer);
-        }
-        module.setValue(
-          ids1_idS_pointer_pointer.address,
-          ids1_idS_pointer.address,
-          "i32"
-        );
-
         const sk_pointer = new AllocatedBuf(
-          module.crypto_secretbox_KEYBYTES,
+          module.OPAQUE_SHARED_SECRETBYTES,
           module
         );
         pointers.push(sk_pointer);
@@ -552,20 +417,12 @@
           module.RecoverCredentials(
             resp_pointer.address,
             sec_pointer.address,
-            pkS_pointer ? pkS_pointer.address : null,
-            cfg.skU,
-            cfg.pkU,
-            cfg.pkS,
-            cfg.idS,
-            cfg.idU,
-            app_info.info,
-            app_info.info != null ? app_info.info.length : 0,
-            app_info.einfo,
-            app_info.einfo != null ? app_info.einfo.length : 0,
-            ids1_idU_pointer_pointer.address,
-            ids1_idU_len_pointer.address,
-            ids1_idS_pointer_pointer.address,
-            ids1_idS_len_pointer.address,
+            context,
+            context.length,
+            ids.idU,
+            ids.idU.length,
+            ids.idS,
+            ids.idS.length,
             sk_pointer.address,
             authU_pointer.address,
             export_key_pointer.address
@@ -576,16 +433,6 @@
           throw error;
         }
         return {
-          ids: {
-            idU: module.UTF8ToString(
-              ids1_idU_pointer.address,
-              module.getValue(ids1_idU_len_pointer.address, "i16")
-            ),
-            idS: module.UTF8ToString(
-              ids1_idS_pointer.address,
-              module.getValue(ids1_idS_len_pointer.address, "i16")
-            ),
-          },
           sk: sk_pointer.toUint8Array(),
           authU: authU_pointer.toUint8Array(),
           export_key: export_key_pointer.toUint8Array(),
@@ -607,7 +454,7 @@
       return userAuth(Module, params);
     };
     Module["UserAuth"] = Module.cwrap("opaquejs_UserAuth", "number", [
-      "number", // uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
+      "number", // uint8_t sec[crypto_auth_hmacsha512_BYTES],
       "number", // const uint8_t authU[crypto_auth_hmacsha512_BYTES]);
     ]);
     function userAuth(module, params) {
@@ -620,7 +467,7 @@
         validateUint8Arrays({ sec, authU });
         const sec_pointer = AllocatedBuf.fromUint8Array(
           sec,
-          module.OPAQUE_SERVER_AUTH_CTX_LEN,
+          module.crypto_auth_hmacsha512_BYTES,
           module
         );
         pointers.push(sec_pointer);
@@ -713,6 +560,7 @@
       "number",
       [
         "number", // const uint8_t M[crypto_core_ristretto255_BYTES],
+        "number", // const uint8_t skS[crypto_scalarmult_SCALARBYTES],
         "number", // uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
         "number", // uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
       ]
@@ -720,7 +568,9 @@
     function createRegistrationResponse(module, params) {
       const pointers = [];
       try {
-        const { M } = params; // required
+        const { M,    // required
+                skS,  // optional
+        } = params;
         validateUint8Arrays({ M });
         const M_pointer = AllocatedBuf.fromUint8Array(
           M,
@@ -728,6 +578,18 @@
           module
         );
         pointers.push(M_pointer);
+
+        let skS_pointer;
+        if (skS != null) {
+          validateUint8Arrays({ skS });
+          skS_pointer = AllocatedBuf.fromUint8Array(
+            skS,
+            module.crypto_scalarmult_SCALARBYTES,
+            module
+          );
+          pointers.push(skS_pointer);
+        }
+
         const sec_pointer = new AllocatedBuf(
           module.OPAQUE_REGISTER_SECRET_LEN,
           module
@@ -742,6 +604,7 @@
           0 !==
           module.CreateRegistrationResponse(
             M_pointer.address,
+            skS_pointer ? skS_pointer.address : null,
             sec_pointer.address,
             pub_pointer.address
           )
@@ -767,79 +630,6 @@
       }
     }
 
-    Module["create1kRegistrationResponse"] = (params) => {
-      return create1kRegistrationResponse(Module, params);
-    };
-    Module["Create1kRegistrationResponse"] = Module.cwrap(
-      "opaquejs_Create1kRegistrationResponse",
-      "number",
-      [
-        "number", // const uint8_t M[crypto_core_ristretto255_BYTES],
-        "number", // const uint8_t pkS[crypto_scalarmult_BYTES],
-        "number", // uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-        "number", // uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
-      ]
-    );
-    function create1kRegistrationResponse(module, params) {
-      const pointers = [];
-      try {
-        const {
-          M, // required
-          pkS, // required
-        } = params;
-        validateUint8Arrays({ M, pkS });
-        const M_pointer = AllocatedBuf.fromUint8Array(
-          M,
-          module.crypto_core_ristretto255_BYTES,
-          module
-        );
-        pointers.push(M_pointer);
-        const pkS_pointer = AllocatedBuf.fromUint8Array(
-          pkS,
-          module.crypto_scalarmult_BYTES,
-          module
-        );
-        pointers.push(pkS_pointer);
-        const sec_pointer = new AllocatedBuf(
-          module.OPAQUE_REGISTER_SECRET_LEN,
-          module
-        );
-        pointers.push(sec_pointer);
-        const pub_pointer = new AllocatedBuf(
-          module.OPAQUE_REGISTER_PUBLIC_LEN,
-          module
-        );
-        pointers.push(pub_pointer);
-        if (
-          0 !==
-          module.Create1kRegistrationResponse(
-            M_pointer.address,
-            pkS_pointer.address,
-            sec_pointer.address,
-            pub_pointer.address
-          )
-        ) {
-          const error = new Error("Create1kRegistrationResponse failed.");
-          error.name = "OpaqueError";
-          throw error;
-        }
-        return {
-          sec: sec_pointer.toUint8Array(),
-          pub: pub_pointer.toUint8Array(),
-        };
-      } catch (e) {
-        if (e.name === "OpaqueError") throw e;
-        const error = new Error(
-          "create1kRegistrationResponse failed. (" + e.name + ") " + e.message
-        );
-        error.name = "OpaqueError";
-        error.cause = e;
-        throw error;
-      } finally {
-        zeroAndFree(pointers);
-      }
-    }
-
     Module["finalizeRequest"] = (params) => {
       return finalizeRequest(Module, params);
     };
@@ -849,16 +639,11 @@
       [
         "number", // const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN/*+pwdU_len*/],
         "number", // const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
-        "number", // const uint8_t cfg_skU,
-        "number", // const uint8_t cfg_pkU,
-        "number", // const uint8_t cfg_pkS,
-        "number", // const uint8_t cfg_idS,
-        "number", // const uint8_t cfg_idU,
         "string", // const uint8_t *ids_idU,
         "number", // const uint16_t ids_idU_len,
         "string", // const uint8_t *ids_idS,
         "number", // const uint16_t ids_idS_len,
-        "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/],
+        "number", // uint8_t rec[OPAQUE_REGISTRATION_RECORD_LEN],
         "number", // uint8_t export_key[crypto_hash_sha512_BYTES]);
       ]
     );
@@ -868,11 +653,9 @@
         const {
           sec, // required
           pub, // required
-          cfg, // required
           ids, // required
         } = params;
         validateUint8Arrays({ sec, pub });
-        validatePkgConfig(cfg);
         validateRequiredStrings(ids);
 
         const sec_pointer = AllocatedBuf.fromUint8ArrayInexact(
@@ -888,9 +671,8 @@
         );
         pointers.push(pub_pointer);
 
-        const envU_len = module.getEnvelopeLen({ cfg, ids });
         const rec_pointer = new AllocatedBuf(
-          module.OPAQUE_USER_RECORD_LEN + envU_len,
+          module.OPAQUE_REGISTRATION_RECORD_LEN,
           module
         );
         pointers.push(rec_pointer);
@@ -905,11 +687,6 @@
           module.FinalizeRequest(
             sec_pointer.address,
             pub_pointer.address,
-            cfg.skU,
-            cfg.pkU,
-            cfg.pkS,
-            cfg.idS,
-            cfg.idU,
             ids.idU,
             ids.idU.length,
             ids.idS,
@@ -944,7 +721,8 @@
     };
     Module["StoreUserRecord"] = Module.cwrap("opaquejs_StoreUserRecord", null, [
       "number", // const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-      "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
+      "number", // const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN]);
+      "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN]);
     ]);
     function storeUserRecord(module, params) {
       const pointers = [];
@@ -954,194 +732,35 @@
           rec, // required
         } = params;
         validateUint8Arrays({ sec, rec });
+
         const sec_pointer = AllocatedBuf.fromUint8Array(
           sec,
           module.OPAQUE_REGISTER_SECRET_LEN,
           module
         );
         pointers.push(sec_pointer);
-        const rec_pointer = AllocatedBuf.fromUint8ArrayInexact(
+
+        const rec_pointer = AllocatedBuf.fromUint8Array(
           rec,
-          module.OPAQUE_USER_RECORD_LEN /*+envU_len*/,
+          module.OPAQUE_REGISTRATION_RECORD_LEN,
           module
         );
         pointers.push(rec_pointer);
-        module.StoreUserRecord(sec_pointer.address, rec_pointer.address);
+
+        const recU_pointer = new AllocatedBuf(
+          module.OPAQUE_USER_RECORD_LEN,
+          module
+        );
+        pointers.push(recU_pointer);
+
+        module.StoreUserRecord(sec_pointer.address, rec_pointer.address, recU_pointer.address);
         return {
-          rec: rec_pointer.toUint8Array(),
+          rec: recU_pointer.toUint8Array(),
         };
       } catch (e) {
         if (e.name === "OpaqueError") throw e;
         const error = new Error(
           "storeUserRecord failed. (" + e.name + ") " + e.message
-        );
-        error.name = "OpaqueError";
-        error.cause = e;
-        throw error;
-      } finally {
-        zeroAndFree(pointers);
-      }
-    }
-
-    Module["store1kUserRecord"] = (params) => {
-      return store1kUserRecord(Module, params);
-    };
-    Module["Store1kUserRecord"] = Module.cwrap(
-      "opaquejs_Store1kUserRecord",
-      null,
-      [
-        "number", // const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-        "number", // const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-        "number", // uint8_t rec[OPAQUE_USER_RECORD_LEN/*+envU_len*/]);
-      ]
-    );
-    function store1kUserRecord(module, params) {
-      const pointers = [];
-      try {
-        const {
-          sec, // required
-          skS, // required
-          rec, // required
-        } = params;
-        validateUint8Arrays({ sec, skS, rec });
-        const sec_pointer = AllocatedBuf.fromUint8Array(
-          sec,
-          module.OPAQUE_REGISTER_SECRET_LEN,
-          module
-        );
-        pointers.push(sec_pointer);
-        const skS_pointer = AllocatedBuf.fromUint8Array(
-          skS,
-          module.crypto_scalarmult_SCALARBYTES,
-          module
-        );
-        pointers.push(skS_pointer);
-        const rec_pointer = AllocatedBuf.fromUint8ArrayInexact(
-          rec,
-          module.OPAQUE_USER_RECORD_LEN /*+envU_len*/,
-          module
-        );
-        pointers.push(rec_pointer);
-        module.Store1kUserRecord(
-          sec_pointer.address,
-          skS_pointer.address,
-          rec_pointer.address
-        );
-        return {
-          rec: rec_pointer.toUint8Array(),
-        };
-      } catch (e) {
-        if (e.name === "OpaqueError") throw e;
-        const error = new Error(
-          "store1kUserRecord failed. (" + e.name + ") " + e.message
-        );
-        error.name = "OpaqueError";
-        error.cause = e;
-        throw error;
-      } finally {
-        zeroAndFree(pointers);
-      }
-    }
-
-    Module["getEnvelopeLen"] = (params) => {
-      return getEnvelopeLen(Module, params);
-    };
-    Module["envelope_len"] = Module.cwrap("opaquejs_envelope_len", "number", [
-      "number", // const uint8_t cfg_skU,
-      "number", // const uint8_t cfg_pkU,
-      "number", // const uint8_t cfg_pkS,
-      "number", // const uint8_t cfg_idS,
-      "number", // const uint8_t cfg_idU,
-      "string", // const uint8_t *ids_idU,
-      "number", // const uint16_t ids_idU_len,
-      "string", // const uint8_t *ids_idS,
-      "number", // const uint16_t ids_idS_len,
-      "number", // uint32_t *envU_len
-    ]);
-    function getEnvelopeLen(module, params) {
-      const pointers = [];
-      try {
-        const {
-          cfg, // required
-          ids, // required
-        } = params;
-        validateRequiredStrings(ids);
-        validatePkgConfig(cfg);
-
-        // uint32_t has 32 bits = 4 bytes.
-        const envU_len_pointer = new AllocatedBuf(4, module);
-        pointers.push(envU_len_pointer);
-        if (
-          0 !==
-          module.envelope_len(
-            cfg.skU,
-            cfg.pkU,
-            cfg.pkS,
-            cfg.idS,
-            cfg.idU,
-            ids.idU,
-            ids.idU.length,
-            ids.idS,
-            ids.idS.length,
-            envU_len_pointer.address
-          )
-        ) {
-          throw new Error("getEnvelopeLen failed.");
-        }
-        return module.getValue(envU_len_pointer.address, "i32");
-      } catch (e) {
-        if (e.name === "OpaqueError") throw e;
-        const error = new Error(
-          "register failed. (" + e.name + ") " + e.message
-        );
-        error.name = "OpaqueError";
-        error.cause = e;
-        throw error;
-      } finally {
-        zeroAndFree(pointers);
-      }
-    }
-
-    Module["getServerPublicKeyFromUserRecord"] = (rec_base16) => {
-      return getServerPublicKeyFromUserRecord(Module, rec_base16);
-    };
-    Module["server_public_key_from_user_record"] = Module.cwrap(
-      "opaquejs_server_public_key_from_user_record",
-      null,
-      [
-        "number", // const uint8_t rec[OPAQUE_USER_RECORD_LEN],
-        "number", // uint8_t pkS[crypto_scalarmult_BYTES]);
-      ]
-    );
-    function getServerPublicKeyFromUserRecord(module, rec) {
-      const pointers = [];
-      try {
-        validateUint8Arrays({ rec });
-        const rec_pointer = AllocatedBuf.fromUint8Array(
-          rec,
-          module.OPAQUE_USER_RECORD_LEN,
-          module
-        );
-        pointers.push(rec_pointer);
-        const pkS_pointer = new AllocatedBuf(
-          module.crypto_scalarmult_BYTES,
-          module
-        );
-        pointers.push(pkS_pointer);
-        module.server_public_key_from_user_record(
-          rec_pointer.address,
-          pkS_pointer.address
-        );
-        return {
-          pks: pkS_pointer.toUint8Array(),
-        };
-      } catch (e) {
-        if (e.name === "OpaqueError") throw e;
-        const error = new Error(
-          "getServerPublicKeyFromUserRecord failed. (" +
-            e.name +
-            ") " +
-            e.message
         );
         error.name = "OpaqueError";
         error.cause = e;
@@ -1275,11 +894,11 @@
     return buffer;
   };
 
-  AllocatedBuf.prototype.zero = function (index) {
-    const i = index != null ? index : 0;
-    if (i >= this.length) return;
-    this.module.setValue(this.address + i, 0, "i8");
-    return this.zero(i + 1);
+  AllocatedBuf.prototype.zero = function () {
+    for(var i = 0; i < this.length; i++){
+        this.module.setValue(this.address + i, 0, "i8");
+    }
+    return;
   };
 
   AllocatedBuf.prototype.zeroAndFree = function () {
@@ -1294,19 +913,6 @@
           "If defined, " + name + " must be a nonempty string."
         );
     }
-  }
-
-  function validatePkgConfig(cfg) {
-    validatePkgTarget(cfg.skU, "cfg.skU");
-    validatePkgTarget(cfg.pkU, "cfg.pkU");
-    validatePkgTarget(cfg.pkS, "cfg.pkS");
-    validatePkgTarget(cfg.idS, "cfg.idS");
-    validatePkgTarget(cfg.idU, "cfg.idU");
-  }
-
-  function validatePkgTarget(cfg, name) {
-    if (cfg !== 0 && cfg !== 1 && cfg !== 2)
-      throw new RangeError(name + " (" + cfg + ") must be 0, 1, or 2.");
   }
 
   function validateRequiredStrings(object) {
@@ -1327,11 +933,11 @@
     }
   }
 
-  function zeroAndFree(pointers, index) {
-    const i = index != null ? index : 0;
-    if (i >= pointers.length) return;
-    pointers[i].zeroAndFree();
-    return zeroAndFree(pointers, i + 1);
+  function zeroAndFree(pointers) {
+    for(var i = 0; i < pointers.length; i++){
+      pointers[i].zeroAndFree();
+    }
+    return;
   }
 
   // This is similar to expose_libsodium in

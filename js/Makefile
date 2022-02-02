@@ -1,7 +1,7 @@
 
 CC=emcc
-DEFINES=
-#DEFINES=-DTRACE -DNORANDOM
+#DEFINES=
+DEFINES=-DTRACE -DNORANDOM
 
 # Note that common.h has an __EMSCRIPTEN__ preprocessor macro that replaces
 # sodium_m(un)?lock.
@@ -56,7 +56,6 @@ EXPORTED_FUNCTIONS=\
 "_opaquejs_crypto_hash_sha512_BYTES", \
 "_opaquejs_crypto_scalarmult_BYTES", \
 "_opaquejs_crypto_scalarmult_SCALARBYTES", \
-"_opaquejs_crypto_secretbox_KEYBYTES", \
 "_opaquejs_OPAQUE_USER_RECORD_LEN", \
 "_opaquejs_OPAQUE_USER_SESSION_PUBLIC_LEN", \
 "_opaquejs_OPAQUE_USER_SESSION_SECRET_LEN", \
@@ -64,7 +63,8 @@ EXPORTED_FUNCTIONS=\
 "_opaquejs_OPAQUE_REGISTER_USER_SEC_LEN", \
 "_opaquejs_OPAQUE_REGISTER_PUBLIC_LEN", \
 "_opaquejs_OPAQUE_REGISTER_SECRET_LEN", \
-"_opaquejs_OPAQUE_SERVER_AUTH_CTX_LEN", \
+"_opaquejs_OPAQUE_SHARED_SECRETBYTES", \
+"_opaquejs_OPAQUE_REGISTRATION_RECORD_LEN", \
 "_opaquejs_GenServerKeyPair", \
 "_opaquejs_Register", \
 "_opaquejs_CreateCredentialRequest", \
@@ -73,12 +73,10 @@ EXPORTED_FUNCTIONS=\
 "_opaquejs_UserAuth", \
 "_opaquejs_CreateRegistrationRequest", \
 "_opaquejs_CreateRegistrationResponse", \
-"_opaquejs_Create1kRegistrationResponse", \
 "_opaquejs_FinalizeRequest", \
 "_opaquejs_StoreUserRecord", \
-"_opaquejs_Store1kUserRecord", \
-"_opaquejs_envelope_len", \
-"_opaquejs_server_public_key_from_user_record"
+"_free", \
+"_malloc"
 
 EXPORTED_RUNTIME_METHODS=\
 "cwrap", \
@@ -147,7 +145,9 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 
 build: clean format all es-check test
 
-clean: clean-libsodium clean-libopaque clean-libopaquejs
+clean-all: clean-libsodium clean-libopaque clean-libopaquejs
+
+clean: clean-libopaque clean-libopaquejs
 
 clean-libopaque:
 	make --directory=../src clean
@@ -158,9 +158,8 @@ clean-libopaquejs:
 clean-libsodium:
 	make --directory=libsodium.js clean
 
-dist/libopaque.js: wrapper/opaquejs.o node_modules
+dist/libopaque.js: wrapper/opaquejs.o node_modules wrapper/libopaque-post.js wrapper/libopaque-pre.js
 	$(CC) \
-	-shared \
 	$(CFLAGS) \
 	--post-js wrapper/libopaque-post.js \
 	--pre-js wrapper/libopaque-pre.js \
@@ -244,4 +243,4 @@ update: node_modules
 	npm install
 	cd demo && npm install
 
-.PHONY: all all-libopaque all-libopaquejs build clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs update
+.PHONY: all all-libopaque all-libopaquejs build clean clean-libopaque clean-libopaquejs clean-libsodium es-check format libopaque libopaque-tests libopaquejs libsodium test testjs update clean-all

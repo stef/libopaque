@@ -1,82 +1,6 @@
 #include <opaque.h>
 #include <common.h>
 
-// We copied Opaque_UserRecord's definition from opaque.c since it is not
-// defined in opaque.h.
-typedef struct {
-  uint8_t kU[crypto_core_ristretto255_SCALARBYTES];
-  uint8_t skS[crypto_scalarmult_SCALARBYTES];
-  uint8_t pkU[crypto_scalarmult_BYTES];
-  uint8_t pkS[crypto_scalarmult_BYTES];
-  uint32_t envU_len;
-  uint8_t envU[];
-} __attribute ((packed)) Opaque_UserRecord;
-
-
-void opaquejs_to_App_Infos(
-  const uint8_t *app_info,
-  const size_t app_info_len,
-  const uint8_t *app_einfo,
-  const size_t app_einfo_len,
-  Opaque_App_Infos **infos_ptr) {
-
-  if (app_info || app_einfo) {
-    Opaque_App_Infos infos = {
-      (uint8_t *)app_info,  app_info_len,
-      (uint8_t *)app_einfo, app_einfo_len,
-    };
-    *infos_ptr = &infos;
-  }
-}
-
-
-int opaquejs_to_PkgTarget(
-  const uint8_t i,
-  Opaque_PkgTarget *target) {
-
-  if (i == 0) {
-    *target = NotPackaged;
-    return 0;
-  }
-  if (i == 1) {
-    *target = InSecEnv;
-    return 0;
-  }
-  if (i == 2) {
-    *target = InClrEnv;
-    return 0;
-  }
-  return 1;
-}
-
-
-int opaquejs_to_PkgConfig(
-  const uint8_t cfg_skU,
-  const uint8_t cfg_pkU,
-  const uint8_t cfg_pkS,
-  const uint8_t cfg_idS,
-  const uint8_t cfg_idU,
-  Opaque_PkgConfig *cfg) {
-
-  Opaque_PkgTarget skU;
-  Opaque_PkgTarget pkU;
-  Opaque_PkgTarget pkS;
-  Opaque_PkgTarget idS;
-  Opaque_PkgTarget idU;
-  if (0 != opaquejs_to_PkgTarget(cfg_skU, &skU)) return 1;
-  if (0 != opaquejs_to_PkgTarget(cfg_pkU, &pkU)) return 1;
-  if (0 != opaquejs_to_PkgTarget(cfg_pkS, &pkS)) return 1;
-  if (0 != opaquejs_to_PkgTarget(cfg_idS, &idS)) return 1;
-  if (0 != opaquejs_to_PkgTarget(cfg_idU, &idU)) return 1;
-  cfg->skU = skU;
-  cfg->pkU = pkU;
-  cfg->pkS = pkS;
-  cfg->idS = idS;
-  cfg->idU = idU;
-  return 0;
-}
-
-
 int opaquejs_crypto_auth_hmacsha512_BYTES() {
   return crypto_auth_hmacsha512_BYTES;
 }
@@ -99,14 +23,6 @@ int opaquejs_crypto_scalarmult_BYTES() {
 
 int opaquejs_crypto_scalarmult_SCALARBYTES() {
   return crypto_scalarmult_SCALARBYTES;
-}
-
-
-int opaquejs_crypto_secretbox_KEYBYTES() {
-  // This is 32 bytes. See the following:
-  // - https://github.com/jedisct1/libsodium/blob/master/src/libsodium/include/sodium/crypto_secretbox.h
-  // - https://github.com/jedisct1/libsodium/blob/master/src/libsodium/include/sodium/crypto_secretbox_xsalsa20poly1305.h
-  return crypto_secretbox_KEYBYTES;
 }
 
 
@@ -144,18 +60,20 @@ int opaquejs_OPAQUE_USER_SESSION_SECRET_LEN() {
   return OPAQUE_USER_SESSION_SECRET_LEN;
 }
 
-
-int opaquejs_OPAQUE_SERVER_AUTH_CTX_LEN() {
-  return OPAQUE_SERVER_AUTH_CTX_LEN;
+int opaquejs_OPAQUE_SHARED_SECRETBYTES() {
+  return OPAQUE_SHARED_SECRETBYTES;
 }
 
+int opaquejs_OPAQUE_REGISTRATION_RECORD_LEN() {
+  return OPAQUE_REGISTRATION_RECORD_LEN;
+}
 
 int opaquejs_GenServerKeyPair(
   uint8_t pkS[crypto_scalarmult_BYTES],
   uint8_t skS[crypto_scalarmult_SCALARBYTES]) {
 
   randombytes(skS, crypto_scalarmult_SCALARBYTES);
-  return crypto_scalarmult_base(pkS, skS);
+  return crypto_scalarmult_ristretto255_base(pkS, skS);
 }
 
 
@@ -163,22 +81,15 @@ int opaquejs_Register(
   const uint8_t *pwdU,
   const uint16_t pwdU_len,
   const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-  const uint8_t cfg_skU,
-  const uint8_t cfg_pkU,
-  const uint8_t cfg_pkS,
-  const uint8_t cfg_idS,
-  const uint8_t cfg_idU,
   const uint8_t *ids_idU,
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
+  uint8_t rec[OPAQUE_USER_RECORD_LEN],
   uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
-  Opaque_PkgConfig cfg;
-  if (0 != opaquejs_to_PkgConfig(cfg_skU, cfg_pkU, cfg_pkS, cfg_idS, cfg_idU, &cfg)) return 1;
   const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
-  return opaque_Register(pwdU, pwdU_len, skS, &cfg, &ids, rec, export_key);
+  return opaque_Register(pwdU, pwdU_len, skS, &ids, rec, export_key);
 }
 
 
@@ -194,69 +105,44 @@ int opaquejs_CreateCredentialRequest(
 
 int opaquejs_CreateCredentialResponse(
   const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
-  const uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
+  const uint8_t rec[OPAQUE_USER_RECORD_LEN],
   const uint8_t *ids_idU,
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  const uint8_t *app_info,
-  const size_t app_info_len,
-  const uint8_t *app_einfo,
-  const size_t app_einfo_len,
-  uint8_t resp[OPAQUE_SERVER_SESSION_LEN /*+envU_len*/],
-  uint8_t sk[crypto_secretbox_KEYBYTES],
-  uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN]) {
+  const uint8_t *ctx,
+  const uint16_t ctx_len,
+  uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
+  uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+  uint8_t sec[crypto_auth_hmacsha512_BYTES]) {
 
   const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
-  Opaque_App_Infos *infos_ptr = NULL;
-  opaquejs_to_App_Infos(app_info, app_info_len,
-                        app_einfo, app_einfo_len,
-                        &infos_ptr);
-  return opaque_CreateCredentialResponse(pub, rec, &ids, infos_ptr, resp, sk, sec);
+  return opaque_CreateCredentialResponse(pub, rec, &ids, ctx, ctx_len, resp, sk, sec);
 }
 
 
 int opaquejs_RecoverCredentials(
-  const uint8_t resp[OPAQUE_SERVER_SESSION_LEN /*+envU_len*/],
+  const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
   const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN /*+pwdU_len*/],
-  const uint8_t pkS[crypto_scalarmult_BYTES],
-  const uint8_t cfg_skU,
-  const uint8_t cfg_pkU,
-  const uint8_t cfg_pkS,
-  const uint8_t cfg_idS,
-  const uint8_t cfg_idU,
-  const uint8_t *app_info,
-  const size_t app_info_len,
-  const uint8_t *app_einfo,
-  const size_t app_einfo_len,
-  uint8_t **ids_idU,
-  uint16_t *ids_idU_len,
-  uint8_t **ids_idS,
-  uint16_t *ids_idS_len,
-  uint8_t *sk,
+  const uint8_t *ctx,
+  const uint16_t ctx_len,
+  const uint8_t *ids_idU,
+  const uint16_t ids_idU_len,
+  const uint8_t *ids_idS,
+  const uint16_t ids_idS_len,
+  uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
   uint8_t authU[crypto_auth_hmacsha512_BYTES],
   uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
-  Opaque_PkgConfig cfg;
-  if (0 != opaquejs_to_PkgConfig(cfg_skU, cfg_pkU, cfg_pkS, cfg_idS, cfg_idU, &cfg)) return 1;
-  Opaque_App_Infos *infos_ptr = NULL;
-  opaquejs_to_App_Infos(app_info, app_info_len,
-                        app_einfo, app_einfo_len,
-                        &infos_ptr);
-  Opaque_Ids ids1 = { *ids_idU_len, *ids_idU, *ids_idS_len, *ids_idS };
-  if (0 != opaque_RecoverCredentials(resp, sec, pkS, &cfg, infos_ptr,
-                                     &ids1, sk, authU, export_key))
+  const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
+  if (0 != opaque_RecoverCredentials(resp, sec, ctx, ctx_len, &ids, sk, authU, export_key))
     return 1;
-  *ids_idU = ids1.idU;
-  *ids_idU_len = ids1.idU_len;
-  *ids_idS = ids1.idS;
-  *ids_idS_len = ids1.idS_len;
   return 0;
 }
 
 
 int opaquejs_UserAuth(
-  uint8_t sec[OPAQUE_SERVER_AUTH_CTX_LEN],
+  uint8_t sec[crypto_auth_hmacsha512_BYTES],
   const uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
 
   return opaque_UserAuth(sec, authU);
@@ -275,86 +161,33 @@ int opaquejs_CreateRegistrationRequest(
 
 int opaquejs_CreateRegistrationResponse(
   const uint8_t M[crypto_core_ristretto255_BYTES],
+  const uint8_t skS[crypto_scalarmult_SCALARBYTES],
   uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
   uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
 
-  return opaque_CreateRegistrationResponse(M, sec, pub);
-}
-
-
-int opaquejs_Create1kRegistrationResponse(
-  const uint8_t M[crypto_core_ristretto255_BYTES],
-  const uint8_t pkS[crypto_scalarmult_BYTES],
-  uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-  uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
-
-  return opaque_Create1kRegistrationResponse(M, pkS, sec, pub);
+  return opaque_CreateRegistrationResponse(M, skS, sec, pub);
 }
 
 
 int opaquejs_FinalizeRequest(
   const uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN /*+pwdU_len*/],
   const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
-  const uint8_t cfg_skU,
-  const uint8_t cfg_pkU,
-  const uint8_t cfg_pkS,
-  const uint8_t cfg_idS,
-  const uint8_t cfg_idU,
   const uint8_t *ids_idU,
   const uint16_t ids_idU_len,
   const uint8_t *ids_idS,
   const uint16_t ids_idS_len,
-  uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
+  uint8_t rec[OPAQUE_REGISTRATION_RECORD_LEN],
   uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
-  Opaque_PkgConfig cfg;
-  if (0 != opaquejs_to_PkgConfig(cfg_skU, cfg_pkU, cfg_pkS, cfg_idS, cfg_idU, &cfg)) return 1;
   const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
-  return opaque_FinalizeRequest(sec, pub, &cfg, &ids, rec, export_key);
+  return opaque_FinalizeRequest(sec, pub, &ids, rec, export_key);
 }
 
 
 void opaquejs_StoreUserRecord(
   const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-  uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/]) {
+  const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN],
+  uint8_t rec[OPAQUE_USER_RECORD_LEN]) {
 
-  opaque_StoreUserRecord(sec, rec);
-}
-
-
-void opaquejs_Store1kUserRecord(
-  const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
-  const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-  uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/]) {
-
-  opaque_Store1kUserRecord(sec, skS, rec);
-}
-
-
-int opaquejs_envelope_len(
-  const uint8_t cfg_skU,
-  const uint8_t cfg_pkU,
-  const uint8_t cfg_pkS,
-  const uint8_t cfg_idS,
-  const uint8_t cfg_idU,
-  const uint8_t *ids_idU,
-  const uint16_t ids_idU_len,
-  const uint8_t *ids_idS,
-  const uint16_t ids_idS_len,
-  uint32_t *envU_len) {
-
-  Opaque_PkgConfig cfg;
-  if (0 != opaquejs_to_PkgConfig(cfg_skU, cfg_pkU, cfg_pkS, cfg_idS, cfg_idU, &cfg)) return 1;
-  const Opaque_Ids ids = { ids_idU_len, (uint8_t *)ids_idU, ids_idS_len, (uint8_t *)ids_idS };
-  *envU_len = opaque_envelope_len(&cfg, &ids);
-  return 0;
-}
-
-
-void opaquejs_server_public_key_from_user_record(
-  const uint8_t rec[OPAQUE_USER_RECORD_LEN /*+envU_len*/],
-  uint8_t pkS[crypto_scalarmult_BYTES]) {
-
-  Opaque_UserRecord *_rec = (Opaque_UserRecord *)&rec;
-  memcpy(pkS, _rec->pkS, crypto_scalarmult_BYTES);
+  opaque_StoreUserRecord(sec, recU, rec);
 }

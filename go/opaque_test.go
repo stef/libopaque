@@ -9,25 +9,14 @@ import (
 )
 
 func TestRegister(t *testing.T) {
-	cfg := OpaqueCfg{
-		SkU: CfgInSecEnv,
-		PkU: CfgNotPackaged,
-		PkS: CfgInClrEnv,
-		IdU: CfgInClrEnv,
-		IdS: CfgInSecEnv,
-	}
-
 	ids := OpaqueIDS{
 		IdU: []byte("user"),
 		IdS: []byte("server"),
 	}
 
-	infos := OpaqueInfos{
-		Info:  []byte("info"),
-		Einfo: []byte("einfo"),
-	}
+	context := "context"
 
-	rec, ek, err := Register("asdf", nil, cfg, ids)
+	rec, ek, err := Register("asdf", nil, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -41,14 +30,14 @@ func TestRegister(t *testing.T) {
 		fmt.Printf("Success\nsec: %x\npub: %x\n", sec, pub)
 	}
 
-	resp, sk, ssec, err := CreateCredResp(pub, rec, cfg, ids, infos)
+	resp, sk, ssec, err := CreateCredResp(pub, rec, ids, context)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, ids1, err := RecoverCred(resp, sec, nil, cfg, OpaqueIDS{}, infos)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -57,7 +46,7 @@ func TestRegister(t *testing.T) {
 		} else if !bytes.Equal(ek, export_key) {
 			t.Error(errors.New("export_key doesn't match"))
 		} else {
-			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\nids: %x\n", skU, authU, export_key, ids1)
+			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\n", skU, authU, export_key)
 		}
 	}
 
@@ -74,25 +63,15 @@ func TestRegisterSks(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cfg := OpaqueCfg{
-		SkU: CfgInSecEnv,
-		PkU: CfgNotPackaged,
-		PkS: CfgNotPackaged,
-		IdU: CfgInSecEnv,
-		IdS: CfgInClrEnv,
-	}
 
 	ids := OpaqueIDS{
 		IdS: []byte("server"),
 		IdU: []byte("user"),
 	}
 
-	infos := OpaqueInfos{
-		Info:  []byte("info"),
-		Einfo: []byte("einfo"),
-	}
+	context := "context"
 
-	rec, ek, err := Register("asdf", skS, cfg, ids)
+	rec, ek, err := Register("asdf", skS, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -106,18 +85,14 @@ func TestRegisterSks(t *testing.T) {
 		fmt.Printf("Success\nsec: %x\npub: %x\n", sec, pub)
 	}
 
-	resp, sk, ssec, err := CreateCredResp(pub, rec, cfg, ids, infos)
+	resp, sk, ssec, err := CreateCredResp(pub, rec, ids, context)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	pkS, err := hex.DecodeString("8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f")
-	if err != nil {
-		t.Error(err)
-	}
-	skU, authU, export_key, ids1, err := RecoverCred(resp, sec, pkS, cfg, OpaqueIDS{}, infos)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -126,7 +101,7 @@ func TestRegisterSks(t *testing.T) {
 		} else if !bytes.Equal(ek, export_key) {
 			t.Error(errors.New("export_key doesn't match"))
 		} else {
-			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\nids: %x\n", skU, authU, export_key, ids1)
+			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\n", skU, authU, export_key)
 		}
 	}
 
@@ -153,27 +128,19 @@ func TestRegDance(t *testing.T) {
 		fmt.Printf("create reg resp success\n%x\n%x\n", ssec, resp)
 	}
 
-	cfg := OpaqueCfg{
-		SkU: CfgInSecEnv,
-		PkU: CfgNotPackaged,
-		PkS: CfgInClrEnv,
-		IdU: CfgInSecEnv,
-		IdS: CfgInClrEnv,
-	}
-
 	ids := OpaqueIDS{
 		IdS: []byte("server"),
 		IdU: []byte("user"),
 	}
 
-	recU, ek0, err := FinalizeReq(sec, resp, cfg, ids)
+	recU, ek0, err := FinalizeReq(sec, resp, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("finalize req success\nrecU: %x\nek: %x\n", recU, ek0)
 	}
 
-	rec, err := StoreUserRec(ssec, nil, recU)
+	rec, err := StoreUserRec(ssec, recU)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -187,19 +154,16 @@ func TestRegDance(t *testing.T) {
 		fmt.Printf("Success\nsec: %x\npub: %x\n", sec, pub)
 	}
 
-	infos := OpaqueInfos{
-		Info:  []byte("info"),
-		Einfo: []byte("einfo"),
-	}
+	context := "context"
 
-	resp, sk, ssec, err := CreateCredResp(pub, rec, cfg, ids, infos)
+	resp, sk, ssec, err := CreateCredResp(pub, rec, ids, context)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, ids1, err := RecoverCred(resp, sec, nil, cfg, OpaqueIDS{}, infos)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -208,7 +172,7 @@ func TestRegDance(t *testing.T) {
 		} else if !bytes.Equal(ek0, export_key) {
 			t.Error(errors.New("export_key doesn't match"))
 		} else {
-			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\nids: %x\n", skU, authU, export_key, ids1)
+			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\n", skU, authU, export_key)
 		}
 	}
 
@@ -228,24 +192,16 @@ func TestRegDance1k(t *testing.T) {
 		fmt.Printf("create reg req success\n%x\n%x\n", sec, req)
 	}
 
-	pkS, err := hex.DecodeString("8f40c5adb68f25624ae5b214ea767a6ec94d829d3d7b5e1ad1ba6f3e2138285f")
+	skS, err := hex.DecodeString("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
 	if err != nil {
 		t.Error(err)
 	}
 
-	ssec, resp, err := CreateRegResp(req, pkS)
+	ssec, resp, err := CreateRegResp(req, skS)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("create reg resp success\n%x\n%x\n", ssec, resp)
-	}
-
-	cfg := OpaqueCfg{
-		SkU: CfgInSecEnv,
-		PkU: CfgNotPackaged,
-		PkS: CfgNotPackaged,
-		IdU: CfgInSecEnv,
-		IdS: CfgInClrEnv,
 	}
 
 	ids := OpaqueIDS{
@@ -253,18 +209,14 @@ func TestRegDance1k(t *testing.T) {
 		IdU: []byte("user"),
 	}
 
-	recU, ek0, err := FinalizeReq(sec, resp, cfg, ids)
+	recU, ek0, err := FinalizeReq(sec, resp, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("finalize req success\nrecU: %x\nek: %x\n", recU, ek0)
 	}
 
-	skS, err := hex.DecodeString("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
-	if err != nil {
-		t.Error(err)
-	}
-	rec, err := StoreUserRec(ssec, skS, recU)
+	rec, err := StoreUserRec(ssec, recU)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -278,19 +230,16 @@ func TestRegDance1k(t *testing.T) {
 		fmt.Printf("Success\nsec: %x\npub: %x\n", sec, pub)
 	}
 
-	infos := OpaqueInfos{
-		Info:  []byte("info"),
-		Einfo: []byte("einfo"),
-	}
+	context := "context"
 
-	resp, sk, ssec, err := CreateCredResp(pub, rec, cfg, ids, infos)
+	resp, sk, ssec, err := CreateCredResp(pub, rec, ids, context)
 	if err != nil {
 		t.Error(err)
 	} else {
 		fmt.Printf("Success\nresp: %x\nsk: %x\nsec: %x\n", resp, sk, ssec)
 	}
 
-	skU, authU, export_key, ids1, err := RecoverCred(resp, sec, pkS, cfg, OpaqueIDS{}, infos)
+	skU, authU, export_key, err := RecoverCred(resp, sec, context, ids)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -299,7 +248,7 @@ func TestRegDance1k(t *testing.T) {
 		} else if !bytes.Equal(ek0, export_key) {
 			t.Error(errors.New("export_key doesn't match"))
 		} else {
-			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\nids: %x\n", skU, authU, export_key, ids1)
+			fmt.Printf("Success\nsk: %x\nauthU: %x\nexport_key: %x\n", skU, authU, export_key)
 		}
 	}
 

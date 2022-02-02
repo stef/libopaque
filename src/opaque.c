@@ -179,7 +179,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   uint16_t size=htons(x_len);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, x, x_len);
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(x,x_len,"finalize input");
 #endif
   // info
@@ -492,7 +492,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
                       uint8_t r[crypto_core_ristretto255_SCALARBYTES],
                       uint8_t blinded[crypto_core_ristretto255_BYTES]) {
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(x, x_len, "input");
 #endif
   uint8_t H0[crypto_core_ristretto255_BYTES];
@@ -678,7 +678,7 @@ static int derive_keys(Opaque_Keys* keys, const uint8_t ikm[crypto_scalarmult_BY
 #endif
   // 1. prk = HKDF-Extract(salt=0, IKM)
   crypto_kdf_hkdf_sha512_extract(prk, NULL, 0, ikm, crypto_scalarmult_BYTES*3);
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(prk, sizeof prk, "prk");
 #endif
 
@@ -1186,7 +1186,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 
 #ifdef TRACE
   dump(_pub, sizeof(Opaque_UserSession), "session srv pub ");
-  dump(_rec, OPAQUE_USER_SESSION_PUBLIC_LEN, "session srv rec ");
+  dump(_rec, OPAQUE_USER_RECORD_LEN, "session srv rec ");
 #endif
 
   // (a) Checks that α ∈ G^∗ . If not, outputs (abort, sid , ssid ) and halts;
@@ -1204,7 +1204,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   if (oprf_Evaluate(rec->kU, pub->blinded, resp->Z) != 0) {
     return -1;
   }
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(resp->Z, sizeof resp->Z, "EvaluationElement");
 #endif
 
@@ -1243,7 +1243,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // recalc server_public_key as we need it for the next step
   uint8_t pkS[crypto_scalarmult_BYTES];
   crypto_scalarmult_ristretto255_base(pkS, rec->skS);
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(pkS, sizeof pkS, "server_public_key");
 #endif
 
@@ -1257,7 +1257,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
     resp->masked_response[i] = response_pad[i] ^ ((uint8_t*)(&rec->recU.envelope))[i-crypto_scalarmult_BYTES];
   sodium_munlock(response_pad, sizeof response_pad);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(_resp, sizeof (resp->Z) + crypto_scalarmult_BYTES+sizeof(Opaque_Envelope) + sizeof(masking_info.nonce), "resp(z+mn+mr)" );
 #endif
 
@@ -1296,11 +1296,8 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // X_s := g^x_s;
   crypto_scalarmult_ristretto255_base(resp->X_s, x_s);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(resp->X_s, sizeof(resp->X_s), "server_keyshare");
-#endif
-#ifdef TRACE
-  dump(resp->X_s, sizeof(resp->X_s), "session srv X_s ");
 #endif
   // 3. Create inner_ke2 ike2 with (credential_response, server_nonce, server_keyshare)
   // should already be all in place
@@ -1369,6 +1366,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #ifdef TRACE
   dump(resp->auth, sizeof(resp->auth), "session srv auth ");
   dump(authU, crypto_auth_hmacsha512_BYTES, "authU");
+  dump(_resp, sizeof(*resp), "resp");
 #endif
 
   return 0;
@@ -1411,7 +1409,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     sodium_munlock(N, sizeof N);
     return -1;
   }
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(N, sizeof N, "unblinded");
 #endif
 
@@ -1429,7 +1427,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   }
   sodium_munlock(N,sizeof N);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(rwdU, sizeof rwdU, "rwdU");
 #endif
 
@@ -1483,7 +1481,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     env_ptr[i-crypto_scalarmult_BYTES] = response_pad[i] ^ resp->masked_response[i];
   sodium_mlock(response_pad,sizeof response_pad);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(server_public_key, sizeof server_public_key, "server_public_key");
   dump(env.nonce, sizeof env.nonce, "env.nonce");
   dump(env.auth_tag, sizeof env.auth_tag, "env.auth_tag");
@@ -1515,7 +1513,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   if(NULL!=export_key) {
     // 1.6.2. export_key = Expand(randomized_pwd, concat(envelope.nonce, "ExportKey", Nh)
     memcpy(label, "ExportKey", 9);
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
     dump(concated, OPAQUE_ENVELOPE_NONCEBYTES+9, "export_key_info");
 #endif
     crypto_kdf_hkdf_sha512_expand(export_key, crypto_hash_sha512_BYTES,
@@ -1557,7 +1555,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // P_u := g^p_u
   uint8_t client_public_key[crypto_scalarmult_BYTES];
   crypto_scalarmult_ristretto255_base(client_public_key, client_secret_key);
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(client_secret_key, crypto_scalarmult_SCALARBYTES, "client_secret_key");
   dump(client_public_key, crypto_scalarmult_BYTES, "client_public_key");
 #endif
@@ -1598,17 +1596,13 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
                     sizeof authenticated, // len(in)
                     auth_tag);            // out
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(authenticated, sizeof authenticated, "authenticated");
   dump(auth_key, sizeof auth_key, "auth_key");
   dump(env.auth_tag, crypto_auth_hmacsha512_BYTES, "env auth_tag");
   dump(auth_tag, crypto_hash_sha512_BYTES, "auth tag ");
 #endif
   sodium_munlock(auth_key, sizeof auth_key);
-
-#ifdef TRACE
-  dump(auth_tag, crypto_hash_sha512_BYTES, "auth tag ");
-#endif
 
   // 1.6.7. If !ct_equal(envelope.auth_tag, expected_tag),
   //   raise KeyRecoveryError
@@ -1711,11 +1705,9 @@ int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristrett
   if (oprf_Evaluate(sec->kU, blinded, pub->Z) != 0) {
     return -1;
   }
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
+  dump(sec->kU, sizeof sec->kU, "kU");
   dump(pub->Z, sizeof pub->Z, "EvaluationElement");
-#endif
-#ifdef TRACE
-  dump((uint8_t*) pub->Z, sizeof pub->Z, "Z ");
 #endif
 
   if(skS==NULL) {
@@ -1761,7 +1753,7 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
     sodium_munlock(N, sizeof N);
     return -1;
   }
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(N, sizeof N, "unblinded");
 #endif
 
@@ -1784,7 +1776,7 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
   }
   sodium_munlock(rwdU, sizeof rwdU);
 
-#ifdef CFRG_TEST_VEC
+#if (defined TRACE || defined CFRG_TEST_VEC)
   dump(_rec, OPAQUE_REGISTRATION_RECORD_LEN, "record");
 #endif
 

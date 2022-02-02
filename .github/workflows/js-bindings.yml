@@ -26,5 +26,5 @@ jobs:
        source ./emsdk_env.sh
        cd ..
        make
-       rm -rf emsdk # We do not want to format emsdk.
+       echo emsdk >.prettierignore
        make format es-check test

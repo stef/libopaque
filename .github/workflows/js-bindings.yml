@@ -27,4 +27,5 @@ jobs:
        cd ..
        make
        echo emsdk >.prettierignore
+       echo libsodium.js >>.prettierignore
        make format es-check test

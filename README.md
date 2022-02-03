@@ -29,42 +29,6 @@ language-specific - slightly different APIs in the way the
 input/output parameters are provided to the functions, see details in
 the READMEs of the bindings sub-directories.
 
-### Server Setup
-
-An early IRTF CFRG draft specified a set of parameters controlling how
-the server is implementing the OPAQUE protocol. Most importantly it
-is possible to configure the data that is being stored at the
-server. The data is stored in a so-called envelope, it can have an
-encrypted and and unencrypted section, both of these sections are
-authenticated. The following five values can be stored in the
-envelope:
-
- - client long term private key (skU)
- - client long term public key (pkU)
- - server long term public key (pkS)
- - client identifier (idU)
- - server identifier (idS)
-
-None of these values have to be stored in the envelope, but there are
-certain pro and contras to be considered. In fact later drafts of the
-IRTF CFRG specification eliminate this flexibility and only define two
-configurations:
-
- - base: sKU is encrypted and pkS is plaintext.
- - custom ID: skU is encrypted, while pkS, idU and idS are in plaintext.
-
-Any of these values might be missing from the envelope - the whole
-envelope can be empty - in this case the following happens to derive
-these values:
-
- - skU is derived from the client password:
-   skU = hkdf(hkdf(argon2i(pwd||hash(pwd)*k)), "KG seed")
- - pkU is derived from skU
- - pkS needs to be supplied via a different channel, e.g. hardcoded in
-   client.
- - idU is set to pkU
- - idS is set to pkS
-
 ### Initialization
 
 The original paper and the IRTF CFRG draft differ, in the original
@@ -81,20 +45,19 @@ exposing the password to the server.
 #### One-step registration revealing password to server
 
 Before calling the registration function the server should check the
-strength of the password and if insufficient reject the registration.
+strength of the password by obeying [NIST SP 800-63-3b](https://pages.nist.gov/800-63-3/sp800-63b.html#memsecret)) and if insufficient reject the registration.
 
 The registration function takes the following parameters:
 
  - the client password
  - the optional long-term server private key skS
- - the envelope configuration
  - the IDs
 
 The result of the registration is a record that the server should
 store to be provided to the client in the key-exchange
-phase. Additionally an export_key is also generated which can be used
+phase. Additionally an `export_key` is also generated which can be used
 to encrypt additional data that can be decrypted by the client in the
-key-exchange phase. Where and how this additional export_key encrypted
+key-exchange phase. Where and how this additional `export_key` encrypted
 data is stored and how it is retrieved by the client is out of scope
 of the protocol, for example this could be used to store additional
 keys, personal data, or other sensitive client state.
@@ -104,7 +67,8 @@ keys, personal data, or other sensitive client state.
 This registration is a four step protocol which results in exactly the
 same outcome as the one-step variant, without the server learning the
 client password. It is recommended to have the client do a password
-strength check before engaging in the following protocol.
+strength according to NIST SP 800-63-3b check before engaging in the
+following protocol.
 
 The following steps are executed, starting with the client:
 
@@ -117,10 +81,10 @@ The outputs in the first step are
  - and request `req` that should be sent to the server, this request
    does not need to be encrypted (it is already).
 
- 2. server: ssec, resp = CreateRegistrationResponse(req, pkS)
+ 2. server: ssec, resp = CreateRegistrationResponse(req, skS)
 
 In the second step the server takes the request and an optional
-long-term server public key pkS. In case no pkS is supplied a
+long-term server private key skS. In case no skS is supplied a
 user-specific long-term server keypair is generated. The output of this step is:
 
  - a sensitive server context `ssec`, which must be kept secret and secure
@@ -128,26 +92,24 @@ user-specific long-term server keypair is generated. The output of this step is:
  - a response, which needs to be sent back to the client, this
    response does not need to be encrypted (it is already).
 
- 3. client: rec, export_key = FinalizeRequest(sec, resp, cfg, ids)
+ 3. client: recU, export_key = FinalizeRequest(sec, resp, ids)
 
 In the third step the client takes its context from step 1, the
-servers response from step 2, an OPAQUE envelope configuration, and
-the IDs of the server and client to assemble a record stub and an
-export_key. In case the client wishes to (and the server supports it)
-to encrypt and store additional data at the server, it uses the
-export_key to encrypt it and sends it over to the server together with
-the record stub. The record stub might or might not be needed
-to be encrypted, depending on the OPAQUE envelope configuration.
+servers response from step 2, and the IDs of the server and client to
+assemble a record stub `recU` and an `export_key`. In case the client
+wishes to (and the server supports it) to encrypt and store additional
+data at the server, it uses the `export_key` to encrypt it and sends
+it over to the server together with the record stub. The record stub
+might or might not be needed to be encrypted, depending on the OPAQUE
+envelope configuration.
 
- 4. server: rec = StoreUserRecord(ssec, rec, skS)
+ 4. server: rec = StoreUserRecord(ssec, recU, rec)
 
 In the last - fourth - step of the registration protocol, the server
-receives the record stub from the client step 3, it's own
-sensitive context `ssec` from step 2 and an optional long-term server
-private key (which must match the long-term public key optionally
-provided in step 2). All these parameters are used to complete the
-record stub into a full record, which then the server must store
-for later retrieval.
+receives the record stub `recU` from the client step 3, it's own
+sensitive context `ssec` from step 2. These parameters are used to
+complete the record stub into a full record `rec`, which then the
+server must store for later retrieval.
 
 ### The key-exchange
 
@@ -162,24 +124,24 @@ secret until step 3 of this protocol. This step also produces a
 request `req` - which doesn't need to be encrypted (it is already) -
 to be passed to the server executing step 2:
 
-  2. server: resp, sk, ssec = CreateCredentialResponse(req, rec, ids, infos)
+  2. server: resp, sk, ssec = CreateCredentialResponse(req, rec, ids, context)
 
 The server receives a request from the client, retrieves record
 belonging to the client, the IDs of itself and the client, and
-optional auxiliary infos. Based on these inputs the server produces:
+a context string. Based on these inputs the server produces:
 
  - a response `resp` which needs to be sent to client,
  - its own copy of the shared key produced by the key-exchange, and
  - a sensitive context `ssec` which it needs to protect until the optional step 4.
 
-  3. client: sk, authU, export_key, ids = RecoverCredentials(resp, sec, pkS, cfg, infos, ids)
+  3. client: sk, authU, export_key, ids = RecoverCredentials(resp, sec, context, ids)
 
 The client receives the servers response `resp`, and
  - takes its own sensitive context `sec` from step 1.,
  - in case the envelope configuration has set the servers public key
    set to not-packaged the servers public key,
- - the envelope configuration, and
- - the ids of the server and client in case they are not packaged in the envelope.
+ - a context string,
+ - the ids of the server and client.
 Processing all these inputs results in:
  - the shared secret key produced by the key exchange, which must be
    the same as what the server has,

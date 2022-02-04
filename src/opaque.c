@@ -26,16 +26,7 @@
 #include "aux/crypto_kdf_hkdf_sha512.h"
 #endif
 
-#ifdef CFRG_TEST_VEC
-    static const uint8_t *OPAQUE_FINALIZE_INFO=NULL;
-    #define OPAQUE_FINALIZE_INFO_LEN 0
-#else
-/**
- * See oprf_Finalize. TODO Change "OPAQUE01" once the RFC publishes.
- */
-    static const uint8_t OPAQUE_FINALIZE_INFO[] = "OPAQUE01";
-    #define OPAQUE_FINALIZE_INFO_LEN 8
-#endif
+#define VOPRF "VOPRF09"
 
 #define OPAQUE_RWDU_BYTES 64
 #define OPAQUE_HANDSHAKE_SECRETBYTES 64
@@ -133,10 +124,12 @@ static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYBYTES],
  */
 static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 #ifdef CFRG_TEST_VEC
+  // "oprf_key": "3dc1f2c5212510244924ab97b10c19f8b0f0d9444295de5e7d2c9b9f8f8edf09",
   unsigned char rtest[] = {
-    0xc6, 0x04, 0xc7, 0x85, 0xad, 0xa7, 0x0d, 0x77, 0xa5, 0x25, 0x6a, 0xe2,
-    0x17, 0x67, 0xde, 0x8c, 0x33, 0x04, 0x11, 0x52, 0x37, 0xd2, 0x62, 0x13,
-    0x4f, 0x5e, 0x46, 0xe5, 0x12, 0xcf, 0x8e, 0x03
+       0x3d, 0xc1, 0xf2, 0xc5, 0x21, 0x25, 0x10, 0x24,
+       0x49, 0x24, 0xab, 0x97, 0xb1, 0x0c, 0x19, 0xf8,
+       0xb0, 0xf0, 0xd9, 0x44, 0x42, 0x95, 0xde, 0x5e,
+       0x7d, 0x2c, 0x9b, 0x9f, 0x8f, 0x8e, 0xdf, 0x09
   };
   unsigned int rtest_len = 32;
   memcpy(kU,rtest,rtest_len);
@@ -163,13 +156,11 @@ static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
  */
 static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
                          const uint8_t N[crypto_core_ristretto255_BYTES],
-                         const uint8_t *info, const uint16_t info_len,
                          uint8_t rwdU[OPAQUE_RWDU_BYTES]) {
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IRTF CFRG specification: hash(htons(len(pwd))||pwd||
-  //                                              htons(len(info))||info||
   //                                              htons(len(H0_k))||H0_k|||
-  //                                              htons(len("Finalize-VOPRF08-\x00\x00\x01"))||"Finalize-VOPRF08-\x00\x00\x01")
+  //                                              htons(len("Finalize-"VOPRF"-\x00\x00\x01"))||"Finalize-"VOPRF"-\x00\x00\x01")
   crypto_hash_sha512_state state;
   if(-1==sodium_mlock(&state,sizeof state)) {
     return -1;
@@ -182,24 +173,15 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(x,x_len,"finalize input");
 #endif
-  // info
-  if(info!=NULL && info_len>0) {
-    size=htons(info_len);
-    crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
-    crypto_hash_sha512_update(&state, info, info_len);
-  } else {
-    size=0;
-    crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
-    crypto_hash_sha512_update(&state, NULL, 0);
-  }
   // H0_k
   size=htons(crypto_core_ristretto255_BYTES);
   crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, N, crypto_core_ristretto255_BYTES);
-  const uint8_t DST[]="Finalize-VOPRF08-\x00\x00\x01";
+  //const uint8_t DST[]="Finalize-"VOPRF"-\x00\x00\x01";
+  const uint8_t DST[]="Finalize";
   const uint8_t DST_size=sizeof DST -1;
-  size=htons(DST_size);
-  crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
+  //size=htons(DST_size);
+  //crypto_hash_sha512_update(&state, (uint8_t*) &size, 2);
   crypto_hash_sha512_update(&state, DST, DST_size);
 
   // - concat(y, Harden(y, params))
@@ -392,7 +374,7 @@ static int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const u
  * 3. return P
  */
 static int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
-  const uint8_t dst[] = "HashToGroup-VOPRF08-\x00\x00\x01";
+  const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00\x00\x01";
   const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
   if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
@@ -414,7 +396,7 @@ static int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_
 }
 
 static int voprf_hash_to_scalar(const uint8_t *msg, const uint8_t msg_len, const uint8_t *dst, const uint8_t dst_len, uint8_t p[crypto_core_ristretto255_SCALARBYTES]) {
-  //const uint8_t dst[] = "HashToScalar-VOPRF08-\x00\x00\x01";
+  //const uint8_t dst[] = "HashToScalar-"VOPRF"-\x00\x00\x01";
   //const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
   if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
@@ -432,6 +414,33 @@ static int voprf_hash_to_scalar(const uint8_t *msg, const uint8_t msg_len, const
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(p, crypto_core_ristretto255_BYTES, "hashed-to-scalar");
 #endif
+  return 0;
+}
+
+static int deriveKeyPair(const uint8_t *seed, const size_t seed_len, const uint8_t *info, const uint16_t info_len, uint8_t skS[crypto_core_ristretto255_SCALARBYTES], uint8_t pkS[crypto_core_ristretto255_BYTES]) {
+  const uint8_t ctx[] = "DeriveKeyPair"VOPRF"-\x00\x00\x01";
+  uint8_t hashinput[seed_len + 2 + info_len + 1], *ptr= hashinput;
+  memcpy(ptr,seed,seed_len);
+  ptr+=seed_len;
+  *((uint16_t*) ptr)=htons(info_len);
+  ptr+=2;
+  memcpy(ptr,info,info_len);
+  ptr+=info_len;
+  ptr[0]=0;
+  memset(skS,0,crypto_core_ristretto255_SCALARBYTES);
+  int i;
+  while(1) {
+    if(ptr[0]>16) return 1; // DeriveKeyPairError
+    for(i=crypto_core_ristretto255_SCALARBYTES/sizeof(uint32_t);i>0;i--) {
+      if((((uint32_t*)skS)[i-1])!=0) break;
+    }
+    if(i!=0) break;
+    if(0!=voprf_hash_to_scalar(hashinput,sizeof hashinput, ctx, sizeof ctx -1,skS)) return -1;
+    ptr[0]++;
+  }
+
+  // P_u := g^p_u
+  crypto_scalarmult_ristretto255_base(pkS, skS);
   return 0;
 }
 
@@ -466,7 +475,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // 2. rwdU = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(pwdU, pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(pwdU, pwdU_len, N, rwdU)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -559,25 +568,6 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
 static int oprf_Evaluate(const uint8_t k[crypto_core_ristretto255_SCALARBYTES],
                          const uint8_t blinded[crypto_core_ristretto255_BYTES],
                          uint8_t Z[crypto_core_ristretto255_BYTES]) {
-#ifdef CFRG_TEST_VEC
-  // cheating here, the current draft unecessarily uses a poprf not
-  // the oprf evaluate semantics it is planned to switch back to oprf
-  // thus this workaround.
-  static int vecidx=0;
-  const uint8_t z[2][32] = {{
-           0x5c, 0x7d, 0x3c, 0x70, 0xcf, 0x74, 0x78, 0xea,
-           0xd8, 0x59, 0xbb, 0x87, 0x9b, 0x37, 0xcc, 0xe7,
-           0x8b, 0xae, 0xf3, 0xb9, 0xd8, 0x1e, 0x04, 0xf4,
-           0xc7, 0x90, 0xce, 0x25, 0xf2, 0x83, 0x0e, 0x2e,},
-
-          {0x1a, 0xf1, 0x1b, 0xe2, 0x9a, 0x90, 0x32, 0x2d,
-           0xc1, 0x64, 0x62, 0xd0, 0x86, 0x1b, 0x1e, 0xb6,
-           0x17, 0x61, 0x1f, 0xe2, 0xf0, 0x5e, 0x5e, 0x98,
-           0x60, 0xc1, 0x64, 0x59, 0x2d, 0x4f, 0x7f, 0x62}};
-  memcpy(Z,z[vecidx++ % 2],sizeof z);
-  return 0;
-#endif
-
   return crypto_scalarmult_ristretto255(Z, k, blinded);
 }
 
@@ -955,37 +945,33 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
   }
 
   // 5. seed = Expand(randomized_pwd, concat(envelope_nonce, "PrivateKey"), Nseed)
-  uint8_t client_secret_key[crypto_scalarmult_SCALARBYTES];
-  if(-1==sodium_mlock(client_secret_key, sizeof client_secret_key)) {
-    sodium_munlock(auth_key, sizeof auth_key);
-    return -1;
-  }
   memcpy(label, "PrivateKey", 10);
   uint8_t seed[crypto_core_ristretto255_SCALARBYTES];
   if(-1==sodium_mlock(seed, sizeof seed)) {
-    sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
   crypto_kdf_hkdf_sha512_expand(seed, crypto_core_ristretto255_SCALARBYTES,
                                 (const char*) concated, OPAQUE_ENVELOPE_NONCEBYTES+10,
                                 rwdU);
-#if (defined CFRG_TEST_VEC || defined TRACE)
-  dump(client_secret_key, crypto_scalarmult_SCALARBYTES, "client_secret_key");
-#endif
 
   // 6. _, client_public_key = DeriveAuthKeyPair(seed)
-  uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
-  if(0!=voprf_hash_to_scalar(seed, sizeof seed, dst, sizeof dst, client_secret_key)) {
+  uint8_t client_secret_key[crypto_scalarmult_SCALARBYTES];
+  if(-1==sodium_mlock(client_secret_key, sizeof client_secret_key)) {
+    sodium_munlock(auth_key, sizeof auth_key);
+    return -1;
+  }
+  const uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
+  if(0!=deriveKeyPair(seed, sizeof seed, dst, sizeof dst, client_secret_key, client_public_key)) {
     sodium_munlock(seed, sizeof seed);
     sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
   sodium_munlock(seed, sizeof seed);
-
-  // P_u := g^p_u
-  crypto_scalarmult_ristretto255_base(client_public_key, client_secret_key);
+#if (defined CFRG_TEST_VEC || defined TRACE)
+  dump(client_secret_key, crypto_scalarmult_SCALARBYTES, "client_secret_key");
+#endif
   sodium_munlock(client_secret_key, sizeof client_secret_key);
 #if (defined CFRG_TEST_VEC || defined TRACE)
   dump(client_public_key, crypto_scalarmult_BYTES, "client_public_key");
@@ -1420,7 +1406,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     return -1;
   }
   // 1.2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU,sizeof rwdU);
     return -1;
@@ -1544,19 +1530,19 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
-  uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
-  if(0!=voprf_hash_to_scalar(seed, sizeof seed, dst, sizeof dst, client_secret_key)) {
-    sodium_munlock(client_secret_key, sizeof client_secret_key);
+  const uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
+  uint8_t client_public_key[crypto_scalarmult_BYTES];
+  if(0!=deriveKeyPair(seed, sizeof seed, dst, sizeof dst, client_secret_key, client_public_key)) {
     sodium_munlock(seed, sizeof seed);
+    sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
   sodium_munlock(seed, sizeof seed);
-  // P_u := g^p_u
-  uint8_t client_public_key[crypto_scalarmult_BYTES];
-  crypto_scalarmult_ristretto255_base(client_public_key, client_secret_key);
-#if (defined TRACE || defined CFRG_TEST_VEC)
+#if (defined CFRG_TEST_VEC || defined TRACE)
   dump(client_secret_key, crypto_scalarmult_SCALARBYTES, "client_secret_key");
+#endif
+#if (defined CFRG_TEST_VEC || defined TRACE)
   dump(client_public_key, crypto_scalarmult_BYTES, "client_public_key");
 #endif
 
@@ -1607,7 +1593,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 1.6.7. If !ct_equal(envelope.auth_tag, expected_tag),
   //   raise KeyRecoveryError
   if(0!=sodium_memcmp(env.auth_tag, auth_tag, sizeof auth_tag)) {
-    // todo clear all
+    sodium_munlock(client_secret_key, sizeof client_secret_key);
     return -1;
   }
 
@@ -1763,7 +1749,7 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
     return -1;
   }
   // 2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, OPAQUE_FINALIZE_INFO, OPAQUE_FINALIZE_INFO_LEN, rwdU)) {
+  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU, sizeof(rwdU));
     return -1;

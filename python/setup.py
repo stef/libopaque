@@ -10,7 +10,7 @@ def read(fname):
 
 setup(
     name="opaque",
-    version="0.1.0",
+    version="0.2.0",
     author="Stefan Marsiske",
     author_email="pyopaque@ctrlc.hu",
     description="python libopaque wrapper",

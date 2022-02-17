@@ -21,6 +21,9 @@
 #include "opaque.h"
 #include <arpa/inet.h>
 #include "common.h"
+#ifdef CFRG_TEST_VEC
+#include "tests/cfrg_test_vector_decl.h"
+#endif
 
 #ifndef HAVE_SODIUM_HKDF
 #include "aux/crypto_kdf_hkdf_sha512.h"
@@ -124,15 +127,7 @@ static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYBYTES],
  */
 static void oprf_KeyGen(uint8_t kU[crypto_core_ristretto255_SCALARBYTES]) {
 #ifdef CFRG_TEST_VEC
-  // "oprf_key": "3dc1f2c5212510244924ab97b10c19f8b0f0d9444295de5e7d2c9b9f8f8edf09",
-  unsigned char rtest[] = {
-       0x3d, 0xc1, 0xf2, 0xc5, 0x21, 0x25, 0x10, 0x24,
-       0x49, 0x24, 0xab, 0x97, 0xb1, 0x0c, 0x19, 0xf8,
-       0xb0, 0xf0, 0xd9, 0x44, 0x42, 0x95, 0xde, 0x5e,
-       0x7d, 0x2c, 0x9b, 0x9f, 0x8f, 0x8e, 0xdf, 0x09
-  };
-  unsigned int rtest_len = 32;
-  memcpy(kU,rtest,rtest_len);
+  memcpy(kU,oprf_key,oprf_key_len);
 #else
   crypto_core_ristretto255_scalar_random(kU);
 #endif
@@ -517,18 +512,7 @@ static int oprf_Blind(const uint8_t *x, const uint16_t x_len,
   // U picks r
 #ifdef CFRG_TEST_VEC
   static int vecidx=0;
-  const unsigned char rtest[2][32] = {{
-           // "blind_registration": "c62937d17dc9aa213c9038f84fe8c5bf3d953356db01c4d48acb7cae48e6a504",
-                           0xc6, 0x29, 0x37, 0xd1, 0x7d, 0xc9, 0xaa, 0x21,
-                           0x3c, 0x90, 0x38, 0xf8, 0x4f, 0xe8, 0xc5, 0xbf,
-                           0x3d, 0x95, 0x33, 0x56, 0xdb, 0x01, 0xc4, 0xd4,
-                           0x8a, 0xcb, 0x7c, 0xae, 0x48, 0xe6, 0xa5, 0x04},
-           // "blind_login": "b5f458822ea11c900ad776e38e29d7be361f75b4d79b55ad74923299bf8d6503",
-                          {0xb5, 0xf4, 0x58, 0x82, 0x2e, 0xa1, 0x1c, 0x90,
-                           0x0a, 0xd7, 0x76, 0xe3, 0x8e, 0x29, 0xd7, 0xbe,
-                           0x36, 0x1f, 0x75, 0xb4, 0xd7, 0x9b, 0x55, 0xad,
-                           0x74, 0x92, 0x32, 0x99, 0xbf, 0x8d, 0x65, 0x03
-                           }};
+  const unsigned char *rtest[2] = {blind_registration, blind_login};
   const unsigned int rtest_len = 32;
   memcpy(r,rtest[vecidx++ % 2],rtest_len);
 #else
@@ -741,8 +725,17 @@ static void calc_preamble(char preamble[crypto_hash_sha512_BYTES],
   fprintf(stderr,"calc preamble\n");
   dump(ids.idU, ids.idU_len,"idU ");
   dump(ids.idS, ids.idS_len,"idS ");
-  //dump(nonceU, OPAQUE_NONCE_BYTES, "nonceU ");
-  //dump(nonceS, OPAQUE_NONCE_BYTES, "nonceS ");
+  dump(pkU, crypto_scalarmult_BYTES, "pkU");
+  dump(pkS,crypto_scalarmult_BYTES, "pkS");
+  dump(ke1, OPAQUE_USER_SESSION_PUBLIC_LEN, "ke1");
+  dump(ctx, ctx_len, "ctx");
+  dump((uint8_t*)ke2,
+       /* credential_response */
+       /*Z*/ crypto_core_ristretto255_BYTES +
+       /*masking_nonce*/ 32+
+       /*masked_response*/ crypto_scalarmult_BYTES+sizeof(Opaque_Envelope)+
+       /*nonceS*/OPAQUE_NONCE_BYTES+
+       /*X_s*/crypto_scalarmult_BYTES, "ke2");
 #endif
 
   //1. preamble = hash("RFCXXXX",
@@ -889,14 +882,7 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
 
   // 1. envelope_nonce = random(Nn)
 #ifdef CFRG_TEST_VEC
-  // testvector from irtf cfrg
-  // "envelope_nonce": "71b8f14b7a1059cdadc414c409064a22cf9e970b0ffc6f1fc6fdd539c4676775"
-  const uint8_t nonce[32] = {
-         0x71, 0xb8, 0xf1, 0x4b, 0x7a, 0x10, 0x59, 0xcd,
-         0xad, 0xc4, 0x14, 0xc4, 0x09, 0x06, 0x4a, 0x22,
-         0xcf, 0x9e, 0x97, 0x0b, 0x0f, 0xfc, 0x6f, 0x1f,
-         0xc6, 0xfd, 0xd5, 0x39, 0xc4, 0x67, 0x67, 0x75};
-  memcpy(env->nonce, nonce, sizeof nonce);
+  memcpy(env->nonce, envelope_nonce, envelope_nonce_len);
 #else
   randombytes(env->nonce, OPAQUE_ENVELOPE_NONCEBYTES);
 #endif
@@ -1115,12 +1101,6 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // x_u ←_R Z_q
 #ifdef CFRG_TEST_VEC
-  const uint8_t client_private_keyshare[32] = {
-           // "client_private_keyshare": "4230d62ea740b13e178185fc517cf2c313e6908c4cd9fb42154870ff3490c608"
-           0x42, 0x30, 0xd6, 0x2e, 0xa7, 0x40, 0xb1, 0x3e,
-           0x17, 0x81, 0x85, 0xfc, 0x51, 0x7c, 0xf2, 0xc3,
-           0x13, 0xe6, 0x90, 0x8c, 0x4c, 0xd9, 0xfb, 0x42,
-           0x15, 0x48, 0x70, 0xff, 0x34, 0x90, 0xc6, 0x08};
   memcpy(sec->x_u, client_private_keyshare, crypto_scalarmult_SCALARBYTES);
 #else
   randombytes(sec->x_u, crypto_scalarmult_SCALARBYTES);
@@ -1128,12 +1108,6 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   // nonceU
 #ifdef CFRG_TEST_VEC
-  const uint8_t client_nonce[] = {
-           // "client_nonce": "804133133e7ee6836c8515752e24bb44d323fef4ead34cde967798f2e9784f69"
-           0x80, 0x41, 0x33, 0x13, 0x3e, 0x7e, 0xe6, 0x83,
-           0x6c, 0x85, 0x15, 0x75, 0x2e, 0x24, 0xbb, 0x44,
-           0xd3, 0x23, 0xfe, 0xf4, 0xea, 0xd3, 0x4c, 0xde,
-           0x96, 0x77, 0x98, 0xf2, 0xe9, 0x78, 0x4f, 0x69};
   memcpy(sec->nonceU, client_nonce, OPAQUE_NONCE_BYTES);
 #else
   randombytes(sec->nonceU, OPAQUE_NONCE_BYTES);
@@ -1201,13 +1175,9 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
     uint8_t nonce[32];
     uint8_t dst[21];
   } __attribute((packed)) masking_info = {
-      .nonce = {
-  // "masking_nonce": "54f9341ca183700f6b6acf28dbfe4a86afad788805de49f2d680ab86ff39ed7f"
-           0x54, 0xf9, 0x34, 0x1c, 0xa1, 0x83, 0x70, 0x0f,
-           0x6b, 0x6a, 0xcf, 0x28, 0xdb, 0xfe, 0x4a, 0x86,
-           0xaf, 0xad, 0x78, 0x88, 0x05, 0xde, 0x49, 0xf2,
-           0xd6, 0x80, 0xab, 0x86, 0xff, 0x39, 0xed, 0x7f},
+      .nonce = {0},
       .dst = "CredentialResponsePad"};
+  memcpy(masking_info.nonce, masking_nonce, masking_nonce_len);
 #else
   struct {
     uint8_t nonce[32];
@@ -1251,11 +1221,6 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // 1. server_nonce = random(Nn)
   // nonceS
 #ifdef CFRG_TEST_VEC
-  const uint8_t server_nonce[OPAQUE_NONCE_BYTES] = {
-           0xf9, 0xc5, 0xec, 0x75, 0xa8, 0xcd, 0x57, 0x13,
-           0x70, 0xad, 0xd2, 0x49, 0xe9, 0x9c, 0xb8, 0xa8,
-           0xc4, 0x3f, 0x6e, 0xf0, 0x56, 0x10, 0xac, 0x6e,
-           0x35, 0x46, 0x42, 0xbf, 0x4f, 0xed, 0xbf, 0x69};
   memcpy(resp->nonceS, server_nonce, OPAQUE_NONCE_BYTES);
 #else
   randombytes(resp->nonceS, OPAQUE_NONCE_BYTES);
@@ -1266,11 +1231,6 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   uint8_t x_s[crypto_scalarmult_SCALARBYTES];
   if(-1==sodium_mlock(x_s,sizeof x_s)) return -1;
 #ifdef CFRG_TEST_VEC
-  const uint8_t server_private_keyshare[32] = {
-           0xf8, 0xe3, 0xe3, 0x15, 0x43, 0xdd, 0x6f, 0xc8,
-           0x68, 0x33, 0x29, 0x67, 0x26, 0x77, 0x3d, 0x51,
-           0x15, 0x82, 0x91, 0xab, 0x9a, 0xfd, 0x66, 0x6b,
-           0xb5, 0x5d, 0xce, 0x83, 0x47, 0x4c, 0x11, 0x01};
   memcpy(x_s, server_private_keyshare, sizeof x_s);
 #else
   randombytes(x_s, crypto_scalarmult_SCALARBYTES);
@@ -1352,7 +1312,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #ifdef TRACE
   dump(resp->auth, sizeof(resp->auth), "session srv auth ");
   dump(authU, crypto_auth_hmacsha512_BYTES, "authU");
-  dump(_resp, sizeof(*resp), "resp");
+  dump(_resp, OPAQUE_SERVER_SESSION_LEN, "resp");
 #endif
 
   return 0;
@@ -1630,7 +1590,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   // 2.5. If !ct_equal(ke2.server_mac, expected_server_mac),
   //   raise HandshakeError
   if (sodium_memcmp(authS, resp->auth, sizeof authS)!=0) {
-    // todo clear all
+    sodium_munlock(&keys, sizeof(keys));
     return -1;
   }
 

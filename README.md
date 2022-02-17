@@ -9,6 +9,16 @@ it.
 
 It comes with bindings for js, php7, ruby, java, erlang, lua, python, go.
 
+Some more information about OPAQUE can be found in a series of blogposts:
+
+ - [OPAQUE](https://www.ctrlc.hu/~stef/blog/posts/opaque.html)
+ - [Why and how to use OPAQUE for user authentication](https://www.ctrlc.hu/~stef/blog/posts/Why_and_how_to_use_OPAQUE_for_user_authentication.html)
+ - [opaque demo](https://www.ctrlc.hu/~stef/blog/posts/opaque_demo.html)
+
+There is a [live demo](https://ctrlc.hu/opaque/) between a
+python/flask backend and a js/html frontend.
+
+
 ## The OPAQUE Protocol
 
 The OPAQUE protocol is an asymmetric password-authenticated

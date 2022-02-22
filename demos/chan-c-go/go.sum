@@ -1,0 +1,4 @@
+github.com/jamesruan/sodium v1.0.14 h1:JfOHobip/lUWouxHV3PwYwu3gsLewPrDrZXO3HuBzUU=
+github.com/jamesruan/sodium v1.0.14/go.mod h1:GK2+LACf7kuVQ9k7Irk0MB2B65j5rVqkz+9ylGIggZk=
+github.com/stef/libopaque/go v0.0.0-20220221211752-d1a24354ba0e h1:zFwxw7o5B5sB+Og7/q/ruO8fe73CfRYlNdiMg4C9J0o=
+github.com/stef/libopaque/go v0.0.0-20220221211752-d1a24354ba0e/go.mod h1:XK7LCqV5P10g3Xa6Jf6dLCLQmsAIQWUHEoewxcyFKwg=

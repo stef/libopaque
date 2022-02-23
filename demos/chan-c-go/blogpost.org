@@ -1,0 +1,179 @@
+#+OPTIONS:   H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+
+I heard you need to write a tool that sets up a secure channel between
+two peers, but you cannot afford the luxury of using certificates for
+doing so. Maybe you want to develop a less braindead protocol than
+shadowsocks? All you have is a password? How about combining OPAQUE
+with a double-ratchet? You heard about OPAQUE, but are afraid to ask
+how to do this? Fear not, the following bits are here to enlighten
+you.
+
+** A warning
+
+First a warning, since the security of the channel depends on the
+strength of your password it is essential that password is of high
+entropy and that your server employs some kind of rate-limiting, and
+possibly a whole range of other limitations and defense-in-depth
+mitigations. If possible try to use certificates, preferably in HW
+tokens though. Of course the best solution would be to use a strong
+password storage like [[https://www.ctrlc.hu/~stef/blog/posts/sphinx.html][SPHINX]].
+
+** An example
+
+The source code to this example can be found in the [[https://github.com/stef/libopaque/tree/master/demos/chan-c-go][demos/chan-c-go]]
+directory of the [[https://github.com/stef/libopaque/][libopaque]] sources. The example shows a simple client
+written in C connecting to a server written in Go. The client takes
+the password and the ip address of the server as command-line
+parameters. The server has one user record hard-coded that opens with
+the "super secure" password: "password". After completing an OPAQUE
+run, the client and server tries to exchange a message which is
+protected by the shared session key derived via OPAQUE and used with
+crypto_secretbox mechanism from libsodium. This will only succeed if the
+user provided the correct password at the command-line of the client.
+
+Let's have a look at the relevant steps the client and server execute.
+
+*** First step: client initiates
+
+Initiating a OPAQUE session always starts with the client and the user
+providing the password to it. Well wrap the whole OPAQUE flow in a
+function that takes a password as input, and when everything is done
+returns the shared session secret:
+
+#+BEGIN_SRC C
+#include <stdint.h>
+#include "opaque.h"
+
+int get_session_secret(const int sock,
+                       const uint8_t *pwdU,
+                       const size_t pwdU_len,
+                       uint8_t sk[OPAQUE_SHARED_SECRETBYTES]) {
+
+  // let's prepare to make create a credential request, we need some
+  // data to store it in:
+  uint8_t request[OPAQUE_USER_SESSION_PUBLIC_LEN];
+  uint8_t ctx[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len];
+  // ctx is sensitive data we should protect it! with c you can
+  // actually protect sensitive data much better than with other
+  // languages, sodium wraps this up nicely and portably:
+  if(-1==sodium_mlock(ctx,sizeof ctx)) {
+    fprintf(stderr,"Failed to protect sensitive context\n");
+    return -1;
+  }
+
+  // let's create the credential request
+  if(0!=opaque_CreateCredentialRequest(pwdU, pwdU_len, ctx, request)) {
+    fprintf(stderr,"Failed to create credential request\n");
+    return -1;
+  }
+
+  // send off the request to the server
+  if(sizeof request != write(sock, request, sizeof request)) {
+    //fprintf(stderr,);
+    perror("failed to send the request\n");
+    return -1;
+  }
+
+....
+
+#+END_SRC
+
+*** Second step: the server prepares a response
+
+The server must read a user id and a request from the
+connection. Using the user id it can load the according user record,
+and with it can create a credential response.
+
+#+BEGIN_SRC go
+import libopaque
+
+...
+  // we need to store the request
+  request := make([]byte, libopaque.OPAQUE_USER_SESSION_PUBLIC_LEN)
+  // read the request from the connection
+  b, err := c.Read(request)
+  if err != nil || b != libopaque.OPAQUE_USER_SESSION_PUBLIC_LEN {
+  	fmt.Println(b)
+  	panic(err)
+  }
+
+  // create a response based on the request, the hard-coded user
+  // record, the ids and the context.
+  resp, sk, _, err := libopaque.CreateCredResp(request, rec, ids, context)
+  if err != nil {
+  	panic(err)
+  }
+
+  // send the response over to the client
+  b, err = c.Write(resp)
+  if err != nil || b != libopaque.OPAQUE_SERVER_SESSION_LEN {
+  	fmt.Println(b)
+  	panic(err)
+  }
+...
+#+END_SRC
+
+And this concludes the servers OPAQUE part, there is no further step
+necessary. The session secret should be used to setup an encrypted
+channel, like using the session secret as a key in a sodium/secretbox,
+or perhaps indeed feeding it to a double ratchet. Authentication will
+be implicit, if the authentication of any packages between the server
+and the client fails, then there is something afoul and you should
+abort your connection.
+
+*** Last step: the client finishes the session setup
+
+The last step is quite simple, the client reads the servers response,
+and recovers its credentials. Most notable are the two NULL
+parameters, one for the authentication token, which we don't need
+since we are doing implicit user authentication. And the other NULL is
+for the export_key which we also do not need in our case.
+
+#+BEGIN_SRC c
+  ...
+  // we need to store the servers response
+  uint8_t response[OPAQUE_SERVER_SESSION_LEN];
+  // receive a response from the server
+  if(sizeof response != read(sock, response, sizeof response )) {
+    perror("failed to read the response\n");
+    return -1;
+  }
+
+  // we need to supply the same context and user ids to the final step
+  // as have been used by the server
+  const uint8_t context[]="context";
+  const Opaque_Ids ids={4,(uint8_t*) "user",6,(uint8_t*)"server"};
+  // we recover the shared session key, and we set the authorization
+  // token and the export_key parameters to NULL since we do not care
+  // about them in this demo.
+  if(0!=opaque_RecoverCredentials(response, ctx, context,
+                                  strlen((char*)context), &ids, sk,
+                                  NULL, NULL)) {
+    fprintf(stderr,"Failed to recovercredential\n");
+    return 1;
+  }
+  // yay everything went fine.
+  return 0;
+}
+#+END_SRC
+
+The result of this function is in the parameter sk, which should be
+fed into a counter-part of whatever the server is doing - be it a
+secretbox, or a double ratchet.
+
+** Summary
+
+There is strong initiatives trying to get rid of passwords, and in
+some cases it makes sense. However there will be many use-cases where
+this cannot work. If the usage of certificates or hardware tokens is
+not possible, passwords if strong enough can still provide adequate
+protection even for protected communication channels. The nice thing
+about passwords is, that you do not need anything to use them, nothing
+to carry, nothing to sync, no state, no worries (ok, you still need a
+client though). And in this example and the accompanying demo we
+showed how simple it is to use OPAQUE with a password to create a
+forward secure communication channel between a client and a server.
+
+Don't forget to come back for the next episode where we'll have a look
+how to store securely some sensitive data with OPAQUE.

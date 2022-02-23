@@ -84,5 +84,6 @@ clean:
 		tests/opaque-tv1.exe \
 		tests/opaque-tv1.html \
 		tests/opaque-tv1.js \
+		utils/opaque
 
 .PHONY: all clean debug install test

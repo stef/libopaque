@@ -1,0 +1,286 @@
+#+OPTIONS:   H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+
+[[https://plaintextoffenders.com/][Storing clear text passwords]] in your user database is very stupid.
+
+Traditionally we store hashed passwords of users. When a user logs in,
+then the user sends their cleartext password to the server (hopefully
+protected by TLS), the server hashes the password and compares it to
+to the stored hash, if it matches, all is good. Lets call this
+symmetric authentication, where both the client and the server knows
+the cleartext password.
+
+** A simple threat model
+
+With authentication you have the channel over which the token is
+transmitted:
+
+  - here you don't want a passive adversary learn your cleartext
+    password (sniffing),
+
+  - or an active adversary being able to replay your password as in
+    pass-the-hash attacks (replays).
+
+You say that but its all protected by TLS, maybe, but maybe your TLS
+terminates at cloudflare or another content delivery network (CDN), or
+the TLS configuration fails for some reason (e.g. certificate verify =
+false, or you push your private key to github), or your certificate
+store has certificate authorities that are controlled by some adversary.
+
+On the server itself:
+
+  - you want to be safe against [[https://en.wikipedia.org/wiki/SNAFU][SNAFUs]] like when Twitter was [[https://www.theverge.com/2018/5/3/17316684/twitter-password-bug-security-flaw-exposed-change-now][logging
+    clear text passwords]], or [[https://en.wikipedia.org/wiki/Heartbleed][heartbleed]] is leaking them. Also you
+    don't want active attackers on the server to be able to read the
+    plaintext passwords (direct password leaks).
+
+  - And finally you want to avoid in case an attacker leaks your user
+    database that there are already pre-computations available that
+    simplify the recovery of passwords from hashes into cheap
+    lookups, so you use salts. (pre-computation)
+
+You want to protect those passwords of your user so that in case your
+password database leaks, you want to make it as difficult as possible
+to anyone to recover passwords, in case those passwords are reused at
+other sites and enable attackers to abuse these accounts.
+
+So you really don't want your cleartext password to be sent to the
+server, ever. And it's possible, for example [[https://en.wikipedia.org/wiki/CRAM-MD5][CRAM]] - a
+challenge-response protocol - eliminates the sniffing vector. The
+[[https://en.wikipedia.org/wiki/Socialist_millionaires][socialist millionaire protocol]] (SMP) eliminates both sniffing and
+replay issues. But they still need the cleartext password on the
+server. So, that leads us to...
+
+** Asymmetric authentication
+
+If there is symmetric authentication, there must be also asymmetric
+authentication, where only one party knows the password. And the nice
+thing about asymmetric auth is that it immediately eliminates sniffing
+and direct password leaks problems.
+
+Let's hypothesize a simple hash-based protocol where password is never
+sent in cleartext to the server.  If instead of directly sending
+cleartext password,
+
+  1. since we're hashing on the client, we need to know the salt with
+     which the server has the password hashed with during
+     registration, so the client first asks for the global or user
+     specific salt.
+
+  2. the server sends the salt via tls, then
+
+  3. client calculates hash(per-user-salt, pwd) sends to server, and
+
+  4. server hashes this again (otherwise the once hashed password
+     could be used by anyone having access to the user database) and
+     compares that to the stored value that has also been hashed
+     twice.
+
+In case of SNAFU (TLS fail, [[https://en.wikipedia.org/wiki/Man-in-the-middle_attack][MitM]], CDN, attacker on server, twitter
+fumbling, etc) the salt leaks, and possibly a unique hash, that needs
+to be bruteforced to recover the password. However there are a few
+problems:
+
+   1. the salt must be requested from the server, adding 2 more steps
+      to the auth protocol. Caching the salt [[https://en.wikipedia.org/wiki/Trust_on_first_use][TOFU]]-style in a cookie
+      solves this.
+
+   2. salts mustn't leak if a user exists or not, that means for
+      non-existing users, the same salt must be returned for the same
+      non-existing username. This can be solved by calculating the
+      salt like this:
+      #+BEGIN_EXAMPLE
+      salt:=hmac(username, serverkey)
+      #+END_EXAMPLE
+   3. global salts enable an attacker to acquire the salt and
+      pre-calculate.
+
+   4. if a username is known, an attacker can query the salt and
+      prepare a pre-calculation.
+
+   5. the hashed password can still be used in a pass-the-hash style
+      replay attack by anyone stealing it.
+
+   6. an active attacker could respond with a salt, for which they
+      have a pre-computation, and then recover the client's password
+      from the received hash.
+
+Of course this hypothetical protocol is only a *gedankenspiel*, an
+example of why we should not invent our own crypto, and that every
+solution also bears new problems.
+
+What we really want is an asymmetric Password-Authenticated Key
+Exchange (aPAKE), of which the most prominent one is
+SRP. Coincidentally the first versions of [[https://blog.cryptographyengineering.com/should-you-use-srp/][SRP]] also were fraught with
+serious issues.
+
+With [[https://ctrlc.hu/~stef/blog/posts/opaque.html][OPAQUE]] you never send your password to the server, eliminating
+sniffing and replay attacks, and an attacker has no pre-computation
+opportunity. Since using [[https://ctrlc.hu/~stef/blog/posts/oprf.html][OPRF]] shields the "salt" and the password from
+an attacker OPAQUE also eliminate direct password leaks. Beyond this
+OPAQUE has proofs in a very strong model. Another benefit of using
+OPAQUE is that the memory-hard key-stretching function can run on the
+client, and thus reduces the attack surface for computational
+denial-of-service (DoS) vectors against the server. Also notable is
+that OPAQUE can run over an insecure communication medium, there is no
+need for TLS or anything else. Another nice feature of OPAQUE is, that
+the server can return a fake record to mitigate user enumeration
+attacks, an attacker will not be able to decide if the user exists or
+not.
+
+** How to Authenticate with OPAQUE?
+
+So you want to eliminate the burden of cleartext passwords on your
+service, and you are willing to go from one message to 3 messages in
+the authentication dance. Assuming a user is already registered at
+your service, which might have been done by running the following
+binary as supplied by libopaque and storing the resulting record at
+the server:
+
+#+BEGIN_SRC sh
+echo -n password | ./opaque init user server >record 3>/dev/null
+#+END_SRC
+
+The following examples are using the javascript and python wrappers
+provided by [[https://github.com/stef/libopaque/][libopaque]].
+
+*** 1. The client initiates a credential request
+
+For example using javascript in a web browser:
+
+**client.js:**
+#+BEGIN_SRC javascript
+const opaque = require("../dist/libopaque.debug.js");
+
+(async () => {
+  await opaque.ready;
+
+  const pwdU = "password";
+  let { ctx, pub } = opaque.createCredentialRequest({ pwdU });
+
+  const userid = "user@example.com";
+  send_to_server(request, userid); // you need to implement this fn
+  ...
+#+END_SRC
+
+The client sends "request" over to the server, and holds onto "ctx" as
+securely as possible.
+
+*** 2. The server handles the "request" from the client
+
+**server.py:**
+#+BEGIN_SRC python
+from opaque import CreateCredentialResponse,
+                    UserAuth,
+                    Ids)
+
+...
+
+# server reads the request from the client
+request, userid = get_request() # you need to implement get_request()
+
+# load the record
+record = load_record(userid) # you need to implement load_record()
+
+# wrap the IDs into an opaque.Ids struct:
+ids=Ids(userid, "servername")
+
+# create a context string
+context = "pyopaque-v0.2.0-demo"
+
+# server responds to credential request
+response, _, authU = CreateCredentialResponse(request, record, ids, context)
+
+send_to_client(response) # you need to implement send_to_client()
+#+END_SRC
+
+The request is probably read from the network.
+
+The user record that has been created during user registration is
+loaded probably from disk or a database based on the user id.
+
+By default peers in OPAQUE are identified by their long-term public
+keys, in case you want to use something else as identifiers, you need
+to specify them when creating the credential response, in our example
+we use the userid as provided by the client and "servername".
+
+Also important is to provide some context-string to prevent
+cross-protocol or downgrade attacks, hence we provide context string.
+
+When creating a credential response the output does not need any kind
+of extra protection, it is already encrypted and authenticated.
+
+Another output of this functions is a shared key, which is not needed
+in this case, where we are using OPAQUE only to authenticate.
+
+However the third output, the users expected authentication token is
+needed by the server in the last step of this protocol.
+
+*** 3. The client recovers its credentials
+
+**client.js:**
+#+BEGIN_SRC javascript
+  ...
+  const response = read_response(); // you need to implement this function
+
+  const ids = { idU: userid, idS: "servername" };
+  const context = "pyopaque-v0.2.0-demo";
+
+  const {sk, authU, export_key,} = opaque.recoverCredentials({resp, ctx, context, ids});
+
+  send_to_server(authU); // you need to implement this fn.
+}
+#+END_SRC
+
+The client receives the servers response and uses its private
+context "ctx" from the first step, to recover its credentials.
+
+The recovery needs the same ids and context string as the server was
+using.
+
+The result of the recover credentials are:
+  - a shared key, which is not needed in case we use OPAQUE only to
+    authenticate,
+  - the authentication token of the user, and
+  - an export key which is also not needed for authentication-only use
+    of OPAQUE.
+
+Finally client sends the user's authentication token to the server to
+explicitly authenticate itself to the server. This concludes OPAQUE
+for the client.
+
+*** 4. The server authenticates the client
+
+**server.py:**
+#+BEGIN_SRC python
+authU0 = receive_authU() # you need to implement this function
+# server authenticates user
+if not UserAuth(authU0, authU): raise AuthenticationFailure
+#+END_SRC
+
+The server takes the user authentication token it generated in the
+second step and compares it to the token it received from the client,
+if it matches the user is authenticated.
+
+** Conclusion
+
+With OPAQUE, you never send your password to the server, so there is
+nothing that can be sniffed, or replayed, nor can your password leak
+in any way. The "salt" is also never available to eavesdroppers, which
+makes pre-computation impossible. Furthermore memory-hard password
+hashing functions are running on the client, which makes computational
+denial of service attacks against servers less of a problem. And there
+is even support to mitigate user enumeration attacks. The only two
+major problems are phishing attacks, if you get tricked to reveal your
+password, then it's game over. And offline bruteforce attacks in case
+a user database leaks, but that should be also more difficult due to
+the used memory-hard password hashing function used.
+
+All in all OPAQUE is a very efficent protocol with very strong
+security guarantees which, thanks to [[https://github.com/stef/libopaque/][libopaque]] is easy to integrate
+into you application.
+
+This project was funded through the NGI0 PET Fund, a fund established
+by NLnet with financial support from the European Commission's Next
+Generation Internet programme, under the aegis of DG Communications
+Networks, Content and Technology under grant agreement No 825310.

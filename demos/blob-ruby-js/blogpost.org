@@ -1,0 +1,246 @@
+#+OPTIONS:   H:2 num:nil toc:nil \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+
+We have already seen two use-cases for OPAQUE: [[https://www.ctrlc.hu/~stef/blog/posts/Why_and_how_to_use_OPAQUE_for_user_authentication.html][authentication]] and
+[[https://www.ctrlc.hu/~stef/blog/posts/How_to_use_OPAQUE_for_setting_up_a_secure_channel.html][securing a channel]]. A third less obvious - if you think of it as a
+(P)ake - use of OPAQUE is to store and retrieve static and probably
+sensitive data. In the previous example we always ignored the
+export-key, in this installment it will be the main instrument.
+
+** The export-key
+
+The export-key is a key derived from your password during
+registration. This can then be used to encrypt additional data that is
+independent of the data needed for a run of the OPAQUE protocol.
+
+** Where to store the encrypted blob?
+
+Export-key encrypted data can then be stored anywhere, but it makes
+most sense to store it on the server running OPAQUE. This allows a
+client to still remain free of any account specific state.
+
+The blob could be of course stored on the client, but then if you are
+doing multi-device setups you have to sync it between all your
+devices.
+
+Or you could store this data at another server, in which case your
+multi-device clients still need to sync at least the address pointing
+to this encrypted blob.
+
+So the simplest choice in a multi-device setting is to store the blob
+next to your OPAQUE user record on the OPAQUE server.
+
+** What to store in the blob?
+
+Well this is an excellent question, it could be some crapto wallet
+key, some other password, some long-term key-pair, user ids to some
+service or simply the anniversaries of/with your spouse. Maybe if you
+are a ransomware group you could store the unlock key in such a blob?
+(just kidding)
+
+** The example
+
+You can find the complete source code to the following example in the
+[[https://github.com/stef/libopaque/tree/master/demos/blob-ruby-js][git repo]]. You can also try out the example as a [[https://ctrlc.hu/opaque-blob/][live demo]]. Unlike with
+the [[https://ctrlc.hu/opaque/][previous demo]] we do not provide a registration flow. There is one
+hardcoded OPAQUE record and encrypted message on the server. This also
+allowed us to get rid of the username entry in the "form". The correct
+password "password" of the hard-coded opaque blob will give you a
+short message, while anything else a failure. Let's dive into the example.
+
+*** 0. Starting a web worker and communication with it.
+
+Since this example is running in the browser, we start a web worker
+thread so that the main thread of the page is not blocked while the
+OPAQUE protocol runs. This is how we start and dispatch between main
+thread and webworker:
+
+**index.js**
+#+BEGIN_SRC javascript
+(function () {
+  "use strict";
+
+  var button_fetch = document.getElementsByName("fetch")[0];
+
+  function fetch(event) {
+    postMessage("fetch");
+  }
+  button_fetch.addEventListener("click", fetch);
+#+END_SRC
+
+Here we just bind the button to trigger the web worker when clicked.
+
+#+BEGIN_SRC javascript
+  var pre = document.getElementsByTagName("pre")[0];
+
+  function postMessage(action) {
+    var pw = document.getElementById("pw").value;
+    // Send a message to index-worker.js.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Worker/postmessage
+    pre.innerHTML = "<br>" + pre.innerHTML;
+    worker.postMessage({ action: action, pw: pw });
+  }
+#+END_SRC
+
+This is our wrapper that logs any messages to the web worker to our
+makeshift "console".
+
+#+BEGIN_SRC javascript
+
+  // Use a web worker to prevent the main thread from blocking.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers
+  var worker = new Worker("/index-worker.js");
+
+#+END_SRC
+
+This instantiates our web worker with the code doing all the OPAQUE
+back-and-forth.
+
+#+BEGIN_SRC javascript
+  // Receive a message from index-worker.js.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Worker/onmessage
+  var i = 0;
+  worker.onmessage = function (e) {
+    if (e.data.printErr)
+      pre.innerHTML = i++ + ": " + e.data.printErr + "<br>" + pre.innerHTML;
+    if (e.data.print)
+      pre.innerHTML = i++ + ": " + e.data.print + "<br>" + pre.innerHTML;
+  };
+})();
+#+END_SRC
+
+And finally a callback for any messages coming from the web worker to
+be printed to our simple "console".
+
+More initialization happens in the web worker itself, it initializes
+a Module object which is really just boilerplate generated from
+emscripten. The most important part there is the "root.onmessage"
+callback which dispatches the commands coming from the main thread. We
+omit this code here, as it is mostly generic boilerplate. The curious
+among you might have a look at it in the [[https://github.com/stef/libopaque/blob/master/demos/blob-ruby-js/static/index-worker.js#L86][git repo.]]
+
+*** 1. The client initiates a credential request
+
+When the fetch button on the HTML page is clicked, the main thread
+sends a request to the web worker thread, which initiates the OPAQUE
+protocol:
+
+**index-worker.js:**
+#+BEGIN_SRC javascript
+function requestCredentials(module, pw) {
+  try {
+    var request = module.createCredentialRequest({ pwdU: pw });
+    var pub_base16 = module.uint8ArrayToHex(request.pub);
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/request-creds", true);
+    xhr.onreadystatechange = function () {
+      var response = onreadystatechange(module, xhr);
+      if (response) recoverCredentials(module, response, request);
+    };
+    xhrSend("request=" + pub_base16, module, xhr);
+  } catch (e) {
+    module.printErr(e);
+  }
+}
+#+END_SRC
+
+Everything pretty straightforward, creating a request, serializing and
+sending it with a "XMLHttpRequest()" and chaining the final OPAQUE
+step in the "onreadystatechange" callback.
+
+*** 2. The server created a response and sends it back with the blob
+
+In our demo the server is implemented in ruby, using the sinatra
+framework. In the example below the hardcoded OPAQUE user record and
+the hardcoded encrypted blob are omitted for brevity. The result is
+small and simple:
+
+#+BEGIN_SRC ruby
+post '/request-creds' do
+  request.body.rewind
+  req = hex_to_bin(params['request'])
+  rec = hex_to_bin("an opaque user record encoded as hex")
+  blob = 'some encrypted blob encoded as hex'
+  resp, _, _ = create_credential_response(req, rec,
+                                          "demo user",
+                                          "demo server",
+                                          "rbopaque-v0.2.0-demo")
+  content_type :json
+  { response: bin_to_hex(resp), blob: blob }.to_json
+end
+#+END_SRC
+
+The server side is really simple as you can see. The final step on the
+client is not much more exciting:
+
+*** 3. The client recovers its credentials and decrypts the blob
+
+The response from the server is received through the
+"onreadystatechange" callback of the XMLHttpRequest, which calls this
+function:
+
+**index-worker.js:**
+#+BEGIN_SRC javascript
+function recoverCredentials(module, response, request) {
+  const ids = { idS: "demo server", idU: "demo user" }
+  const context = "rbopaque-v0.2.0-demo";
+  try {
+    var resp_base16 = response.response;
+    var credentials = module.recoverCredentials({
+      resp: module.hexToUint8Array(resp_base16),
+      sec: request.sec,
+      context: context,
+      ids: ids,
+    });
+    const blob = module.hexToUint8Array(response.blob);
+    module.print("Decoded blob: " + xor(credentials.export_key, blob));
+
+  } catch (e) {
+    module.printErr(e);
+  }
+}
+#+END_SRC
+
+Again nothing really surprising here, parameters get deserialized and
+"recoverCredentials()" is called. The only result we care about in
+this case is now the export-key, which in our case is used as a kind
+of one-time-pad to decrypt the message received in the encrypted blob.
+If the export-key is correct the message will decrypt in any other
+case gibberish will be the result.
+
+** Some Warnings
+
+It is importantt to use real encryption with the export-key and the
+blob you want to protect, use something like "crypto_secretbox" from
+[[https://github.com/jedisct1/libsodium.js][libsodium.js]] or similar. **Do not** use the simple one-time-pad
+mechanism used in this example, unless you really do understand what
+the implications of that are.
+
+It is also important to note, that the live demo uses a debug version
+of [[https://github.com/stef/libopaque][libopaque]] which - not only dumps trace messages, but also - **does
+not** use any random source thus everything is always deterministic.
+Thus do not copy the libopaque.debug.js and deploy it in your own
+production setup, it is not secure! You have to build your own
+libopaque.js, or get one that is not compiled with "-DNORANDOM".
+
+If you have the idea to implement a password manager storing passwords
+in the export-key protected blobs, that is a great idea! I had the
+same. There is only one problem, you cannot use OPAQUE authentication
+as a way to authorize change and deletion of export-key blobs, as this
+voids the offline-bruteforce resistance of OPAQUE for the server
+operator, which is something you really don't want to do ([[https://github.com/stef/pwdsphinx/tree/opaquify][we tried]],
+don't be like us. learn from our faults!).
+
+** Summary
+
+In this post we have seen how to use the OPAQUE export-key to protect
+some at-rest blob. The ruby server code shows clearly how simple and
+how little is needed to implement this. The javascript client
+implementation is a bit more work, but most of it is either
+boilerplate, or based on functionality that most javascript frameworks
+provide already. It really is a bit unfair to compare something
+written with sinatra to something vanilla js.
+
+This post concludes the series on generic use of OPAQUE, we hope you
+will find this useful and find a good use for libopaque in your own
+system.

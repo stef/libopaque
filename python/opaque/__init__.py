@@ -140,6 +140,8 @@ def Register(pwdU, ids, skS=None):
     if skS and len(skS) != crypto_scalarmult_SCALARBYTES:
         raise ValueError("invalid skS param")
 
+    pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
+
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN)
     export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
     __check(opaquelib.opaque_Register(pwdU, len(pwdU), skS, ctypes.pointer(ids), rec, export_key))
@@ -160,6 +162,7 @@ def Register(pwdU, ids, skS=None):
 def CreateCredentialRequest(pwdU):
     if not pwdU:
         raise ValueError("invalid parameter")
+    pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
 
     sec = ctypes.create_string_buffer(OPAQUE_USER_SESSION_SECRET_LEN+len(pwdU))
     pub = ctypes.create_string_buffer(OPAQUE_USER_SESSION_PUBLIC_LEN)
@@ -199,6 +202,8 @@ def CreateCredentialResponse(pub, rec, ids, ctx):
         raise ValueError("invalid parameter")
     if len(pub) != OPAQUE_USER_SESSION_PUBLIC_LEN: raise ValueError("invalid pub param")
     if len(rec) != OPAQUE_USER_RECORD_LEN: raise ValueError("invalid rec param")
+
+    ctx=ctx.encode("utf8") if isinstance(ctx,str) else ctx
 
     resp = ctypes.create_string_buffer(OPAQUE_SERVER_SESSION_LEN)
     sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
@@ -242,6 +247,8 @@ def RecoverCredentials(resp, sec, ctx, ids=None):
         raise ValueError("invalid parameter")
     if len(resp) != OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
     if len(sec) <= OPAQUE_USER_SESSION_SECRET_LEN: raise ValueError("invalid sec param")
+
+    ctx=ctx.encode("utf8") if isinstance(ctx,str) else ctx
 
     sk = ctypes.create_string_buffer(OPAQUE_SHARED_SECRETBYTES)
     authU = ctypes.create_string_buffer(crypto_auth_hmacsha512_BYTES)
@@ -304,6 +311,8 @@ def UserAuth(authU0, authU):
 def CreateRegistrationRequest(pwdU):
     if not pwdU:
         raise ValueError("invalid parameter")
+
+    pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
 
     sec = ctypes.create_string_buffer(OPAQUE_REGISTER_USER_SEC_LEN+len(pwdU))
     request = ctypes.create_string_buffer(crypto_core_ristretto255_BYTES)

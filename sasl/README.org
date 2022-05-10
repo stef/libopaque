@@ -1,0 +1,69 @@
+* OPAQUE SASL bindings
+
+This directory contains an OPAQUE SASL mech.
+
+It works with cyrus-sasl, possibly also with libgsasl. dovecot-sasl is
+rumored to not be supported, due to dovecot allegedly implementing
+only 1 roundtrip - but this needs to be confirmed.
+
+** Apache with SASL HTTP Authentication
+
+It has been tested against Apache2 using this
+https://gitlab.com/arpa2/apachemod/-/tree/master/arpa2_sasl module and
+this python script as a client
+https://github.com/stef/libopaque/blob/master/sasl/http_sasl.py
+
+To make this work with apache, you need to add this to your /etc/apache2/httpd.conf
+
+#+BEGIN_SAMPLE
+LoadModule arpa2_sasl_module  /usr/lib/apache2/mod_arpa2_sasl.so
+#+END_SAMPLE
+
+And something like this to a directory stanza:
+
+#+BEGIN_SAMPLE
+AuthType SASL
+AuthName "SASL http auth"
+Require valid-user
+SaslRealm localhost
+SaslMechanisms OPAQUE
+SaslDbPath /etc/sasldb2
+#+END_SAMPLE
+
+The file /etc/sasldb2 can be populated with entries like this:
+
+#+BEGIN_SAMPLE
+sudo saslpasswd2 -n -f /etc/sasldb2 -a http -c -u localhost $username
+#+END_SAMPLE
+
+You should make sure that the apache daemon can read the file /etc/sasldb2
+
+There is also two firefox addons, which might or might not work:
+
+ - https://gitlab.com/arpa2/http_sasl_client/
+ - https://github.com/arpa2/http-sasl-plugin
+
+It should be noted, that with OPAQUE every HTTP request requires 2
+extra authentication requests to be made. It is not very practical for
+humans to type in a password for every request, alternatively the
+password could be cached, which is something no one would ever want.
+Thus I'm considering a new post-opaque mechanism for doing 0 auth
+roundtrips for requests over HTTP, the server and the client then both
+have a shared secret after the first successful OPAQUE run and a
+counter, and each request from the client contains a
+
+#+BEGIN_SAMPLE
+Authorization: hmac(shared_secret,counter++)
+#+END_SAMPLE
+
+header. This eliminates replay attacks, also there is no need for
+caching or reusing the password. And I think this is a nice mechanism
+for a lot of the other SASL mechanisms that are not 0rtt.
+
+** Future work
+
+No SSF has been implemented (although it would be easy, since
+libsodium is already a dependency of libopaque.) This means you want
+to wrap whatever you are running in TLS. However implementing an SSF
+would make a lot of sense, since then OPAQUE is really used in both of
+its benefits, authentication and establishment of a secure channel.

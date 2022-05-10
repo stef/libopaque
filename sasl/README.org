@@ -15,26 +15,26 @@ https://github.com/stef/libopaque/blob/master/sasl/http_sasl.py
 
 To make this work with apache, you need to add this to your /etc/apache2/httpd.conf
 
-#+BEGIN_SAMPLE
+#+BEGIN_EXAMPLE
 LoadModule arpa2_sasl_module  /usr/lib/apache2/mod_arpa2_sasl.so
-#+END_SAMPLE
+#+END_EXAMPLE
 
 And something like this to a directory stanza:
 
-#+BEGIN_SAMPLE
+#+BEGIN_EXAMPLE
 AuthType SASL
 AuthName "SASL http auth"
 Require valid-user
 SaslRealm localhost
 SaslMechanisms OPAQUE
 SaslDbPath /etc/sasldb2
-#+END_SAMPLE
+#+END_EXAMPLE
 
 The file /etc/sasldb2 can be populated with entries like this:
 
-#+BEGIN_SAMPLE
+#+BEGIN_EXAMPLE
 sudo saslpasswd2 -n -f /etc/sasldb2 -a http -c -u localhost $username
-#+END_SAMPLE
+#+END_EXAMPLE
 
 You should make sure that the apache daemon can read the file /etc/sasldb2
 
@@ -52,9 +52,9 @@ roundtrips for requests over HTTP, the server and the client then both
 have a shared secret after the first successful OPAQUE run and a
 counter, and each request from the client contains a
 
-#+BEGIN_SAMPLE
+#+BEGIN_EXAMPLE
 Authorization: hmac(shared_secret,counter++)
-#+END_SAMPLE
+#+END_EXAMPLE
 
 header. This eliminates replay attacks, also there is no need for
 caching or reusing the password. And I think this is a nice mechanism

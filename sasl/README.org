@@ -43,8 +43,13 @@ You should make sure that the apache daemon can read the file /etc/sasldb2
 
 There is also two firefox addons, which might or might not work:
 
- - https://gitlab.com/arpa2/http_sasl_client/
- - https://github.com/arpa2/http-sasl-plugin
+ - a more recent backend in c++: https://gitlab.com/arpa2/http_sasl_client/
+ - an older version with the backend written in java: https://github.com/arpa2/http-sasl-plugin
+
+Both plugins are actually identical, and only the backend is
+different. I tried the plugin with my own backend hacked in python,
+and it worked against the apache requiring HTTP auth using SASL and
+OPAQUE as a mech.
 
 It should be noted, that with OPAQUE every HTTP request requires 2
 extra authentication requests to be made. It is not very practical for

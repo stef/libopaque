@@ -13,9 +13,6 @@ https://gitlab.com/arpa2/apachemod/-/tree/master/arpa2_sasl module and
 this python script as a client
 https://github.com/stef/libopaque/blob/master/sasl/http_sasl.py
 
-There is also this archived module to handle SASL auth in nginx:
-https://github.com/juliekoubova/ngx_http_auth_sasl_module/
-
 To make this work with apache, you need to add this to your /etc/apache2/httpd.conf
 
 #+BEGIN_EXAMPLE

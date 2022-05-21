@@ -38,6 +38,9 @@ sudo saslpasswd2 -n -f /etc/sasldb2 -a http -c -u localhost $username
 
 You should make sure that the apache daemon can read the file /etc/sasldb2
 
+Additionally there is experimental support for SASL in NGINX:
+https://github.com/stef/ngx_http_auth_sasl_module
+
 There is also two firefox addons, which might or might not work:
 
  - a more recent backend in c++: https://gitlab.com/arpa2/http_sasl_client/

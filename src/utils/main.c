@@ -13,7 +13,7 @@ int is_fd_open(int fd) {
 }
 #else
 int is_fd_open(int fd) {
-    return fcntl(4, F_GETFD);
+    return fcntl(fd, F_GETFD);
 }
 #endif
 

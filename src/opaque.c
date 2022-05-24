@@ -26,7 +26,7 @@
 #endif
 
 #ifndef HAVE_SODIUM_HKDF
-#include "aux/crypto_kdf_hkdf_sha512.h"
+#include "aux_/crypto_kdf_hkdf_sha512.h"
 #endif
 
 #define VOPRF "VOPRF09"

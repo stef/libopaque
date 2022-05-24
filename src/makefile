@@ -8,14 +8,23 @@ SOEXT=so
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
-	CFLAGS+= -Iaux
-	EXTRA_OBJECTS+= aux/kdf_hkdf_sha512.o
+	CFLAGS+= -Iaux_
+	EXTRA_OBJECTS+= aux_/kdf_hkdf_sha512.o
 else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: libopaque.$(SOEXT) tests utils/opaque
 
+win: CC=x86_64-w64-mingw32-gcc
+win: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
+win: LIBS=-lsodium -lws2_32
+win: SOEXT=dll
+win: EXT=.exe
+win: MAKETARGET=win
+win: libopaque.$(SOEXT) tests utils/opaque
+
+
+all: libopaque.$(SOEXT) tests utils/opaque
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
 
@@ -69,7 +78,7 @@ $(PREFIX)/bin/opaque: utils/opaque
 clean:
 	rm -f \
 		*.o \
-		aux/*.o \
+		aux_/*.o \
 		libopaque.dll \
 		libopaque.so \
 		tests/opaque-munit \

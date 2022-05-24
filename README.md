@@ -8,7 +8,7 @@ the specification gets more stable, it is planned to reach full compliance with
 it.
 
 It comes with bindings for js, php7, ruby, java, erlang, lua, python, go and
-SASL. There's also a 3rd party bindings for 
+SASL.  There are also a 3rd party bindings for:
  - [dart](https://github.com/tibotix/opaque-dart)
  - rust [libopaque-sys](https://github.com/dnet/libopaque-sys) + [opaqueoxide](https://github.com/dnet/opaqueoxide/)
 

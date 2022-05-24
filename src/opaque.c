@@ -19,7 +19,11 @@
 */
 
 #include "opaque.h"
+#if _WIN32 == 1 || _WIN64 == 1
+#include <winsock2.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include "common.h"
 #ifdef CFRG_TEST_VEC
 #include "tests/cfrg_test_vector_decl.h"

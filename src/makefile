@@ -15,13 +15,13 @@ else
 endif
 
 
-win: CC=x86_64-w64-mingw32-gcc
-win: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
-win: LIBS=-lsodium -lws2_32
-win: SOEXT=dll
-win: EXT=.exe
-win: MAKETARGET=win
-win: libopaque.$(SOEXT) tests utils/opaque
+mingw: CC=x86_64-w64-mingw32-gcc
+mingw: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
+mingw: LIBS=-lsodium -lws2_32
+mingw: SOEXT=dll
+mingw: EXT=.exe
+mingw: MAKETARGET=win
+mingw: libopaque.$(SOEXT) tests utils/opaque
 
 
 all: libopaque.$(SOEXT) tests utils/opaque

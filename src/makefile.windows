@@ -1,6 +1,6 @@
 PREFIX?=/usr/local
 LIBS=-lsodium -lws2_32
-DEFINES=-LC:\Users\tizian\CppThirdPartyLibs\libsodium\libsodium\x64\Release\v143\dynamic -IC:\Users\tizian\CppThirdPartyLibs\libsodium\libsodium\include
+DEFINES=
 CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
 LDFLAGS=-g $(LIBS)
 CC=gcc

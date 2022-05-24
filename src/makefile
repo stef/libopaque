@@ -20,7 +20,7 @@ mingw: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOU
 mingw: LIBS=-lsodium -lws2_32
 mingw: SOEXT=dll
 mingw: EXT=.exe
-mingw: MAKETARGET=win
+mingw: MAKETARGET=mingw
 mingw: libopaque.$(SOEXT) tests utils/opaque
 
 

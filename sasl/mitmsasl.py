@@ -18,15 +18,9 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-sys.path.append('/home/s/tasks/sphinx/libopaque/python/env/lib/python3.10/site-packages')
-
 from mitmproxy import ctx
 from mitmproxy.http import Headers
-import requests, sys, binascii, sasl
-import subprocess, sasl, struct, json, binascii
-
-log = '/tmp/a'
+import requests, sys, binascii, sasl, subprocess
 
 def getpwd(realm):
     args = f'--forms --add-entry="User name" --add-password=Password --text="{realm}"'.split(' ')
@@ -49,7 +43,7 @@ class SASL:
             #print(f'"{url}" did not return 401')
             return
         www_auth = flow.response.headers["www-authenticate"]
-        print(f"www-authenticate: {www_auth}")
+        #print(f"www-authenticate: {www_auth}")
         if not www_auth.startswith("SASL "):
             #print("bad auth method in 2nd step of opaque sasl auth")
             return

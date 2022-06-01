@@ -8,7 +8,7 @@ only 1 roundtrip - but this needs to be confirmed.
 
 ** SASL HTTP Authentication
 
-It has been tested against Apache2 using this
+This OPAQUE SASL mech has been tested against Apache2 using this
 https://gitlab.com/arpa2/apachemod/-/tree/master/arpa2_sasl module and
 this python script as a client
 https://github.com/stef/libopaque/blob/master/sasl/http_sasl.py
@@ -48,10 +48,10 @@ There is also two firefox addons, which might or might not work:
 
 Both plugins are actually identical, and only the backend is
 different. I tried the plugin with my [[https://github.com/stef/libopaque/blob/master/sasl/websasl.py][own backend]] hacked in python,
-and it worked against the apache requiring HTTP auth using SASL and
-OPAQUE as a mech.
+and it worked against the apache server requiring HTTP auth using SASL
+and OPAQUE as a mech.
 
-There is now also a [[https://github.com/stef/libopaque/blob/master/sasl/mitmsasl.py][SASL plugin]] for [[https://mitmproxy.org/][mitmproxy]] which you can start using:
+There is also a [[https://github.com/stef/libopaque/blob/master/sasl/mitmsasl.py][SASL plugin]] for [[https://mitmproxy.org/][mitmproxy]] which you can start using:
 
 #+BEGIN_EXAMPLE
 mitmdump -q -s ./mitmsasl.py
@@ -90,9 +90,10 @@ derivates) to use this proxy to have HTTP SASL support, e.g.:
 * Connection #0 to host localhost left intact
 #+END_EXAMPLE
 
-Both the mitmproxy addon and the native backend depend on zenity being
-installed, as well as the requests and the sasl python modules to be
-installed.
+Both the mitmproxy addon and the native backend depend on zenity, as
+well as the requests and the sasl python modules to be installed. Be
+aware that both these block while querying for your username and
+password.
 
 It should be noted, that with OPAQUE every HTTP request requires 2
 extra authentication requests to be made. It is not very practical for
@@ -107,9 +108,10 @@ counter, and each request from the client contains a
 Authorization: hmac(shared_secret,counter++)
 #+END_EXAMPLE
 
-header. This eliminates replay attacks, also there is no need for
-caching or reusing the password. And I think this is a nice mechanism
-for a lot of the other SASL mechanisms that are not 0rtt.
+header. This is basically HOTP authentication. This eliminates replay
+attacks, also there is no need for caching or reusing the
+password. And I think this is a nice mechanism for a lot of the other
+SASL mechanisms that are not 0rtt.
 
 ** Future work
 

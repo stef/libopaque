@@ -6,7 +6,7 @@ It works with cyrus-sasl, possibly also with libgsasl. dovecot-sasl is
 rumored to not be supported, due to dovecot allegedly implementing
 only 1 roundtrip - but this needs to be confirmed.
 
-** Apache with SASL HTTP Authentication
+** SASL HTTP Authentication
 
 It has been tested against Apache2 using this
 https://gitlab.com/arpa2/apachemod/-/tree/master/arpa2_sasl module and
@@ -47,9 +47,52 @@ There is also two firefox addons, which might or might not work:
  - an older version with the backend written in java: https://github.com/arpa2/http-sasl-plugin
 
 Both plugins are actually identical, and only the backend is
-different. I tried the plugin with my own backend hacked in python,
+different. I tried the plugin with my [[https://github.com/stef/libopaque/blob/master/sasl/websasl.py][own backend]] hacked in python,
 and it worked against the apache requiring HTTP auth using SASL and
 OPAQUE as a mech.
+
+There is now also a [[https://github.com/stef/libopaque/blob/master/sasl/mitmsasl.py][SASL plugin]] for [[https://mitmproxy.org/][mitmproxy]] which you can start using:
+
+#+BEGIN_EXAMPLE
+mitmdump -q -s ./mitmsasl.py
+#+END_EXAMPLE
+
+and then just configure any of your HTTP clients (curl,wget,chrome and
+derivates) to use this proxy to have HTTP SASL support, e.g.:
+
+#+BEGIN_EXAMPLE
+% curl -vvvx http://localhost:8080 http://localhost:8090/
+*   Trying 127.0.0.1:8080...
+* Connected to localhost (127.0.0.1) port 8080 (#0)
+> GET http://localhost:8090/ HTTP/1.1
+> Host: localhost:8090
+> User-Agent: curl/7.82.0
+> Accept: */*
+> Proxy-Connection: Keep-Alive
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Server: nginx/1.20.2
+< Date: Wed, 01 Jun 2022 16:32:07 GMT
+< Content-Type: text/html
+< Content-Length: 45
+< Last-Modified: Sat, 21 May 2022 20:03:00 GMT
+< Connection: keep-alive
+< WWW-Authenticate: SASL s2c="",s2s="000000000D904F33"
+< ETag: "62894574-2d"
+< X-SASL-SECURE: yes
+< X-REMOTE-USER: s@localhost
+< X-SASL-REALM: localhost
+< X-SASL-MECH: OPAQUE
+< Accept-Ranges: bytes
+<
+<html><body><h1>It works!</h1></body></html>
+* Connection #0 to host localhost left intact
+#+END_EXAMPLE
+
+Both the mitmproxy addon and the native backend depend on zenity being
+installed, as well as the requests and the sasl python modules to be
+installed.
 
 It should be noted, that with OPAQUE every HTTP request requires 2
 extra authentication requests to be made. It is not very practical for

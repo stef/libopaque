@@ -18,7 +18,6 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, If not, see <http://www.gnu.org/licenses/>.
 
-from mitmproxy import ctx
 from mitmproxy.http import Headers
 import requests, sys, binascii, sasl, subprocess
 

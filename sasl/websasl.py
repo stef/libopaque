@@ -18,9 +18,6 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-sys.path.append('/home/s/tasks/sphinx/libopaque/python/env/lib/python3.10/site-packages')
-
 import subprocess, sasl, struct, json, binascii
 
 log = '/tmp/a'

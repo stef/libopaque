@@ -35,9 +35,6 @@ def getpwd(realm):
     return out[:ptr].decode('utf8'), out[ptr+1:-1].decode('utf8')
 
 class SASL:
-    def __init__(self):
-        self.num = 0
-
     def  response(self, flow):
         if flow.response.status_code != 401:
             #print(f'"{url}" did not return 401')

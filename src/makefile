@@ -15,14 +15,14 @@ else
 endif
 
 
-mingw: CC=x86_64-w64-mingw32-gcc
-mingw: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
-mingw: LIBS=-lsodium -lws2_32
-mingw: SOEXT=dll
-mingw: EXT=.exe
-mingw: MAKETARGET=mingw
-mingw: libopaque.$(SOEXT) tests utils/opaque
-
+mingw64: CC=x86_64-w64-mingw32-gcc
+mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
+mingw64: LIBS=-L. -lws2_32 -Lwin/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
+mingw64: INC=-Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
+mingw64: SOEXT=dll
+mingw64: EXT=.exe
+mingw64: MAKETARGET=mingw
+mingw64: win/libsodium-win64 libopaque.$(SOEXT) tests utils/opaque
 
 all: libopaque.$(SOEXT) tests utils/opaque
 debug: DEFINES=-DTRACE -DNORANDOM
@@ -74,6 +74,12 @@ $(PREFIX)/bin/opaque: utils/opaque
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<
+
+win/libsodium-win64:
+	@echo 'win/libsodium-win64 not found.'
+	@echo 'download and unpack latest libsodium-*-mingw.tar.gz and unpack into win/'
+	@echo 'https://download.libsodium.org/libsodium/releases/'
+	@false
 
 clean:
 	rm -f \

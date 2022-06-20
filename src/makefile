@@ -14,6 +14,15 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
+all: libopaque.$(SOEXT) tests utils/opaque
+
+debug: DEFINES=-DTRACE -DNORANDOM
+debug: all
+
+asan: DEFINES=-DTRACE -DNORANDOM
+asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
+asan: LDFLAGS+= -fsanitize=address -static-libasan
+asan: all
 
 mingw64: CC=x86_64-w64-mingw32-gcc
 mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
@@ -23,15 +32,6 @@ mingw64: SOEXT=dll
 mingw64: EXT=.exe
 mingw64: MAKETARGET=mingw
 mingw64: win/libsodium-win64 libopaque.$(SOEXT) tests utils/opaque
-
-all: libopaque.$(SOEXT) tests utils/opaque
-debug: DEFINES=-DTRACE -DNORANDOM
-debug: all
-
-asan: DEFINES=-DTRACE -DNORANDOM
-asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
-asan: LDFLAGS+= -fsanitize=address -static-libasan
-asan: all
 
 tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT) tests/opaque-tv1$(EXT)
 

@@ -779,7 +779,12 @@ static void calc_preamble(char preamble[crypto_hash_sha512_BYTES],
                             /*nonceS*/OPAQUE_NONCE_BYTES+
                             /*X_s*/crypto_scalarmult_BYTES);
 
-  crypto_hash_sha512_final(state, (uint8_t *) preamble);
+  // We need to copy the state here, because the caller of this function
+  // may re-use it later. After calling the `final` function below,
+  // the passed-in state must not be used again.
+  crypto_hash_sha512_state copied_state;
+  memcpy(&copied_state, state, sizeof(crypto_hash_sha512_state));
+  crypto_hash_sha512_final(&copied_state, (uint8_t *) preamble);
 }
 
 // implements server end of triple-dh

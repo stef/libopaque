@@ -113,7 +113,7 @@ static void opaque_hmacsha512(const uint8_t key[OPAQUE_HMAC_SHA512_KEYBYTES],
                               const uint8_t *authenticated, const size_t auth_len,
                               uint8_t mac[OPAQUE_HMAC_SHA512_BYTES]) {
   crypto_auth_hmacsha512_state st;
-  crypto_auth_hmacsha512_init(&st, key, 64);
+  crypto_auth_hmacsha512_init(&st, key, OPAQUE_HMAC_SHA512_KEYBYTES);
   crypto_auth_hmacsha512_update(&st, authenticated, auth_len);
   crypto_auth_hmacsha512_final(&st, mac);
   sodium_memzero(&st,sizeof st);
@@ -1304,10 +1304,10 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   dump((uint8_t*)preamble, sizeof preamble, "auth preamble");
 #endif
   if(NULL!=authU) {
-    crypto_auth_hmacsha512(authU,                               // out
-                           (uint8_t*)preamble,                  // in
-                           crypto_hash_sha512_BYTES,            // len(in)
-                           keys.km3);                           // key
+    opaque_hmacsha512(keys.km3,                       // key
+                     (uint8_t*)preamble,              // in
+                     crypto_hash_sha512_BYTES,        // len(in)
+                     authU);                          // out
   }
 
   memcpy(sk,keys.sk,sizeof(keys.sk));
@@ -1602,10 +1602,10 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
   crypto_hash_sha512_update(&preamble_state, authS, crypto_auth_hmacsha512_BYTES);
   crypto_hash_sha512_final(&preamble_state, (uint8_t *) preamble);
   if(NULL!=authU) {
-    crypto_auth_hmacsha512(authU,                               // out
-                           (uint8_t*)preamble,                  // in
-                           crypto_hash_sha512_BYTES,            // len(in)
-                           keys.km3);                           // key
+    opaque_hmacsha512(keys.km3,                         // key
+                      (uint8_t*)preamble,               // in
+                      crypto_hash_sha512_BYTES,         // len(in)
+                      authU);                           // out
   }
 
   // 2.7. Create KE3 ke3 with client_mac

@@ -2,6 +2,7 @@
 *.exe
 *.o
 *.so
+*.a
 .DS_Store
 node_modules/
 src/tests/opaque-munit

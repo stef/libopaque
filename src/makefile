@@ -5,6 +5,9 @@ CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -
 LDFLAGS=-g $(LIBS)
 CC=gcc
 SOEXT=so
+AEXT=a
+
+AR?=ar
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
@@ -14,7 +17,7 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
-all: libopaque.$(SOEXT) tests utils/opaque
+all: libopaque.$(SOEXT) libopaque.$(AEXT) tests utils/opaque
 
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
@@ -37,6 +40,9 @@ tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT) tests/opaque-tv1$(EXT)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS)
+
+libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)
+	$(AR) -rcs libopaque.$(AEXT) $^
 
 tests/opaque-test$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
 	$(CC) $(CFLAGS) -o tests/opaque-test$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)
@@ -61,10 +67,14 @@ test: tests
 utils/opaque: utils/main.c
 	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -L. -lopaque -lsodium
 
-install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
+install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
 
 $(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	cp $< $@
+
+$(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
+	cp $< $@
+
 
 $(PREFIX)/include/opaque.h: opaque.h
 	cp $< $@

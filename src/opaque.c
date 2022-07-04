@@ -33,7 +33,7 @@
 #include "aux_/crypto_kdf_hkdf_sha512.h"
 #endif
 
-#define VOPRF "VOPRF09"
+#define VOPRF "VOPRF10"
 
 #define OPAQUE_RWDU_BYTES 64
 #define OPAQUE_HANDSHAKE_SECRETBYTES 64

@@ -124,7 +124,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
    @return the function returns 0 if everything is correct
  */
 int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
-                                   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
+                                   uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                                    uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
@@ -230,7 +230,7 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES],
  */
 int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
                                      const uint16_t pwdU_len,
-                                     uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len],
+                                     uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
                                      uint8_t request[crypto_core_ristretto255_BYTES]);
 
 /**

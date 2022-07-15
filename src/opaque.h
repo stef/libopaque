@@ -4,7 +4,9 @@
 
 #ifndef opaque_h
 #define opaque_h
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stdint.h>
 #include <stdlib.h>
 #include <sodium.h>
@@ -124,7 +126,12 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
    @return the function returns 0 if everything is correct
  */
 int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
+#ifdef __cplusplus
                                    uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+#else
+                                   uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
+#endif
+
                                    uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
@@ -230,7 +237,12 @@ int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES],
  */
 int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
                                      const uint16_t pwdU_len,
+#ifdef __cplusplus
                                      uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+#else
+                                     uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len],
+#endif
+				     
                                      uint8_t request[crypto_core_ristretto255_BYTES]);
 
 /**
@@ -285,7 +297,9 @@ int opaque_CreateRegistrationResponse(const uint8_t request[crypto_core_ristrett
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+int opaque_FinalizeRequest(
+		const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+
                            const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
                            const Opaque_Ids *ids,
                            uint8_t reg_rec[OPAQUE_REGISTRATION_RECORD_LEN],
@@ -313,5 +327,7 @@ int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwd
 void opaque_StoreUserRecord(const uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
                             const uint8_t recU[OPAQUE_REGISTRATION_RECORD_LEN],
                             uint8_t rec[OPAQUE_USER_RECORD_LEN]);
-
+#ifdef __cplusplus
+}
+#endif
 #endif // opaque_h

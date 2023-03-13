@@ -1,3 +1,4 @@
+#define _POSIX_SOURCE // we need this for having fdopen declared in stdio.h
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>

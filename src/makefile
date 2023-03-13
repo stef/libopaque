@@ -1,7 +1,11 @@
 PREFIX?=/usr/local
 LIBS=-lsodium
 DEFINES=
-CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack $(DEFINES)
+CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
+		  -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration \
+        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -fsanitize=bounds \
+        -fsanitize-undefined-trap-on-error -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -std=c99 $(DEFINES)
+        #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
 CC=gcc
 SOEXT=so
@@ -69,6 +73,9 @@ utils/opaque: utils/main.c
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
 
+uninstall: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
+	rm $^
+
 $(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	cp $< $@
 
@@ -97,6 +104,7 @@ clean:
 		aux_/*.o \
 		libopaque.dll \
 		libopaque.so \
+		libopaque.a \
 		tests/opaque-munit \
 		tests/opaque-munit.exe \
 		tests/opaque-munit.html \

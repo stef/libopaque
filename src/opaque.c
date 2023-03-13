@@ -33,7 +33,7 @@
 #include "aux_/crypto_kdf_hkdf_sha512.h"
 #endif
 
-#define VOPRF "VOPRF10"
+#define VOPRF "OPRFV1"
 
 #define OPAQUE_RWDU_BYTES 64
 #define OPAQUE_HANDSHAKE_SECRETBYTES 64
@@ -41,6 +41,8 @@
 #define OPAQUE_ENVELOPE_BYTES (OPAQUE_ENVELOPE_NONCEBYTES + crypto_auth_hmacsha512_BYTES)
 #define OPAQUE_HMAC_SHA512_BYTES 64
 #define OPAQUE_HMAC_SHA512_KEYBYTES 64
+
+#define __bounds(member) __attribute__((__element_count__(member)))
 
 typedef struct {
   uint8_t nonce[OPAQUE_ENVELOPE_NONCEBYTES];
@@ -74,7 +76,7 @@ typedef struct {
   uint8_t blinded[crypto_core_ristretto255_BYTES];
   uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN];
   uint16_t pwdU_len;
-  uint8_t pwdU[];
+  uint8_t pwdU[] __bounds(pwdU_len);
 } __attribute((packed)) Opaque_UserSession_Secret;
 
 typedef struct {
@@ -89,7 +91,7 @@ typedef struct {
 typedef struct {
   uint8_t blind[crypto_core_ristretto255_SCALARBYTES];
   uint16_t pwdU_len;
-  uint8_t pwdU[];
+  uint8_t pwdU[] __bounds(pwdU_len);
 } Opaque_RegisterUserSec;
 
 typedef struct {
@@ -159,7 +161,7 @@ static int oprf_Finalize(const uint8_t *x, const uint16_t x_len,
   // according to paper: hash(pwd||H0^k)
   // acccording to voprf IRTF CFRG specification: hash(htons(len(pwd))||pwd||
   //                                              htons(len(H0_k))||H0_k|||
-  //                                              htons(len("Finalize-"VOPRF"-\x00\x00\x01"))||"Finalize-"VOPRF"-\x00\x00\x01")
+  //                                              htons(len("Finalize-"VOPRF"-\x00-ristretto255-SHA512"))||"Finalize-"VOPRF"-\x00-ristretto255-SHA512")
   crypto_hash_sha512_state state;
   if(-1==sodium_mlock(&state,sizeof state)) {
     return -1;
@@ -373,7 +375,7 @@ static int expand_message_xmd(const uint8_t *msg, const uint8_t msg_len, const u
  * 3. return P
  */
 static int voprf_hash_to_group(const uint8_t *msg, const uint8_t msg_len, uint8_t p[crypto_core_ristretto255_BYTES]) {
-  const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00\x00\x01";
+  const uint8_t dst[] = "HashToGroup-"VOPRF"-\x00-ristretto255-SHA512";
   const uint8_t dst_len = (sizeof dst) - 1;
   uint8_t uniform_bytes[crypto_core_ristretto255_HASHBYTES]={0};
   if(0!=sodium_mlock(uniform_bytes,sizeof uniform_bytes)) {
@@ -417,7 +419,7 @@ static int voprf_hash_to_scalar(const uint8_t *msg, const uint8_t msg_len, const
 }
 
 static int deriveKeyPair(const uint8_t *seed, const size_t seed_len, const uint8_t *info, const uint16_t info_len, uint8_t skS[crypto_core_ristretto255_SCALARBYTES], uint8_t pkS[crypto_core_ristretto255_BYTES]) {
-  const uint8_t ctx[] = "DeriveKeyPair"VOPRF"-\x00\x00\x01";
+  const uint8_t ctx[] = "DeriveKeyPair"VOPRF"-\x00-ristretto255-SHA512";
   uint8_t hashinput[seed_len + 2 + info_len + 1], *ptr= hashinput;
   memcpy(ptr,seed,seed_len);
   ptr+=seed_len;

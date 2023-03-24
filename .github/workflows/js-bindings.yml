@@ -10,15 +10,20 @@ on:
 jobs:
   build:
     name: Build and test JavaScript bindings
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
 
     - run: |
-       cd js
        sudo apt install -y libsodium-dev nodejs pkgconf python3-pip uncrustify # build-essential git
+       # liboprf
+       git clone https://github.com/stef/liboprf/
+       cd liboprf
+       ln -s ../src/tests/ opaquetests
+       sudo PREFIX=/usr make install
+       cd ../js
        git clone https://github.com/emscripten-core/emsdk.git # https://emscripten.org/docs/getting_started/downloads.html
        cd emsdk
        ./emsdk install 1.40.1

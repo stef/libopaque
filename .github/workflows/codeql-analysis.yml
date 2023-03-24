@@ -42,14 +42,11 @@ jobs:
        sudo apt install -y libsodium-dev pkgconf # build-essential git
        # liboprf
        git clone https://github.com/stef/liboprf/
-       cd liboprf
-       ln -s ../src/tests/ opaquetests
-       sudo PREFIX=/usr make install
        # main libopaque
        cd ../src
        git submodule update --init --recursive tests/munit
        make debug test # Test a debug build.
-       make clean all test # Test a production build.
+       make OPRFHOME=../liboprf clean all test # Test a production build.
        sudo PREFIX=/usr make install
        # python3
        cd ../python/test

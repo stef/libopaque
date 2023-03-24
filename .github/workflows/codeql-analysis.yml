@@ -47,8 +47,8 @@ jobs:
        # main libopaque
        cd ../src
        git submodule update --init --recursive tests/munit
-       make debug test # Test a debug build.
-       make OPRFHOME=../liboprf clean all test # Test a production build.
+       make OPRFHOME=../liboprf debug test # Test a debug build.
+       make clean all test # Test a production build.
        sudo PREFIX=/usr make install
        # python3
        cd ../python/test

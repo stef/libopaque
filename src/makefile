@@ -40,7 +40,12 @@ mingw64: EXT=.exe
 mingw64: MAKETARGET=mingw
 mingw64: win/libsodium-win64 libopaque.$(SOEXT) tests utils/opaque
 
-tests: tests/opaque-test$(EXT) tests/opaque-munit$(EXT) tests/opaque-tv1$(EXT)
+TESTS=tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
+ifeq ($(shell test -e $(OPRFHOME)/oprf.c && echo -n yes),yes)
+	TESTS+=tests/opaque-tv1$(EXT)
+endif
+
+tests: $(TESTS)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS)
@@ -60,8 +65,11 @@ common-v.o: common.c
 opaque-tv1.o: opaque.c
 	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
-tests/opaque-tv1$(EXT): tests/opaque-testvectors.c opaque-tv1.o common-v.o
-	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ tests/opaque-testvectors.c common-v.o $(EXTRA_OBJECTS) opaque-tv1.o -loprf-testvecs -lsodium -g
+oprf-v.o: $(OPRFHOME)/oprf.c
+	$(CC) -I. $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
+
+tests/opaque-tv1$(EXT): tests/opaque-testvectors.c common-v.o oprf-v.o opaque-tv1.o 
+	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -g
 
 test: tests
 	./tests/opaque-tv1$(EXT)

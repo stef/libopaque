@@ -1,11 +1,7 @@
 # libopaque
 
-This library implements the OPAQUE protocol as proposed in an early
-draft by the IRTF CFRG in
-https://github.com/cfrg/draft-irtf-cfrg-opaque. THe draft has been updated
-since then and this implementation is now slightly out of sync, but as soon as
-the specification gets more stable, it is planned to reach full compliance with
-it.
+This library implements the OPAQUE protocol as proposed in the IRTF
+CFRG draft at https://github.com/cfrg/draft-irtf-cfrg-opaque.
 
 It comes with bindings for js, php7, ruby, java, erlang, lua, python, go and
 SASL.  There are also a 3rd party bindings for:
@@ -21,6 +17,14 @@ Some more information about OPAQUE can be found in a series of blogposts:
 There is a [live demo](https://ctrlc.hu/opaque/) between a
 python/flask backend and a js/html frontend.
 
+## Dependencies
+
+libopaque depends on libsodium<sup>[1]</sup> and on liboprf<sup>[2]</sup>
+
+[1] https://github.com/jedisct1/libsodium
+[2] https://github.com/stef/liboprf/
+
+Both must be installed to use libopaque.
 
 ## The OPAQUE Protocol
 

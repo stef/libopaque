@@ -1,5 +1,5 @@
 PREFIX?=/usr/local
-LIBS=-lsodium
+LIBS=-lsodium -loprf
 DEFINES=
 CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration \
@@ -61,7 +61,7 @@ opaque-tv1.o: opaque.c
 	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
 tests/opaque-tv1$(EXT): tests/opaque-testvectors.c opaque-tv1.o common-v.o
-	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ tests/opaque-testvectors.c common-v.o $(EXTRA_OBJECTS) opaque-tv1.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ tests/opaque-testvectors.c common-v.o $(EXTRA_OBJECTS) opaque-tv1.o -loprf-testvecs -lsodium -g
 
 test: tests
 	./tests/opaque-tv1$(EXT)

@@ -21,8 +21,8 @@ python/flask backend and a js/html frontend.
 
 libopaque depends on libsodium<sup>[1]</sup> and on liboprf<sup>[2]</sup>
 
- - <sup>[1]</sup> https://github.com/jedisct1/libsodium
- - <sup>[2]</sup> https://github.com/stef/liboprf/
+[1]: https://github.com/jedisct1/libsodium
+[2]: https://github.com/stef/liboprf/
 
 Both must be installed to use libopaque.
 
@@ -226,14 +226,14 @@ means currently all keys are 32 bytes long.
 This OPAQUE implementation relies on libsodium as a dependency to provide all
 other cryptographic primitives:
 
-- `crypto_pwhash`<sup>[1]</sup> uses the Argon2 function with
+- `crypto_pwhash`<sup>[3]</sup> uses the Argon2 function with
   `crypto_pwhash_OPSLIMIT_INTERACTIVE` and
   `crypto_pwhash_MEMLIMIT_INTERACTIVE` as security parameters.
 - `randombytes` attempts to use the cryptographic random source of
-  the underlying operating system<sup>[2]</sup>.
+  the underlying operating system<sup>[4]</sup>.
 
-[1]: https://doc.libsodium.org/password_hashing/default_phf
-[2]: https://download.libsodium.org/doc/generating_random_data
+[3]: https://doc.libsodium.org/password_hashing/default_phf
+[4]: https://download.libsodium.org/doc/generating_random_data
 
 ## Debugging
 

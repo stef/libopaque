@@ -21,8 +21,8 @@ python/flask backend and a js/html frontend.
 
 libopaque depends on libsodium<sup>[1]</sup> and on liboprf<sup>[2]</sup>
 
-[1] https://github.com/jedisct1/libsodium
-[2] https://github.com/stef/liboprf/
+ - <sup>[1]</sup> https://github.com/jedisct1/libsodium
+ - <sup>[2]</sup> https://github.com/stef/liboprf/
 
 Both must be installed to use libopaque.
 

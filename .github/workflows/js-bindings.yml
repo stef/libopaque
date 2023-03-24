@@ -20,17 +20,14 @@ jobs:
        sudo apt install -y libsodium-dev nodejs pkgconf python3-pip uncrustify # build-essential git
        # liboprf
        git clone https://github.com/stef/liboprf/
-       cd liboprf
-       ln -s ../src/tests/ opaquetests
-       sudo PREFIX=/usr make install
-       cd ../js
+       cd js
        git clone https://github.com/emscripten-core/emsdk.git # https://emscripten.org/docs/getting_started/downloads.html
        cd emsdk
        ./emsdk install 1.40.1
        ./emsdk activate 1.40.1
        source ./emsdk_env.sh
        cd ..
-       make
+       make LIBOPRFHOME=../liboprf
        echo emsdk >.prettierignore
        echo libsodium.js >>.prettierignore
        make format es-check test

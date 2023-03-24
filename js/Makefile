@@ -33,8 +33,9 @@ DEFINES=-DTRACE -DNORANDOM
 #   - clang-12: warning: argument unused during compilation: '-fstack-clash-protection' [-Wunused-command-line-argument]
 # TODO Write a verifier to ensure LIBOPAQUE_CFLAGS closely matches CFLAGS in
 #      ../src/makefile.
+SODIUMDIR='$(shell pwd)/libsodium.js/libsodium/src/libsodium'
 LIBOPAQUE_CFLAGS=\
--I../js/libsodium.js/libsodium/src/libsodium/include \
+-I$(SODIUMDIR)/include \
 -march=native \
 -Wall \
 -O2 \
@@ -48,7 +49,7 @@ LIBOPAQUE_CFLAGS=\
 -ftrapv \
 $(DEFINES)
 
-CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src
+CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src -I$(LIBOPRFHOME)
 
 EXPORTED_FUNCTIONS=\
 "_opaquejs_crypto_auth_hmacsha512_BYTES", \
@@ -95,7 +96,8 @@ EXPORTED_RUNTIME_METHODS=\
 #      ../src/makefile.
 LIBOPAQUE_LDFLAGS=\
 -g \
--L../js/libsodium.js/libsodium/src/libsodium/.libs \
+-L$(SODIUMDIR)/.libs \
+$(LIBOPRFHOME)/oprf.o \
 -lsodium \
 -Wl,-z,defs \
 -Wl,-z,relro \
@@ -108,7 +110,7 @@ LDFLAGS=\
 -Wl,-z,relro \
 -Wl,-z,noexecstack
 
-all: libsodium libopaque libopaque-tests libopaquejs
+all: libsodium oprf libopaque libopaque-tests libopaquejs
 
 all-libopaque: clean-libopaque libopaque libopaque-tests
 
@@ -218,6 +220,13 @@ libopaque: ../src/libopaque.so
 libopaque-tests: ../src/tests/opaque-test.html
 
 libopaquejs: dist/libopaque.js
+
+oprf: $(LIBOPRFHOME)/oprf.o
+
+$(LIBOPRFHOME)/oprf.o:
+	make --directory=$(LIBOPRFHOME) CC=$(CC) \
+		CFLAGS='-I$(SODIUMDIR)/include -march=native -Wall -O2 -g -fno-stack-protector -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)' \
+		oprf.o
 
 libsodium: libsodium.js/Makefile
 	make --directory=libsodium.js sumo

@@ -19,7 +19,7 @@
 */
 
 #include "opaque.h"
-#include <oprf/oprf.h>
+#include <oprf.h>
 
 #if _WIN32 == 1 || _WIN64 == 1
 #include <winsock2.h>

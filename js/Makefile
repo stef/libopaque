@@ -52,6 +52,14 @@ $(DEFINES)
 
 CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src
 
+SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
+ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
+	CFLAGS+= -I../src/aux_
+	EXTRA_SOURCES+= ../src/aux_/kdf_hkdf_sha512.c
+else
+	CFLAGS+= -DHAVE_SODIUM_HKDF=1
+endif
+
 EXPORTED_FUNCTIONS=\
 "_opaquejs_crypto_auth_hmacsha512_BYTES", \
 "_opaquejs_crypto_core_ristretto255_BYTES", \
@@ -121,30 +129,15 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 
 # See the comments for LIBOPAQUE_CFLAGS for why -fstack-clash-protection
 # appears for libopaque.so but not for tests.html or tests.js.
-../src/libopaque.so:
-	make \
-		--directory=../src \
-		CC=$(CC) \
-		LIBOPRFHOME=$(LIBOPRFHOME) \
-		CFLAGS='$(LIBOPAQUE_CFLAGS) $(LIBOPRFHOME)/oprf.o' \
-		LDFLAGS='$(LIBOPAQUE_LDFLAGS) -fstack-clash-protection' \
-		libopaque.so
+../src/libopaque.so: $(LIBOPRFHOME)/oprf.c ../src/opaque.c ../src/common.c $(EXTRA_SOURCES)
+	$(CC) -shared $(CFLAGS) -o libopaque.so $^ $(LIBOPAQUE_LDFLAGS)
 
+CFLAGS_EXTRA=$(CFLAGS) --pre-js test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1
 ../src/tests/opaque-test.html:
-	make \
-		--directory=../src \
-		CC=$(CC) \
-		CFLAGS='$(LIBOPAQUE_CFLAGS) --pre-js ../js/test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1' \
-		EXT=.html \
-		LDFLAGS='$(LIBOPAQUE_LDFLAGS)' \
-		tests
-	make \
-		--directory=../src \
-		CC=$(CC) \
-		CFLAGS='$(LIBOPAQUE_CFLAGS) --pre-js ../js/test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1' \
-		EXT=.js \
-		LDFLAGS='$(LIBOPAQUE_LDFLAGS)' \
-		tests
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.html ../src/tests/opaque-test.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.html ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.js ../src/tests/opaque-test.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.js ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
 
 build: clean format all es-check test
 

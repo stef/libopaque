@@ -15,7 +15,8 @@
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
 #include <stdio.h>
-void dump(const uint8_t *p, const size_t len, const char* msg);
+#include <stdarg.h>
+void dump(const uint8_t *p, const size_t len, const char* msg, ...);
 #endif
 
 #ifdef NORANDOM

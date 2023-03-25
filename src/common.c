@@ -1,10 +1,12 @@
 #include "common.h"
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
-void dump(const uint8_t *p, const size_t len, const char* msg) {
-  size_t i;
-  fprintf(stderr,"%s ",msg);
-  for(i=0;i<len;i++)
+void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  vfprintf(stderr,msg, args);
+  va_end(args);
+  for(size_t i=0;i<len;i++)
     fprintf(stderr,"%02x", p[i]);
   fprintf(stderr,"\n");
 }

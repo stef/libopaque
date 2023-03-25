@@ -134,10 +134,10 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 
 CFLAGS_EXTRA=$(CFLAGS) --pre-js test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1
 ../src/tests/opaque-test.html:
-	$(CC) $(CFLAGS_EXTRA) -o opaque-test.html ../src/tests/opaque-test.c -L. -lopaque $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.html ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-test.js ../src/tests/opaque-test.c -L. -lopaque $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.js ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.html ../src/tests/opaque-test.c $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.html ../src/tests/munit/munit.c ../src/tests/opaque-munit.c $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.js ../src/tests/opaque-test.c $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.js ../src/tests/munit/munit.c ../src/tests/opaque-munit.c $(LDFLAGS)
 
 build: clean format all es-check test
 

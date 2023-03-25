@@ -568,8 +568,9 @@
     function createRegistrationResponse(module, params) {
       const pointers = [];
       try {
-        const { M,    // required
-                skS,  // optional
+        const {
+          M, // required
+          skS, // optional
         } = params;
         validateUint8Arrays({ M });
         const M_pointer = AllocatedBuf.fromUint8Array(
@@ -753,7 +754,11 @@
         );
         pointers.push(recU_pointer);
 
-        module.StoreUserRecord(sec_pointer.address, rec_pointer.address, recU_pointer.address);
+        module.StoreUserRecord(
+          sec_pointer.address,
+          rec_pointer.address,
+          recU_pointer.address
+        );
         return {
           rec: recU_pointer.toUint8Array(),
         };
@@ -895,8 +900,8 @@
   };
 
   AllocatedBuf.prototype.zero = function () {
-    for(var i = 0; i < this.length; i++){
-        this.module.setValue(this.address + i, 0, "i8");
+    for (var i = 0; i < this.length; i++) {
+      this.module.setValue(this.address + i, 0, "i8");
     }
     return;
   };
@@ -934,7 +939,7 @@
   }
 
   function zeroAndFree(pointers) {
-    for(var i = 0; i < pointers.length; i++){
+    for (var i = 0; i < pointers.length; i++) {
       pointers[i].zeroAndFree();
     }
     return;

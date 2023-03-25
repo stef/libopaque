@@ -11,4 +11,4 @@
 // Navigate to http://localhost:8080/munit-opaque.html in a web browser. View
 // the console in developer tools for output.
 
-require("../../src/tests/opaque-munit.js");
+require("../opaque-munit.js");

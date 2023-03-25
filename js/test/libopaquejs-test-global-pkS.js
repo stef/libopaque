@@ -26,18 +26,16 @@ const opaque = require("../dist/libopaque.debug.js");
     pub,
     rec,
     ids,
-    context
-  }));
-  const {
-    sk: sk1,
-    authU,
-    export_key: export_key1,
-  } = opaque.recoverCredentials({
-    resp,
-    sec: secU,
     context,
-    ids,
-  });
+  }));
+  const { sk: sk1, authU, export_key: export_key1 } = opaque.recoverCredentials(
+    {
+      resp,
+      sec: secU,
+      context,
+      ids,
+    }
+  );
   if (!opaque.userAuth({ sec: secS, authU }))
     throw new Error("userAuth failed!");
   if (!opaque.uint8ArrayEquals(export_key, export_key1))

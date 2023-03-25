@@ -68,7 +68,7 @@ int opaquejs_CreateCredentialResponse(
 
 int opaquejs_RecoverCredentials(
   const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
-  const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN/*+pwdU_len*/],
+  const uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN /*+pwdU_len*/],
   const uint8_t *ctx,
   const uint16_t ctx_len,
   const uint8_t *ids_idU,

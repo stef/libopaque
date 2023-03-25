@@ -83,7 +83,7 @@ jobs:
        # golang
        sudo apt install -y  golang
        cd ../go
-       make test
+       make tests
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1

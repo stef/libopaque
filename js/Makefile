@@ -129,15 +129,8 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 
 # See the comments for LIBOPAQUE_CFLAGS for why -fstack-clash-protection
 # appears for libopaque.so but not for tests.html or tests.js.
-../src/libopaque.so: $(LIBOPRFHOME)/oprf.c ../src/opaque.c ../src/common.c $(EXTRA_SOURCES)
+libopaque.so: $(LIBOPRFHOME)/oprf.c ../src/opaque.c ../src/common.c $(EXTRA_SOURCES)
 	$(CC) -shared $(CFLAGS) -o libopaque.so $^ $(LIBOPAQUE_LDFLAGS)
-
-CFLAGS_EXTRA=$(CFLAGS) --pre-js test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1
-../src/tests/opaque-test.html:
-	$(CC) $(CFLAGS_EXTRA) -o opaque-test.html ../src/tests/opaque-test.c -L. $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.html ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-test.js ../src/tests/opaque-test.c -L. $(LDFLAGS)
-	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.js ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. $(LDFLAGS)
 
 build: clean format all es-check test
 
@@ -149,6 +142,7 @@ clean-libopaque:
 	make --directory=../src clean
 
 clean-libopaquejs:
+	rm -f libopaque.so opaque-munit.html opaque-munit.js opaque-test.html opaque-test.js
 	rm -rf dist/libopaque.debug.js dist/libopaque.js wrapper/opaquejs.o
 
 clean-libsodium:
@@ -165,6 +159,7 @@ dist/libopaque.js: wrapper/opaquejs.o node_modules wrapper/libopaque-post.js wra
 	-s SINGLE_FILE=1 \
 	-o dist/libopaque.debug.js \
 	wrapper/opaquejs.o \
+	-L. \
 	$(LDFLAGS) \
 	-fstack-clash-protection
 	npx terser --output dist/libopaque.js -- dist/libopaque.debug.js
@@ -209,9 +204,14 @@ format: node_modules
 	sed -i '1d;2d;3d;4d' wrapper/libopaque-post.js
 	uncrustify -c uncrustify.cfg --no-backup wrapper/opaquejs.c wrapper/opaquejs.h
 
-libopaque: ../src/libopaque.so
+libopaque: libopaque.so
 
-libopaque-tests: ../src/tests/opaque-test.html
+CFLAGS_EXTRA=$(CFLAGS) --pre-js test/libopaque-test-pre.js -s ALLOW_MEMORY_GROWTH=1 -s SINGLE_FILE=1
+libopaque-tests:
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.html ../src/tests/opaque-test.c -L. $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.html ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-test.js ../src/tests/opaque-test.c -L. $(LDFLAGS)
+	$(CC) $(CFLAGS_EXTRA) -o opaque-munit.js ../src/tests/munit/munit.c ../src/tests/opaque-munit.c -L. $(LDFLAGS)
 
 libopaquejs: dist/libopaque.js
 

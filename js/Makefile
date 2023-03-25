@@ -98,7 +98,6 @@ EXPORTED_RUNTIME_METHODS=\
 LIBOPAQUE_LDFLAGS=\
 -g \
 -L$(SODIUMDIR)/.libs \
-$(LIBOPRFHOME)/oprf.o \
 -lsodium \
 -Wl,-z,defs \
 -Wl,-z,relro \
@@ -127,7 +126,7 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 		--directory=../src \
 		CC=$(CC) \
 		LIBOPRFHOME=$(LIBOPRFHOME) \
-		CFLAGS='$(LIBOPAQUE_CFLAGS)' \
+		CFLAGS='$(LIBOPAQUE_CFLAGS) $(LIBOPRFHOME)/oprf.o' \
 		LDFLAGS='$(LIBOPAQUE_LDFLAGS) -fstack-clash-protection' \
 		libopaque.so
 

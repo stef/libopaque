@@ -36,6 +36,7 @@ DEFINES=-DTRACE -DNORANDOM
 SODIUMDIR='$(shell pwd)/libsodium.js/libsodium/src/libsodium'
 LIBOPAQUE_CFLAGS=\
 -I$(SODIUMDIR)/include \
+-I$(LIBOPRFHOME) \
 -march=native \
 -Wall \
 -O2 \
@@ -49,7 +50,7 @@ LIBOPAQUE_CFLAGS=\
 -ftrapv \
 $(DEFINES)
 
-CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src -I$(LIBOPRFHOME)
+CFLAGS=$(LIBOPAQUE_CFLAGS) -I../src
 
 EXPORTED_FUNCTIONS=\
 "_opaquejs_crypto_auth_hmacsha512_BYTES", \
@@ -125,6 +126,7 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 	make \
 		--directory=../src \
 		CC=$(CC) \
+		LIBOPRFHOME=$(LIBOPRFHOME) \
 		CFLAGS='$(LIBOPAQUE_CFLAGS)' \
 		LDFLAGS='$(LIBOPAQUE_LDFLAGS) -fstack-clash-protection' \
 		libopaque.so

@@ -21,6 +21,12 @@ else
 	CFLAGS+= -DHAVE_SODIUM_HKDF=1
 endif
 
+ifdef OPRFHOME
+	OPRFINCDIR=$(OPRFHOME)
+else
+	OPRFINCDIR=/usr/include/oprf
+endif
+
 all: libopaque.$(SOEXT) libopaque.$(AEXT) tests utils/opaque
 
 debug: DEFINES=-DTRACE -DNORANDOM
@@ -98,7 +104,7 @@ $(PREFIX)/bin/opaque: utils/opaque
 	cp $< $@
 
 opaque.o: opaque.c
-	$(CC) $(CFLAGS) -I/usr/include/oprf -o $@ -c $<
+	$(CC) $(CFLAGS) -I$(OPRFINCDIR) -o $@ -c $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<

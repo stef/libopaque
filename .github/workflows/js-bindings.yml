@@ -30,4 +30,4 @@ jobs:
        make LIBOPRFHOME=../liboprf
        echo emsdk >.prettierignore
        echo libsodium.js >>.prettierignore
-       make format es-check test
+       make LIBOPRFHOME=../liboprf format es-check test

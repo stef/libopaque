@@ -63,7 +63,7 @@ common-v.o: common.c
 	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
 opaque-tv1.o: opaque.c
-	$(CC) $(CFLAGS) -I/usr/include/oprf -DCFRG_TEST_VEC -o $@ -c $<
+	$(CC) $(CFLAGS) -I$(OPRFHOME) -DCFRG_TEST_VEC -o $@ -c $<
 
 oprf-v.o: $(OPRFHOME)/oprf.c
 	$(CC) -I. $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<

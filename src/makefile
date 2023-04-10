@@ -23,6 +23,7 @@ endif
 
 ifdef OPRFHOME
 	OPRFINCDIR=$(OPRFHOME)
+	LDFLAGS+=" -L$(OPRFHOME)"
 else
 	OPRFINCDIR=/usr/include/oprf
 endif

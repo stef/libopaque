@@ -23,7 +23,7 @@ endif
 
 ifdef OPRFHOME
 	OPRFINCDIR=$(OPRFHOME)
-	LDFLAGS+= -Wl,rpath,$(OPRFHOME)
+	LDFLAGS+= -L$(OPRFHOME)
 else
 	OPRFINCDIR=/usr/include/oprf
 endif
@@ -55,7 +55,7 @@ endif
 tests: $(TESTS)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS)
+	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
 
 libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(AR) -rcs libopaque.$(AEXT) $^
@@ -84,7 +84,7 @@ test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
 utils/opaque: utils/main.c
-	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -L. -lopaque -lsodium
+	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -L. $(LDFLAGS) -lopaque -lsodium
 
 install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
 

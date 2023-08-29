@@ -3,13 +3,14 @@ LIBS=-lsodium -loprf
 DEFINES=
 CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration \
-        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -fsanitize=bounds \
-        -fsanitize-undefined-trap-on-error -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -std=c99 $(DEFINES)
+        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error \
+        -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -std=c99 $(DEFINES)
         #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
 CC=gcc
 SOEXT=so
 AEXT=a
+SOVER=0
 
 AR?=ar
 
@@ -56,7 +57,7 @@ endif
 tests: $(TESTS)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
+	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so.$(SOVER) -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
 
 libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(AR) -rcs libopaque.$(AEXT) $^
@@ -93,7 +94,8 @@ uninstall: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PR
 	rm $^
 
 $(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
-	cp $< $@
+	install -D $< $@.$(SOVER)
+	ln -s $@.$(SOVER) $@
 
 $(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
 	cp $< $@

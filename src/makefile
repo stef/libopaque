@@ -95,7 +95,7 @@ uninstall: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PR
 
 $(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	install -D $< $@.$(SOVER)
-	ln -s $@.$(SOVER) $@
+	ln -fs $@.$(SOVER) $@
 
 $(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
 	cp $< $@

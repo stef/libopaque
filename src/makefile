@@ -58,6 +58,7 @@ tests: $(TESTS)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so.$(SOVER) -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
+	ln -fs libopaque.$(SOEXT) libopaque.so.$(SOVER)
 
 libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(AR) -rcs libopaque.$(AEXT) $^

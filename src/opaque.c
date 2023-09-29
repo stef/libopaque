@@ -145,7 +145,9 @@ static int voprf_hash_to_scalar(const uint8_t *msg, const uint8_t msg_len, const
   return 0;
 }
 
-static int deriveKeyPair(const uint8_t *seed, const size_t seed_len, const uint8_t *info, const uint16_t info_len, uint8_t skS[crypto_core_ristretto255_SCALARBYTES], uint8_t pkS[crypto_core_ristretto255_BYTES]) {
+static int deriveKeyPair(const uint8_t *seed, const size_t seed_len, uint8_t skS[crypto_core_ristretto255_SCALARBYTES], uint8_t pkS[crypto_core_ristretto255_BYTES]) {
+  const uint16_t info_len=33;
+  const uint8_t info[]="OPAQUE-DeriveDiffieHellmanKeyPair";
   const uint8_t ctx[] = "DeriveKeyPair"VOPRF"-\x00-ristretto255-SHA512";
   uint8_t hashinput[seed_len + 2 + info_len + 1], *ptr= hashinput;
   memcpy(ptr,seed,seed_len);
@@ -346,11 +348,11 @@ static void calc_preamble(char preamble[crypto_hash_sha512_BYTES],
        /*X_s*/crypto_scalarmult_BYTES, "ke2");
 #endif
 
-  //1. preamble = hash("RFCXXXX",
+  //1. preamble = hash("OPAQUEv1-",
   // note the spec it self does not say hash here, but
   // https://github.com/cfrg/draft-irtf-cfrg-opaque/pull/147
   // and later uses all hash this value
-  const uint8_t rfc[]="RFCXXXX";
+  const uint8_t rfc[]="OPAQUEv1-";
   const uint8_t rfc_len=sizeof rfc -1;
   crypto_hash_sha512_update(state, rfc, rfc_len);
 
@@ -560,8 +562,7 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
-  const uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
-  if(0!=deriveKeyPair(seed, sizeof seed, dst, sizeof dst, client_secret_key, client_public_key)) {
+  if(0!=deriveKeyPair(seed, sizeof seed, client_secret_key, client_public_key)) {
     sodium_munlock(seed, sizeof seed);
     sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);
@@ -713,10 +714,10 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   memcpy(sec->blinded, pub->blinded, crypto_core_ristretto255_BYTES);
 
   // x_u ←_R Z_q
-#ifdef CFRG_TEST_VEC
-  memcpy(sec->x_u, client_private_keyshare, crypto_scalarmult_SCALARBYTES);
-#else
-  randombytes(sec->x_u, crypto_scalarmult_SCALARBYTES);
+#ifndef CFRG_TEST_VEC
+  const size_t client_keyshare_seed_len=32;
+  uint8_t client_keyshare_seed[client_keyshare_seed_len];
+  randombytes(client_keyshare_seed, crypto_scalarmult_SCALARBYTES);
 #endif
 
   // nonceU
@@ -727,8 +728,8 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
   memcpy(pub->nonceU, sec->nonceU, OPAQUE_NONCE_BYTES);
 
-  // X_u := g^x_u
-  crypto_scalarmult_ristretto255_base(pub->X_u, sec->x_u);
+
+  deriveKeyPair(client_keyshare_seed, client_keyshare_seed_len, sec->x_u, pub->X_u);
 
   sec->pwdU_len = pwdU_len;
   memcpy(sec->pwdU, pwdU, pwdU_len);
@@ -841,23 +842,22 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 
   // 2. server_private_keyshare, server_keyshare = GenerateAuthKeyPair()
   // (c) Picks x_s ←_R Z_q
+#ifndef CFRG_TEST_VEC
+  const size_t server_keyshare_seed_len=32;
+  uint8_t server_keyshare_seed[server_keyshare_seed_len];
+  randombytes(server_keyshare_seed, crypto_scalarmult_SCALARBYTES);
+#endif
+
   uint8_t x_s[crypto_scalarmult_SCALARBYTES];
   if(-1==sodium_mlock(x_s,sizeof x_s)) return -1;
-#ifdef CFRG_TEST_VEC
-  memcpy(x_s, server_private_keyshare, sizeof x_s);
-#else
-  randombytes(x_s, crypto_scalarmult_SCALARBYTES);
-#endif
-
-#ifdef TRACE
-  dump(x_s, sizeof(x_s), "session srv x_s ");
-#endif
   // X_s := g^x_s;
-  crypto_scalarmult_ristretto255_base(resp->X_s, x_s);
+  deriveKeyPair(server_keyshare_seed,server_keyshare_seed_len,x_s,resp->X_s);
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
-  dump(resp->X_s, sizeof(resp->X_s), "server_keyshare");
+  dump(x_s, sizeof(x_s), "session server_private_keyshare (x_s) ");
+  dump(resp->X_s, sizeof(resp->X_s), "session server_public_keyshare (X_s)");
 #endif
+
   // 3. Create inner_ke2 ike2 with (credential_response, server_nonce, server_keyshare)
   // should already be all in place
 
@@ -1103,9 +1103,8 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     sodium_munlock(auth_key, sizeof auth_key);
     return -1;
   }
-  const uint8_t dst[24]="OPAQUE-DeriveAuthKeyPair";
   uint8_t client_public_key[crypto_scalarmult_BYTES];
-  if(0!=deriveKeyPair(seed, sizeof seed, dst, sizeof dst, client_secret_key, client_public_key)) {
+  if(0!=deriveKeyPair(seed, sizeof seed, client_secret_key, client_public_key)) {
     sodium_munlock(seed, sizeof seed);
     sodium_munlock(client_secret_key, sizeof client_secret_key);
     sodium_munlock(auth_key, sizeof auth_key);

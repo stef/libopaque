@@ -66,8 +66,11 @@ extern const uint8_t client_keyshare[client_keyshare_len];
 #define client_nonce_len 32
 extern const uint8_t client_nonce[client_nonce_len];
 
-#define client_private_keyshare_len 32
-extern const uint8_t client_private_keyshare[client_private_keyshare_len];
+#define client_keyshare_seed_len 32
+extern const uint8_t client_keyshare_seed[client_keyshare_seed_len];
+
+#define server_keyshare_seed_len 32
+extern const uint8_t server_keyshare_seed[client_keyshare_seed_len];
 
 #define credential_identifier_len 4
 extern const uint8_t credential_identifier[credential_identifier_len];

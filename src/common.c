@@ -6,6 +6,7 @@ void dump(const uint8_t *p, const size_t len, const char* msg, ...) {
   va_start(args, msg);
   vfprintf(stderr,msg, args);
   va_end(args);
+  fprintf(stderr, " ");
   for(size_t i=0;i<len;i++)
     fprintf(stderr,"%02x", p[i]);
   fprintf(stderr,"\n");

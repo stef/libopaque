@@ -82,7 +82,7 @@ tests/opaque-tv1$(EXT): tests/opaque-testvectors.c common-v.o oprf-v.o opaque-tv
 	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -g
 
 test: tests
-	./tests/opaque-tv1$(EXT)
+	test -x ./tests/opaque-tv1$(EXT) && ./tests/opaque-tv1$(EXT)
 	LD_LIBRARY_PATH=. ./tests/opaque-test$(EXT)
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 

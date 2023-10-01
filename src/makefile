@@ -89,23 +89,22 @@ test: tests
 utils/opaque: utils/main.c libopaque.$(SOEXT)
 	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -L. $(LDFLAGS) -lopaque -lsodium
 
-install: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
+install: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque
 
-uninstall: $(PREFIX)/lib/libopaque.$(SOEXT) $(PREFIX)/lib/libopaque.$(AEXT) $(PREFIX)/include/opaque.h $(PREFIX)/bin/opaque
+uninstall: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque
 	rm $^
 
-$(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
+$(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	install -D $< $@.$(SOVER)
 	ln -fs $@.$(SOVER) $@
 
-$(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
+$(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
 	cp $< $@
 
-
-$(PREFIX)/include/opaque.h: opaque.h
+$(DESTDIR)$(PREFIX)/include/opaque.h: opaque.h
 	cp $< $@
 
-$(PREFIX)/bin/opaque: utils/opaque
+$(DESTDIR)$(PREFIX)/bin/opaque: utils/opaque
 	cp $< $@
 
 opaque.o: opaque.c

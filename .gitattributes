@@ -1,0 +1,5 @@
+.gitattributes export-ignore
+.gitignore     export-ignore
+
+/doc export-ignore
+/js/libsodium.js export-ignore

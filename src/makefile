@@ -25,12 +25,21 @@ endif
 ifdef OPRFHOME
 	OPRFINCDIR=$(OPRFHOME)
 	LDFLAGS+= -L$(OPRFHOME)
-
 else
 	OPRFINCDIR=/usr/include/oprf
 endif
 
-all: libopaque.$(SOEXT) libopaque.$(AEXT) tests utils/opaque
+ifeq (, $(shell which pandoc))
+	$(warning "No pandoc in $(PATH), not building man pages")
+else
+	MANPAGES=man
+	MANPAGES-clean=man-clean
+	MANPAGES-install=man-install
+	MANPAGES-uninstall=man-uninstall
+endif
+
+
+all: libopaque.$(SOEXT) libopaque.$(AEXT) tests utils/opaque $(MANPAGES)
 
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
@@ -89,10 +98,22 @@ test: tests
 utils/opaque: utils/main.c libopaque.$(SOEXT)
 	gcc $(CFLAGS) -I. -o utils/opaque utils/main.c -L. $(LDFLAGS) -lopaque -lsodium
 
-install: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque
+install: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque $(MANPAGES-install)
 
-uninstall: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque
+uninstall: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque $(MANPAGES-uninstall)
 	rm $^
+
+man:
+	make -C utils/man
+
+man-clean:
+	make -C utils/man clean
+
+man-install:
+	make -C utils/man install
+
+man-uninstall:
+	make -C utils/man uninstall
 
 $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
 	install -D $< $@.$(SOVER)
@@ -119,7 +140,7 @@ win/libsodium-win64:
 	@echo 'https://download.libsodium.org/libsodium/releases/'
 	@false
 
-clean:
+clean: $(MANPAGES-clean)
 	rm -f \
 		*.o \
 		aux_/*.o \

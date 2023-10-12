@@ -27,10 +27,10 @@ static void usage(const char *self) {
   fprintf(stderr, "%s finalize idU idS <ctx 4<rpub 3>export_key >record                                      - finalize registration\n", self);
   fprintf(stderr, "%s store <rec 3<rsec >record                                                              - complete record\n", self);
   fprintf(stderr, "socat | %s server-reg 3>record [4<skS]                                                    - server portion of online registration\n", self);
-  fprintf(stderr, "socat | %s user-reg idU idS 3< <(echo -n password) 4>export_key                           - server portion of online registration\n", self);
+  fprintf(stderr, "socat | %s user-reg idU idS 3< <(echo -n password) 4>export_key                           - user portion of online registration\n", self);
   fprintf(stderr, "\nRun OPAQUE\n");
   fprintf(stderr, "socat | %s server idU idS context 3<record 4>shared_key                                   - server portion of OPAQUE session\n", self);
-  fprintf(stderr, "socat | %s user idU idS context 3< <(echo -n password) 4>export_key 5>shared_key [6<pkS]  - server portion of OPAQUE session\n", self);
+  fprintf(stderr, "socat | %s user idU idS context 3< <(echo -n password) 4>export_key 5>shared_key [6<pkS]  - user portion of OPAQUE session\n", self);
 }
 
 static int init(const char** argv) {

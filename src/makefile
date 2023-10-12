@@ -30,7 +30,7 @@ else
 endif
 
 ifeq (, $(shell which pandoc))
-	$(warning "No pandoc in $(PATH), not building man pages")
+	echo "No pandoc in PATH, not building man pages"
 else
 	MANPAGES=man
 	MANPAGES-clean=man-clean

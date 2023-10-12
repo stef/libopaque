@@ -2,4 +2,4 @@
 .gitignore     export-ignore
 
 /doc export-ignore
-/js/libsodium.js export-ignore
+/js export-ignore

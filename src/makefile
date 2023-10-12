@@ -29,9 +29,7 @@ else
 	OPRFINCDIR=/usr/include/oprf
 endif
 
-ifeq (, $(shell which pandoc))
-	echo "No pandoc in PATH, not building man pages"
-else
+ifneq (, $(shell which pandoc))
 	MANPAGES=man
 	MANPAGES-clean=man-clean
 	MANPAGES-install=man-install

@@ -3,3 +3,6 @@
 
 /doc export-ignore
 /js export-ignore
+php7/demo/libopaque.js export-ignore
+demos/blob-ruby-js/static/libopaque.debug.js export-ignore
+demos/auth-py-js/static/libopaque.debug.js export-ignore

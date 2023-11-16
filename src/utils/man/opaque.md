@@ -159,7 +159,7 @@ Written by Stefan Marsiske.
 
 # COPYRIGHT
 
-Copyright © 2023 Stefan Marsiske.  License GPLv3+: GNU Lesser GPL version 3 or later <https://gnu.org/licenses/lgpl.html>.
+Copyright © 2023 Stefan Marsiske.  License LGPLv3+: GNU Lesser GPL version 3 or later <https://gnu.org/licenses/lgpl.html>.
 This is free software: you are free to change and redistribute it.  There is NO WARRANTY, to the extent permitted by law.
 
 # SEE ALSO

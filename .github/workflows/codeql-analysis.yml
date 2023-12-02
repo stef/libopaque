@@ -45,7 +45,7 @@ jobs:
        cd liboprf/src
        sudo PREFIX=/usr make install
        # main libopaque
-       cd ../src
+       cd ../../src
        git submodule update --init --recursive tests/munit
        make OPRFHOME=../liboprf/src debug test # Test a debug build.
        make OPRFHOME=../liboprf/src clean all test # Test a production build.

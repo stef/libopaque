@@ -174,6 +174,52 @@ static int deriveKeyPair(const uint8_t *seed, const size_t seed_len, uint8_t skS
   return 0;
 }
 
+static int finalize(const uint8_t *x, const uint16_t x_len,
+                         const uint8_t N[crypto_core_ristretto255_BYTES],
+                         uint8_t rwdU[OPRF_BYTES]) {
+
+  // - concat(y, Harden(y, params))
+  uint8_t concated[2*crypto_hash_sha512_BYTES];
+  uint8_t *y=concated, *hardened=concated+crypto_hash_sha512_BYTES;
+  if(-1==sodium_mlock(&concated,sizeof concated)) {
+    return -1;
+  }
+
+  if(0!=oprf_Finalize(x, x_len, N, y)) return 1;
+
+#if (defined TRACE || defined CFRG_TEST_VEC)
+  dump((uint8_t*) y, crypto_hash_sha512_BYTES, "oprf ");
+#endif
+
+#ifdef CFRG_TEST_VEC
+  // testvectors use identity as MHF
+  memcpy(hardened, y, crypto_hash_sha512_BYTES);
+#else
+  // salt - according to the irtf draft this could be all zeroes
+  // TODO parametrize via params and fall back to default
+  uint8_t salt[crypto_pwhash_SALTBYTES]={0};
+  if (crypto_pwhash(hardened, crypto_hash_sha512_BYTES,
+                    (const char*) y, crypto_hash_sha512_BYTES, salt,
+                    crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                    crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                    crypto_pwhash_ALG_DEFAULT) != 0) {
+    /* out of memory */
+    sodium_munlock(concated, sizeof(concated));
+    return -1;
+  }
+#endif
+#if (defined TRACE|| defined CFRG_TEST_VEC)
+  dump(concated, sizeof concated, "concated");
+#endif
+
+  crypto_kdf_hkdf_sha512_extract(rwdU, NULL, 0, concated, sizeof concated);
+  sodium_munlock(concated, sizeof(concated));
+
+#if (defined TRACE|| defined CFRG_TEST_VEC)
+  dump((uint8_t*) rwdU, OPRF_BYTES, "rwdU");
+#endif
+}
+
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
                const uint8_t kU[crypto_core_ristretto255_SCALARBYTES],
                uint8_t rwdU[OPAQUE_RWDU_BYTES]) {
@@ -205,7 +251,7 @@ static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
 
   // 2. rwdU = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(pwdU, pwdU_len, N, rwdU)) {
+  if(0!=finalize(pwdU, pwdU_len, N, rwdU)) {
     sodium_munlock(N,sizeof N);
     return -1;
   }
@@ -979,7 +1025,7 @@ int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
     return -1;
   }
   // 1.2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
+  if(0!=finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU,sizeof rwdU);
     return -1;
@@ -1321,7 +1367,7 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
     return -1;
   }
   // 2. y = Finalize(pwdU, N, "OPAQUE01")
-  if(0!=oprf_Finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
+  if(0!=finalize(sec->pwdU, sec->pwdU_len, N, rwdU)) {
     sodium_munlock(N, sizeof N);
     sodium_munlock(rwdU, sizeof(rwdU));
     return -1;

@@ -44,22 +44,17 @@ jobs:
        git clone https://github.com/stef/liboprf/
        cd liboprf/src
        sudo PREFIX=/usr make install
-       sudo ldconfig
        # main libopaque
        cd ../../src
        git submodule update --init --recursive tests/munit
        make OPRFHOME=../liboprf/src debug test # Test a debug build.
        make OPRFHOME=../liboprf/src clean all test # Test a production build.
-       ln -s liboprf.so liboprf.so.0
        sudo PREFIX=/usr make install
-       sudo ldconfig
        # python3
        cd ../python/test
-       sudo apt install -y python3-pip strace
+       sudo apt install -y python3-pip
        pip3 install pysodium
-       ls -l /lib/liboprf*
-       ldd /usr/lib/libopaque.so
-       LD_PRELOAD=/lib/liboprf.so.0 LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
+       LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
        # php7
        cd ../../php7
        sudo apt install -y php php-dev

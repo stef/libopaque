@@ -57,6 +57,8 @@ jobs:
        cd ../python/test
        sudo apt install -y python3-pip strace
        pip3 install pysodium
+       ls -l /lib/liboprf*
+       ldd /usr/lib/libopaque.so
        LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
        # php7
        cd ../../php7

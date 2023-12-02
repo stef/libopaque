@@ -27,7 +27,7 @@ jobs:
        ./emsdk activate 1.40.1
        source ./emsdk_env.sh
        cd ..
-       make LIBOPRFHOME=../liboprf
+       make LIBOPRFHOME=../liboprf/src
        echo emsdk >.prettierignore
        echo libsodium.js >>.prettierignore
-       make LIBOPRFHOME=../liboprf format es-check test
+       make LIBOPRFHOME=../liboprf/src format es-check test

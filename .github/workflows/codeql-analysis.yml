@@ -51,6 +51,7 @@ jobs:
        make OPRFHOME=../liboprf/src debug test # Test a debug build.
        make OPRFHOME=../liboprf/src clean all test # Test a production build.
        sudo PREFIX=/usr make install
+       sudo ldconfig
        # python3
        cd ../python/test
        sudo apt install -y python3-pip

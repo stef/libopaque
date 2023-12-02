@@ -59,7 +59,7 @@ jobs:
        pip3 install pysodium
        ls -l /lib/liboprf*
        ldd /usr/lib/libopaque.so
-       LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
+       LD_PRELOAD=/lib/liboprf.so.0 LD_LIBRARY_PATH="$(pwd)/../../src" PYTHONPATH="$(pwd)/.." python3 simple.py
        # php7
        cd ../../php7
        sudo apt install -y php php-dev

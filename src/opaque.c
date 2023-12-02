@@ -218,6 +218,7 @@ static int finalize(const uint8_t *x, const uint16_t x_len,
 #if (defined TRACE|| defined CFRG_TEST_VEC)
   dump((uint8_t*) rwdU, OPRF_BYTES, "rwdU");
 #endif
+  return 0;
 }
 
 static int prf(const uint8_t *pwdU, const uint16_t pwdU_len,

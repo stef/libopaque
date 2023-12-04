@@ -3,16 +3,24 @@ LIBS=-lsodium -loprf
 DEFINES=
 CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
 		  -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration \
-        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error \
-        -Wl,-z,defs -Wl,-z,relro -ftrapv -Wl,-z,noexecstack -std=c99 $(DEFINES)
+        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv -std=c99 $(DEFINES)
         #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
 CC=gcc
-SOEXT=so
 AEXT=a
 SOVER=0
 
 AR?=ar
+
+UNAME := $(shell uname -s)
+ifeq ($(UNAME),Darwin)
+	SOEXT=dylib
+	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
+else
+	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now 
+	SOEXT=so
+	SOFLAGS=-Wl,-soname,libopaque.so.$(SOVER)
+endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
 ifeq ($(SODIUM_NEWER_THAN_1_0_18),1)
@@ -64,7 +72,7 @@ endif
 tests: $(TESTS)
 
 libopaque.$(SOEXT): common.o opaque.o $(EXTRA_OBJECTS)
-	$(CC) -shared $(CFLAGS) -Wl,-soname,libopaque.so.$(SOVER) -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
+	$(CC) -shared $(CFLAGS) $(SOFLAGS) -o libopaque.$(SOEXT) $^ $(LDFLAGS) 
 	ln -fs libopaque.$(SOEXT) libopaque.so.$(SOVER)
 
 libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)

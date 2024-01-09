@@ -17,6 +17,7 @@ jobs:
       uses: actions/checkout@v2
 
     - run: |
+       sudo apt update
        sudo apt install -y libsodium-dev nodejs pkgconf python3-pip uncrustify # build-essential git
        # liboprf
        git clone https://github.com/stef/liboprf/

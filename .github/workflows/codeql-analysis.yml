@@ -43,6 +43,9 @@ jobs:
        # liboprf
        git clone https://github.com/stef/liboprf/
        cd liboprf/src
+       cd noise_xk
+       sudo PREFIX=/usr make install
+       cd ..
        sudo PREFIX=/usr make install
        sudo ldconfig
        # main libopaque

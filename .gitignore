@@ -3,6 +3,7 @@
 *.o
 *.so
 *.a
+*.jar
 .DS_Store
 node_modules/
 src/tests/opaque-munit
@@ -15,3 +16,4 @@ src/tests/opaque-tv1
 src/tests/opaque-tv1.html
 src/tests/opaque-tv1.js
 src/utils/opaque
+java/build

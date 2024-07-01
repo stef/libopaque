@@ -1,52 +1,6 @@
-class OpaqueIds {
-    public OpaqueIds() {}
-    public OpaqueIds(byte[] idU_, byte[] idS_) {
-        idU = idU_;
-        idS = idS_;
-    }
+package io.opaque;
 
-    public byte[] idU;
-    public byte[] idS;
-}
-
-class OpaqueRecExpKey {
-    public byte[] rec;
-    public byte[] export_key;
-}
-
-class OpaqueCredReq {
-    public byte[] sec;
-    public byte[] pub;
-}
-
-class OpaqueCredResp {
-    public byte[] sec;
-    public byte[] sk;
-    public byte[] pub;
-}
-
-class OpaqueCreds {
-    public byte[] sk;
-    public byte[] authU;
-    public byte[] export_key;
-}
-
-class OpaqueRegReq {
-    public byte[] sec;
-    public byte[] M;
-}
-
-class OpaqueRegResp {
-    public byte[] sec;
-    public byte[] pub;
-}
-
-class OpaquePreRecExpKey {
-    public byte[] rec;
-    public byte[] export_key;
-}
-
-class Opaque {
+public class Opaque {
     static {
         System.loadLibrary("opaquejni");
     }

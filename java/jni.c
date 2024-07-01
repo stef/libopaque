@@ -3,7 +3,7 @@
 #include <jni.h>
 #include "opaque.h"
 
-static const char *JNIT_CLASS = "Opaque";
+static const char *JNIT_CLASS = "io/opaque/Opaque";
 
 static void exception(JNIEnv *env, const char* msg) {
     jclass cls = (*env)->FindClass(env, "java/lang/Exception");
@@ -52,7 +52,7 @@ typedef struct {
 static void getids(JNIEnv *env, jobject ids_, Opaque_Ids *ids, IdGC *gc) {
     jclass   cls;
     jfieldID idUfid, idSfid;
-    cls = (*env)->FindClass(env, "OpaqueIds");
+    cls = (*env)->FindClass(env, "io/opaque/OpaqueIds");
     idUfid = (*env)->GetFieldID(env, cls, "idU", "[B");
     gc->idU = (jbyteArray)(*env)->GetObjectField(env, ids_, idUfid);
     idSfid = (*env)->GetFieldID(env, cls, "idS", "[B");
@@ -128,7 +128,7 @@ static jobject c_register(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray skS
                   {.key = "export_key", .val = export_key, .len = sizeof(export_key)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaqueRecExpKey", ret);
+  return retlist(env, "io/opaque/OpaqueRecExpKey", ret);
 }
 
 static jobject c_register_noIds(JNIEnv *env, jobject obj, jstring pwd_, jbyteArray sks_) {
@@ -163,7 +163,7 @@ static jobject c_createCredReq(JNIEnv *env, jobject obj, jstring pwd_) {
                   {.key = "pub", .val = pub, .len = sizeof(pub)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaqueCredReq", ret);
+  return retlist(env, "io/opaque/OpaqueCredReq", ret);
 }
 
 static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyteArray rec_, jobject ids_, jstring context_) {
@@ -212,7 +212,7 @@ static jobject c_createCredResp(JNIEnv *env, jobject obj, jbyteArray pub_, jbyte
                   {.key = "pub", .val = resp, .len = sizeof(resp)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaqueCredResp", ret);
+  return retlist(env, "io/opaque/OpaqueCredResp", ret);
 }
 
 static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, jbyteArray sec_, jstring context_, jobject ids_) {
@@ -268,8 +268,8 @@ static jobject c_recoverCredentials(JNIEnv *env, jobject obj, jbyteArray resp_, 
                   {.key = "export_key", .val = export_key, .len = sizeof(export_key)},
                   { .key = NULL, .val = NULL}};
 
-  jobject ret = retlist(env, "OpaqueCreds", retvals);
-  jclass clazz = (*env)->FindClass(env, "OpaqueCreds");
+  jobject ret = retlist(env, "io/opaque/OpaqueCreds", retvals);
+  jclass clazz = (*env)->FindClass(env, "io/opaque/OpaqueCreds");
 
   return ret;
 }
@@ -327,7 +327,7 @@ static jobject c_createRegReq(JNIEnv *env, jobject obj, jstring pwd_) {
                   {.key = "M", .val = M, .len = sizeof(M)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaqueRegReq", ret);
+  return retlist(env, "io/opaque/OpaqueRegReq", ret);
 }
 
 static jobject c_createRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteArray sks_) {
@@ -368,7 +368,7 @@ static jobject c_createRegResp(JNIEnv *env, jobject obj, jbyteArray M_, jbyteArr
                   {.key = "pub", .val = pub, .len = sizeof(pub)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaqueRegResp", ret);
+  return retlist(env, "io/opaque/OpaqueRegResp", ret);
 }
 
 static jobject c_createRegResp1(JNIEnv *env, jobject obj, jbyteArray M_) {
@@ -412,7 +412,7 @@ static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
                   {.key = "export_key", .val = export_key, .len = sizeof(export_key)},
                   { .key = NULL, .val = NULL}};
 
-  return retlist(env, "OpaquePreRecExpKey", ret);
+  return retlist(env, "io/opaque/OpaquePreRecExpKey", ret);
 }
 
 static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArray recU_) {
@@ -449,18 +449,18 @@ static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
 
 
 static JNINativeMethod funcs[] = {
-  { "c_register", "(Ljava/lang/String;[BLOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register },
-  { "c_register", "(Ljava/lang/String;[B)LOpaqueRecExpKey;", (void *)&c_register_noIds },
-  { "c_register", "(Ljava/lang/String;LOpaqueIds;)LOpaqueRecExpKey;", (void *)&c_register_noSks },
-  { "c_register", "(Ljava/lang/String;)LOpaqueRecExpKey;", (void *)&c_register1 },
-  { "c_createCredReq", "(Ljava/lang/String;)LOpaqueCredReq;", (void *)&c_createCredReq },
-  { "c_createCredResp", "([B[BLOpaqueIds;Ljava/lang/String;)LOpaqueCredResp;", (void *)&c_createCredResp },
-  { "c_recoverCreds", "([B[BLjava/lang/String;LOpaqueIds;)LOpaqueCreds;", (void *)&c_recoverCredentials },
+  { "c_register", "(Ljava/lang/String;[BLio/opaque/OpaqueIds;)Lio/opaque/OpaqueRecExpKey;", (void *)&c_register },
+  { "c_register", "(Ljava/lang/String;[B)Lio/opaque/OpaqueRecExpKey;", (void *)&c_register_noIds },
+  { "c_register", "(Ljava/lang/String;Lio/opaque/OpaqueIds;)Lio/opaque/OpaqueRecExpKey;", (void *)&c_register_noSks },
+  { "c_register", "(Ljava/lang/String;)Lio/opaque/OpaqueRecExpKey;", (void *)&c_register1 },
+  { "c_createCredReq", "(Ljava/lang/String;)Lio/opaque/OpaqueCredReq;", (void *)&c_createCredReq },
+  { "c_createCredResp", "([B[BLio/opaque/OpaqueIds;Ljava/lang/String;)Lio/opaque/OpaqueCredResp;", (void *)&c_createCredResp },
+  { "c_recoverCreds", "([B[BLjava/lang/String;Lio/opaque/OpaqueIds;)Lio/opaque/OpaqueCreds;", (void *)&c_recoverCredentials },
   { "c_userAuth", "([B[B)Z", (void *)&c_userAuth },
-  { "c_createRegReq", "(Ljava/lang/String;)LOpaqueRegReq;", (void *)&c_createRegReq },
-  { "c_createRegResp", "([B[B)LOpaqueRegResp;", (void *)&c_createRegResp},
-  { "c_createRegResp", "([B)LOpaqueRegResp;", (void *)&c_createRegResp1},
-  { "c_finalizeReg", "([B[BLOpaqueIds;)LOpaquePreRecExpKey;", (void *)&c_finalizeReg },
+  { "c_createRegReq", "(Ljava/lang/String;)Lio/opaque/OpaqueRegReq;", (void *)&c_createRegReq },
+  { "c_createRegResp", "([B[B)Lio/opaque/OpaqueRegResp;", (void *)&c_createRegResp},
+  { "c_createRegResp", "([B)Lio/opaque/OpaqueRegResp;", (void *)&c_createRegResp1},
+  { "c_finalizeReg", "([B[BLio/opaque/OpaqueIds;)Lio/opaque/OpaquePreRecExpKey;", (void *)&c_finalizeReg },
   { "c_storeRec", "([B[B)[B", (void *)&c_storeRec },
 };
 

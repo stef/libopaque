@@ -1,5 +1,5 @@
 JAVAINCLUDES?=/usr/lib/jvm/java-11-openjdk/include/
-JAVA_SOURCES = $(wildcard io/opaque/*.java)
+JAVA_SOURCES = $(wildcard ctrlc/*.java)
 
 all: opaque.jar libopaquejni.so
 

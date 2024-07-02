@@ -1,4 +1,4 @@
-package io.opaque;
+package ctrlc;
 
 public class OpaqueRegReq {
     public byte[] sec;

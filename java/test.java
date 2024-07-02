@@ -1,5 +1,5 @@
 import java.nio.charset.*;
-import io.opaque.*;
+import ctrlc.*;
 
 class Main {
 	public static void main(String args[]) {

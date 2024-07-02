@@ -1,4 +1,4 @@
-package io.opaque;
+package ctrlc;
 
 public class OpaqueCreds {
     public byte[] sk;

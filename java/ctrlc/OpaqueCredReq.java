@@ -1,6 +1,6 @@
-package io.opaque;
+package ctrlc;
 
-public class OpaqueRegResp {
+public class OpaqueCredReq {
     public byte[] sec;
     public byte[] pub;
 }

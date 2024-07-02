@@ -1,6 +1,6 @@
-package io.opaque;
+package ctrlc;
 
-public class OpaqueRecExpKey {
+public class OpaquePreRecExpKey {
     public byte[] rec;
     public byte[] export_key;
 }

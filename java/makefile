@@ -1,9 +1,10 @@
 JAVAINCLUDES?=/usr/lib/jvm/java-11-openjdk/include/
+JAVA_SOURCES = $(wildcard ctrlc/*.java)
 
 all: opaque.jar libopaquejni.so
 
-opaque.jar: test.java opaque.java jni.c
-	javac -d build test.java opaque.java
+opaque.jar: test.java $(JAVA_SOURCES) jni.c
+	javac -d build test.java $(JAVA_SOURCES)
 	jar -cvfe opaque.jar Main build
 
 libopaquejni.so: jni.c

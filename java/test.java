@@ -1,4 +1,5 @@
 import java.nio.charset.*;
+import ctrlc.*;
 
 class Main {
 	public static void main(String args[]) {

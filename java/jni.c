@@ -396,7 +396,7 @@ static jobject c_finalizeReg(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   getids(env, ids_, &ids, &gc);
 
   uint8_t export_key[crypto_hash_sha512_BYTES];
-  uint8_t rec[OPAQUE_USER_RECORD_LEN];
+  uint8_t rec[OPAQUE_REGISTRATION_RECORD_LEN];
 
   if(0!=opaque_FinalizeRequest(sec, pub, &ids, rec, export_key)) {
     exception(env,"opaque register() failed...");
@@ -428,7 +428,7 @@ static jbyteArray c_storeRec(JNIEnv *env, jobject obj, jbyteArray sec_, jbyteArr
   sec = (char*) sec_jb;
 
   size_t recU_len= (*env)->GetArrayLength(env, recU_);
-  if(recU_len<=OPAQUE_REGISTRATION_RECORD_LEN) {
+  if(recU_len!=OPAQUE_REGISTRATION_RECORD_LEN) {
     exception(env, "recU has invalid size");
     return NULL;
   }

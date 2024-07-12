@@ -6,7 +6,7 @@ CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 
         -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv -std=c99 $(DEFINES)
         #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
-CC=gcc
+CC?=gcc
 AEXT=a
 SOVER=0
 
@@ -17,9 +17,11 @@ ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
-	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now 
+	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
+			  -mbranch-protection=standard -fstrict-flex-arrays=3 
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,libopaque.so.$(SOVER)
+	SOFLAGS=-Wl,-soname,libopaque.$(SOEXT).$(SOVER)
 endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
@@ -122,17 +124,21 @@ man-uninstall:
 	make -C utils/man uninstall
 
 $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT): libopaque.$(SOEXT)
-	install -D $< $@.$(SOVER)
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@.$(SOVER)
 	ln -fs $@.$(SOVER) $@
 
 $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/opaque.h: opaque.h
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 $(DESTDIR)$(PREFIX)/bin/opaque: utils/opaque
-	install -D $< $@
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $< $@
 
 opaque.o: opaque.c
 	$(CC) $(CFLAGS) -I$(OPRFINCDIR) -o $@ -c $<

@@ -15,14 +15,14 @@ AR?=ar
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
-	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
+	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
 			  -fcf-protection=full 
 	#		  -mbranch-protection=standard -fstrict-flex-arrays=3 
 	SOEXT=so
-	SOFLAGS=-Wl,-soname,libopaque.$(SOEXT).$(SOVER) -Wl,-rpath=$(DESTDIR)$(PREFIX)/lib
+	SOFLAGS=-Wl,-soname,libopaque.$(SOEXT).$(SOVER)
 endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)

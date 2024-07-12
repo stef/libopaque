@@ -2,7 +2,7 @@ PREFIX?=/usr/local
 LIBS=-lsodium -loprf
 DEFINES=
 CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration \
+		  -fstack-clash-protection -Werror=format-security -Werror=implicit-function-declaration \
         -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv -std=c99 $(DEFINES)
         #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
@@ -18,7 +18,8 @@ ifeq ($(UNAME),Darwin)
 	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
-			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
+			  -fcf-protection=full 
 	#		  -mbranch-protection=standard -fstrict-flex-arrays=3 
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,libopaque.$(SOEXT).$(SOVER)

@@ -144,8 +144,8 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    transformed into a secret/shared session key sk and a response resp
    to be sent back to the user.
    @param [in] pub - the pub output of the opaque_CreateCredentialRequest()
-   @param [in] rec - the recorded created during "registration" and stored by the server
-   @param [in] ids - the id if the client and server
+   @param [in] rec - the record created during "registration" and stored by the server
+   @param [in] ids - the id of the client and server
    @param [in] ctx - a context of this instantiation of this protocol, e.g. "AppABCv12.34"
    @param [in] ctx_len - a context of this instantiation of this protocol
    @param [out] resp - servers response to be sent to the client where

@@ -15,7 +15,7 @@ AR?=ar
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
-	SOFLAGS=-Wl,-install_name,liboprf.$(SOEXT)
+	SOFLAGS=-Wl,-install_name,libopaque.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
 			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \

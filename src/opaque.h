@@ -122,7 +122,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
         allocate for this buffer be **OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len**.
         The User should protect the sec value (e.g. with sodium_mlock())
         until opaque_RecoverCredentials.
-   @param [out] pub - the message to be sent to the server
+   @param [out] ke1 - the message to be sent to the server
    @return the function returns 0 if everything is correct
  */
 int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
@@ -132,7 +132,7 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
                                    uint8_t sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
 #endif
 
-                                   uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+                                   uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
    This is the same function as defined in the paper with name
@@ -143,12 +143,12 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    opaque_StoreUserRecord(). These input parameters are
    transformed into a secret/shared session key sk and a response resp
    to be sent back to the user.
-   @param [in] pub - the pub output of the opaque_CreateCredentialRequest()
+   @param [in] ke1 - the pub output of the opaque_CreateCredentialRequest()
    @param [in] rec - the record created during "registration" and stored by the server
    @param [in] ids - the id of the client and server
    @param [in] ctx - a context of this instantiation of this protocol, e.g. "AppABCv12.34"
    @param [in] ctx_len - a context of this instantiation of this protocol
-   @param [out] resp - servers response to be sent to the client where
+   @param [out] ke2 - servers response to be sent to the client where
    it is used as input into opaque_RecoverCredentials()
    @param [out] sk - the shared secret established between the user & server
    @param [out] sec - the current context necessary for the explicit
@@ -157,11 +157,11 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
    set to NULL
    @return the function returns 0 if everything is correct
  */
-int opaque_CreateCredentialResponse(const uint8_t pub[OPAQUE_USER_SESSION_PUBLIC_LEN],
+int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN],
                                     const uint8_t rec[OPAQUE_USER_RECORD_LEN],
                                     const Opaque_Ids *ids,
                                     const uint8_t *ctx, const uint16_t ctx_len,
-                                    uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
+                                    uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
                                     uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                                     uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 

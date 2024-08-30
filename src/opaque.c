@@ -798,14 +798,14 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const uint8_t *ctx, const uint16_t ctx_len, uint8_t _resp[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
+int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const uint8_t *ctx, const uint16_t ctx_len, uint8_t ke2[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
 
-  Opaque_UserSession *pub = (Opaque_UserSession *) _pub;
+  Opaque_UserSession *pub = (Opaque_UserSession *) ke1;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
-  Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;
+  Opaque_ServerSession *resp = (Opaque_ServerSession *) ke2;
 
 #ifdef TRACE
-  dump(_pub, sizeof(Opaque_UserSession), "session srv pub ");
+  dump(ke1, sizeof(Opaque_UserSession), "session srv pub ");
   dump(_rec, OPAQUE_USER_RECORD_LEN, "session srv rec ");
 #endif
 
@@ -874,7 +874,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   sodium_munlock(response_pad, sizeof response_pad);
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
-  dump(_resp, sizeof (resp->Z) + crypto_scalarmult_BYTES+sizeof(Opaque_Envelope) + sizeof(masking_info.nonce), "resp(z+mn+mr)" );
+  dump(ke2, sizeof (resp->Z) + crypto_scalarmult_BYTES+sizeof(Opaque_Envelope) + sizeof(masking_info.nonce), "resp(z+mn+mr)" );
 #endif
 
   // this is the ake function Response() as per the irtf cfrg draft
@@ -911,7 +911,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
   // mixing in things from the irtf cfrg spec
   char preamble[crypto_hash_sha512_BYTES];
   crypto_hash_sha512_state preamble_state;
-  calc_preamble(preamble, &preamble_state, rec->recU.client_public_key, pkS, _pub, resp, ctx, ctx_len, (Opaque_Ids*) ids);
+  calc_preamble(preamble, &preamble_state, rec->recU.client_public_key, pkS, ke1, resp, ctx, ctx_len, (Opaque_Ids*) ids);
   Opaque_Keys keys;
   if(-1==sodium_mlock(&keys,sizeof(keys))) {
     sodium_munlock(x_s,sizeof x_s);
@@ -971,7 +971,7 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 #ifdef TRACE
   dump(resp->auth, sizeof(resp->auth), "session srv auth ");
   dump(authU, crypto_auth_hmacsha512_BYTES, "authU");
-  dump(_resp, OPAQUE_SERVER_SESSION_LEN, "resp");
+  dump(ke2, OPAQUE_SERVER_SESSION_LEN, "resp");
 #endif
 
   return 0;
@@ -985,21 +985,21 @@ int opaque_CreateCredentialResponse(const uint8_t _pub[OPAQUE_USER_SESSION_PUBLI
 //     Otherwise sets (p_u, P_u, P_s ) := AuthDec_rw (c);
 // (d) Computes K := KE(p_u, x_u, P_s, X_s) and SK := f_K(0);
 // (e) Outputs (sid, ssid, SK).
-int opaque_RecoverCredentials(const uint8_t _resp[OPAQUE_SERVER_SESSION_LEN],
+int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                               const uint8_t *ctx, const uint16_t ctx_len,
                               const Opaque_Ids *ids0,
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
-                              uint8_t authU[crypto_auth_hmacsha512_BYTES],
+                              uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
                               uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
-  Opaque_ServerSession *resp = (Opaque_ServerSession *) _resp;
+  Opaque_ServerSession *resp = (Opaque_ServerSession *) ke2;
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret *) _sec;
 
 #ifdef TRACE
   dump(sec->pwdU,sec->pwdU_len, "session user finish pwdU ");
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN, "session user finish sec ");
-  dump(_resp,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
+  dump(ke2,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
 #endif
 
   // 1. (client_private_key, server_public_key, export_key) =

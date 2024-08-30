@@ -744,24 +744,24 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
 //(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
 //X_u := g^x_u ; sends α and X_u to S.
 // more or less corresponds to CreateCredentialRequest in the irtf draft
-int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t _pub[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
-  Opaque_UserSession *pub = (Opaque_UserSession*) _pub;
+  Opaque_UserSession *pub = (Opaque_UserSession*) ke1;
 #ifdef TRACE
   memset(_sec, 0, OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len);
-  memset(_pub, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
+  memset(ke1, 0, OPAQUE_USER_SESSION_PUBLIC_LEN);
 #endif
 
   // 1. (blind, blinded) = Blind(pwdU)
   if(0!=oprf_Blind(pwdU, pwdU_len, sec->blind, pub->blinded)) return -1;
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
-  dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
+  dump(ke1,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
   memcpy(sec->blinded, pub->blinded, crypto_core_ristretto255_BYTES);
 
   // x_u ←_R Z_q
-#ifndef CFRG_TEST_VEC
+#ifndef CFRG_TEST_VEC // if it is defined then so are the values in this block
   const size_t client_keyshare_seed_len=32;
   uint8_t client_keyshare_seed[client_keyshare_seed_len];
   randombytes(client_keyshare_seed, crypto_scalarmult_SCALARBYTES);
@@ -775,18 +775,17 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 #endif
   memcpy(pub->nonceU, sec->nonceU, OPAQUE_NONCE_BYTES);
 
-
   deriveKeyPair(client_keyshare_seed, client_keyshare_seed_len, sec->x_u, pub->X_u);
 
   sec->pwdU_len = pwdU_len;
   memcpy(sec->pwdU, pwdU, pwdU_len);
 
   // keep ke1 for later
-  memcpy(sec->ke1, _pub, OPAQUE_USER_SESSION_PUBLIC_LEN);
+  memcpy(sec->ke1, ke1, OPAQUE_USER_SESSION_PUBLIC_LEN);
 
 #ifdef TRACE
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
-  dump(_pub,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
+  dump(ke1,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
   return 0;
 }

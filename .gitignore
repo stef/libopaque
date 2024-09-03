@@ -17,3 +17,4 @@ src/tests/opaque-tv1.html
 src/tests/opaque-tv1.js
 src/utils/opaque
 java/build
+*.1

@@ -1293,7 +1293,12 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the irtf cfrg rfc draft
-int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristretto255_BYTES], const uint8_t skS[crypto_scalarmult_SCALARBYTES], uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN], uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                                const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                                                const toprf_keygencb keygen,
+                                                const void* keygen_ctx) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1302,7 +1307,13 @@ int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristrett
 
   // k_s ←_R Z_q
   // 1. (kU, _) = KeyGen()
-  oprf_KeyGen(sec->kU);
+  if(keygen==NULL) {
+    oprf_KeyGen(sec->kU);
+  } else {
+    if(0!=keygen(keygen_ctx, sec->kU)) {
+      return -1;
+    }
+  }
 
   // computes β := α^k_s
   // 2. Z = Evaluate(kU, request.data)
@@ -1331,6 +1342,13 @@ int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristrett
 #endif
 
   return 0;
+}
+
+int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                      const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                      uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                      uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+  return opaque_CreateRegistrationResponse_extKeygen(blinded, skS, _sec, _pub, NULL, NULL);
 }
 
 // user computes:

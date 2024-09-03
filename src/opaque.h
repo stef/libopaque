@@ -10,6 +10,7 @@ extern "C" {
 #include <stdint.h>
 #include <stdlib.h>
 #include <sodium.h>
+#include <oprf/toprf.h>
 
 /**
  * sk is a shared secret. In opaque.h, we do not report its byte size in functions
@@ -274,6 +275,31 @@ int opaque_CreateRegistrationResponse(const uint8_t request[crypto_core_ristrett
                                       const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                                       uint8_t sec[OPAQUE_REGISTER_SECRET_LEN],
                                       uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+
+/**
+   Same as opaque_CreateRegistrationResponse() - except this takes
+   additionally a function pointer and a context for this function.
+
+   the keygen() is a function returning a new oprf seed, this is
+   needed for engaging in a distributed key generation procedure for
+   threshold OPAQUE. Of course this can also be *dangerously* abused
+   to tap into different sources of entropy instead of the default
+   sodium_randombytes() which is carefully designed to use the best
+   entropy available on a given OS.
+
+   parameters: see description for opaque_CreateRegistrationResponse()
+
+   @param [in] keygen: function pointer to
+          `int (*)(const void* ctx, uint8_t k[crypto_core_ristretto255_SCALARBYTES])`
+   @param [in] ctx: a void pointer to extra data neded for the keygen
+          function to operate.
+ */
+int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                                const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                                                const toprf_keygencb keygen,
+                                                const void* keygen_ctx);
 
 /**
    Client finalizes registration by concluding the OPRF, generating

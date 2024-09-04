@@ -134,11 +134,11 @@ $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT): libopaque.$(AEXT)
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/include/opaque.h: opaque.h
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/include
 	cp $< $@
 
 $(DESTDIR)$(PREFIX)/bin/opaque: utils/opaque
-	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp $< $@
 
 opaque.o: opaque.c

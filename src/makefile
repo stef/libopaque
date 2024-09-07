@@ -97,7 +97,7 @@ oprf-v.o: $(OPRFHOME)/oprf.c
 	$(CC) -I. $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
 tests/opaque-tv1$(EXT): tests/opaque-testvectors.c common-v.o oprf-v.o opaque-tv1.o 
-	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -g
+	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -loprf -g
 
 test: tests
 	test -x ./tests/opaque-tv1$(EXT) && ./tests/opaque-tv1$(EXT) || true

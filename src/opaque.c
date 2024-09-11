@@ -741,10 +741,7 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
   return 0;
 }
 
-//(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
-//X_u := g^x_u ; sends α and X_u to S.
-// more or less corresponds to CreateCredentialRequest in the irtf draft
-int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+int opaque_CreateCredentialRequest_oprf(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
   Opaque_UserSession *pub = (Opaque_UserSession*) ke1;
 #ifdef TRACE
@@ -759,6 +756,21 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(ke1,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
   memcpy(sec->blinded, pub->blinded, crypto_core_ristretto255_BYTES);
+
+  sec->pwdU_len = pwdU_len;
+  memcpy(sec->pwdU, pwdU, pwdU_len);
+
+#ifdef TRACE
+  dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
+  dump(ke1,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
+#endif
+
+  return 0;
+}
+
+int opaque_CreateCredentialRequest_ake(const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+  Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret*) _sec;
+  Opaque_UserSession *pub = (Opaque_UserSession*) ke1;
 
   // x_u ←_R Z_q
 #ifndef CFRG_TEST_VEC // if it is defined then so are the values in this block
@@ -777,9 +789,6 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 
   deriveKeyPair(client_keyshare_seed, client_keyshare_seed_len, sec->x_u, pub->X_u);
 
-  sec->pwdU_len = pwdU_len;
-  memcpy(sec->pwdU, pwdU, pwdU_len);
-
   // keep ke1 for later
   memcpy(sec->ke1, ke1, OPAQUE_USER_SESSION_PUBLIC_LEN);
 
@@ -787,7 +796,16 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len, "sec ");
   dump(ke1,OPAQUE_USER_SESSION_PUBLIC_LEN, "pub ");
 #endif
+
   return 0;
+}
+
+//(UsrSession, sid , ssid , S, pw): U picks r, x_u ←_R Z_q ; sets α := (H^0(pw))^r and
+//X_u := g^x_u ; sends α and X_u to S.
+// more or less corresponds to CreateCredentialRequest in the irtf draft
+int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
+  if(0!=opaque_CreateCredentialRequest_oprf(pwdU, pwdU_len, _sec, ke1)) return -1;
+  return opaque_CreateCredentialRequest_ake(pwdU_len, _sec, ke1);
 }
 
 // more or less corresponds to CreateCredentialResponse in the irtf draft
@@ -830,21 +848,15 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
 
   // 4. masking_nonce = random(Nn)
   // 5. credential_response_pad = Expand(record.masking_key, concat(masking_nonce, "CredentialResponsePad"), Npk + Ne)
-#ifdef CFRG_TEST_VEC
   struct {
     uint8_t nonce[32];
     uint8_t dst[21];
   } __attribute((packed)) masking_info = {
       .nonce = {0},
       .dst = "CredentialResponsePad"};
+#ifdef CFRG_TEST_VEC
   memcpy(masking_info.nonce, masking_nonce, masking_nonce_len);
 #else
-  struct {
-    uint8_t nonce[32];
-    uint8_t dst[21];
-  } __attribute((packed)) masking_info = {
-      .nonce = {0},
-      .dst = "CredentialResponsePad"};
   randombytes(masking_info.nonce, sizeof masking_info.nonce);
 #endif
   uint8_t response_pad[crypto_scalarmult_BYTES+sizeof(Opaque_Envelope)];
@@ -974,6 +986,50 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
   dump(ke2, OPAQUE_SERVER_SESSION_LEN, "resp");
 #endif
 
+  return 0;
+}
+
+int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
+                                      const uint8_t indexes[n],
+                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN]) {
+  if(n<t) return 1; // not enough shares
+  if(t<2) return 1; // not a threshold setup
+#ifdef TRACE
+  dump(ke2s, n*OPAQUE_SERVER_SESSION_LEN, "ke2s");
+#endif
+  uint8_t responses[n][TOPRF_Part_BYTES];
+  for(int i=0;i<n;i++) {
+    if(indexes[i]<1 || indexes[i] > 128) return 1;
+    Opaque_ServerSession *ke2 = (Opaque_ServerSession*) ke2s[i];
+    responses[i][0]=indexes[i];
+    memcpy(&responses[i][1], &ke2->Z, crypto_scalarmult_ristretto255_BYTES);
+  }
+#ifdef TRACE
+  dump(responses, n*TOPRF_Part_BYTES, "responses");
+#endif
+  uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
+  toprf_thresholdmult(t, responses, beta);
+#ifdef TRACE
+  dump(beta, crypto_scalarmult_ristretto255_BYTES, "beta");
+#endif
+  uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
+  for(int i=1;i<=n-t;i++) {
+#ifdef TRACE
+    dump(&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
+#endif
+    toprf_thresholdmult(t, (const uint8_t(*)[TOPRF_Part_BYTES]) &responses[i], tmp);
+#ifdef TRACE
+    dump(tmp,sizeof tmp, "tmp");
+#endif
+    if(memcmp(tmp,beta,sizeof tmp)!=0) {
+      return 1;
+    }
+  }
+
+  for(int i=0;i<n;i++) {
+    Opaque_ServerSession *ke2 = (Opaque_ServerSession*) ke2s[i];
+    memcpy(&ke2->Z, beta, crypto_scalarmult_ristretto255_BYTES);
+  }
   return 0;
 }
 
@@ -1298,7 +1354,7 @@ int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_cor
                                                 uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
                                                 uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                                 const toprf_keygencb keygen,
-                                                const void* keygen_ctx) {
+                                                void* keygen_ctx) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1349,6 +1405,47 @@ int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristrett
                                       uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
                                       uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   return opaque_CreateRegistrationResponse_extKeygen(blinded, skS, _sec, _pub, NULL, NULL);
+}
+
+int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
+                                        const uint8_t _pubs[n][OPAQUE_REGISTER_PUBLIC_LEN]) {
+  if(n<t) return 1; // not enough shares
+  if(t<2) return 1; // not a threshold setup
+#ifdef TRACE
+  dump(_pubs, n*OPAQUE_REGISTER_PUBLIC_LEN, "pubs");
+#endif
+  uint8_t responses[n][TOPRF_Part_BYTES];
+  for(int i=0;i<n;i++) {
+    Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pubs[i];
+    responses[i][0]=i+1;
+    memcpy(&responses[i][1], &pub->Z, crypto_scalarmult_ristretto255_BYTES);
+  }
+#ifdef TRACE
+  dump(responses, n*TOPRF_Part_BYTES, "responses");
+#endif
+  uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
+  toprf_thresholdmult(t, responses, beta);
+#ifdef TRACE
+  dump(beta, crypto_scalarmult_ristretto255_BYTES, "beta");
+#endif
+  uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
+  for(int i=1;i<=n-t;i++) {
+#ifdef TRACE
+    dump(&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
+#endif
+    toprf_thresholdmult(t, (const uint8_t(*)[TOPRF_Part_BYTES]) &responses[i], tmp);
+#ifdef TRACE
+    dump(tmp,sizeof tmp, "tmp");
+#endif
+    if(memcmp(tmp,beta,sizeof tmp)!=0) {
+      return 1;
+    }
+  }
+  for(int i=0;i<n;i++) {
+    Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pubs[i];
+    memcpy(&pub->Z, beta, crypto_scalarmult_ristretto255_BYTES);
+  }
+  return 0;
 }
 
 // user computes:

@@ -136,6 +136,44 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
                                    uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]);
 
 /**
+   This function implements the OPRF part of the first step of the
+   OPAQUE protocol, it is used by opaque_CreateCredentialRequest()
+
+   For the explanations of the parameters and return values see the
+   description of opaque_CreateCredentialRequest()
+
+   This Function is split out from the original
+   opaque_CreateCredentialRequest() to facilitate the usage of OPAQUE
+   in a threshold setting.
+ */
+int opaque_CreateCredentialRequest_oprf(const uint8_t *pwdU,
+                                        const uint16_t pwdU_len,
+#ifdef __cplusplus
+                                        uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+#else
+                                        uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
+#endif
+                                        uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+/**
+   This function implements the AKE part of the first step of the
+   OPAQUE protocol, it is used by opaque_CreateCredentialRequest()
+
+   For the explanations of the parameters and return values see the
+   description of opaque_CreateCredentialRequest()
+
+   This Function is split out from the original
+   opaque_CreateCredentialRequest() to facilitate the usage of OPAQUE
+   in a threshold setting.
+ */
+int opaque_CreateCredentialRequest_ake(const uint16_t pwdU_len,
+#ifdef __cplusplus
+                                       uint8_t *sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+#else
+                                       uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len],
+#endif
+                                       uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]);
+
+/**
    This is the same function as defined in the paper with name
    srvSession name. This function runs on the server and
    receives the output pub from the user running opaque_CreateCredentialRequest(),
@@ -165,6 +203,31 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
                                     uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
                                     uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                                     uint8_t authU[crypto_auth_hmacsha512_BYTES]);
+
+/**
+   This function combines the shares during a threshold OPAQUE
+   session setup into the evaluated blinded OPRF element beta.
+
+   During a threshold OPAQUE setssion seutp the servers respond each
+   with the blinded OPRF element evaluated with their share. This
+   function takes all responses, combines the evaluated shares into
+   beta, and replaces the blinded shares with beta in the responses.
+
+   This function must be called before opaque_RecoversCredentials() in
+   case of a threshold OPAQUE registration. It takes the response from
+   opaque_CreateCredentialResponse()
+
+   @param [in] t: the threshold.
+   @param [in] n: the number of items in indexes and ke2s.
+   @param [in] indexes: the indexes of the shares in the ke2s array.
+   @param [inout] pubs: all responses from all servers.
+
+   @return 0 on success.
+ */
+
+int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
+                                      const uint8_t indexes[n],
+                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN]);
 
 /**
    This is the same function as defined in the paper with the
@@ -243,7 +306,6 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU,
 #else
                                      uint8_t sec[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len],
 #endif
-				     
                                      uint8_t request[crypto_core_ristretto255_BYTES]);
 
 /**
@@ -299,7 +361,29 @@ int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_cor
                                                 uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
                                                 uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                                 const toprf_keygencb keygen,
-                                                const void* keygen_ctx);
+                                                void* keygen_ctx);
+
+/**
+   This function combines the shares during a threshold OPAQUE
+   registration into the evaluated blinded OPRF element beta.
+
+   During a threshold OPAQUE registration the servers respond each
+   with the blinded OPRF element evaluated with their share. This
+   function takes all responses, combines the evaluated shares into
+   beta, and replaces the blinded shares with beta in the responses.
+
+   This function must be called before opaque_FinalizeRequest() in
+   case of a threshold OPAQUE registration. It takes the response from
+   opaque_CreateRegistrationResponse()
+
+   @param [in] t: the threshold
+   @param [in] n: the number of total shares
+   @param [inout] pubs: all responses from all servers.
+
+   @return 0 on success.
+ */
+int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
+                                        const uint8_t _pubs[n][OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    Client finalizes registration by concluding the OPRF, generating
@@ -323,9 +407,7 @@ int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_cor
 
    @return the function returns 0 if everything is correct.
  */
-int opaque_FinalizeRequest(
-		const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
-
+int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
                            const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
                            const Opaque_Ids *ids,
                            uint8_t reg_rec[OPAQUE_REGISTRATION_RECORD_LEN],

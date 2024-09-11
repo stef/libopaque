@@ -32,8 +32,9 @@ if not opaquelib._name:
     raise ValueError('Unable to find libopaque')
 
 from pysodium import (crypto_core_ristretto255_SCALARBYTES, crypto_scalarmult_SCALARBYTES,
-                      crypto_scalarmult_BYTES, crypto_core_ristretto255_BYTES,
-                      crypto_hash_sha512_BYTES, sodium_version_check)
+                      crypto_core_ristretto255_BYTES, crypto_scalarmult_BYTES,
+                      crypto_core_ristretto255_BYTES, crypto_hash_sha512_BYTES,
+                      sodium_version_check)
 # todo what is this?
 if sodium_version_check(1,0,18):
     from pysodium import crypto_auth_hmacsha512_BYTES
@@ -172,6 +173,26 @@ def CreateCredentialRequest(pwdU):
     opaquelib.opaque_CreateCredentialRequest(pwdU, len(pwdU), sec, pub)
     return pub.raw, sec.raw
 
+def CreateCredentialRequest_oprf(pwdU):
+    if not pwdU:
+        raise ValueError("invalid parameter")
+    pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
+
+    sec = ctypes.create_string_buffer(OPAQUE_USER_SESSION_SECRET_LEN+len(pwdU))
+    pub = ctypes.create_string_buffer(OPAQUE_USER_SESSION_PUBLIC_LEN)
+    opaquelib.opaque_CreateCredentialRequest_oprf(pwdU, len(pwdU), sec, pub)
+    return pub.raw, sec.raw
+
+def CreateCredentialRequest_ake(pwdU, sec, pub):
+    if not pwdU:
+        raise ValueError("invalid parameter")
+    pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
+
+    sec = ctypes.create_string_buffer(sec, len(sec))
+    pub = ctypes.create_string_buffer(pub, len(pub))
+    opaquelib.opaque_CreateCredentialRequest_ake(len(pwdU), sec, pub)
+    return pub.raw, sec.raw
+
 #  This is the same function as defined in the paper with name
 #  srvSession name. This function runs on the server and
 #  receives the output pub from the user running opaque_CreateCredentialRequest(),
@@ -245,6 +266,7 @@ def CreateCredentialResponse(pub, rec, ids, ctx):
 #                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
 #                              uint8_t authU[crypto_auth_hmacsha512_BYTES],
 #                              uint8_t export_key[crypto_hash_sha512_BYTES]);
+
 def RecoverCredentials(resp, sec, ctx, ids=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
@@ -261,6 +283,17 @@ def RecoverCredentials(resp, sec, ctx, ids=None):
 
     __check(opaquelib.opaque_RecoverCredentials(resp, sec, ctx, len(ctx), ctypes.pointer(ids), sk, authU, export_key))
     return sk.raw, authU.raw, export_key.raw
+
+#int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
+#                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN],
+#                                      uint8_t beta[crypto_scalarmult_ristretto255_BYTES]);
+def CombineCredentialResponses(t, n, indexes, ke2s):
+    if len(ke2s) != n * OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid ke2s size")
+    if t<2: raise ValueError("invalid t, must be greater than 1")
+    if t>127: raise ValueError("invalid t, must be less than 128")
+    if n<t: raise ValueError("invalid n, must be greater than t")
+    if n>128: raise ValueError("invalid n, must be less than 129")
+    __check(opaquelib.opaque_CombineCredentialResponses(t, n, indexes, ke2s))
 
 #  Explicit User Authentication.
 #
@@ -351,6 +384,17 @@ def CreateRegistrationResponse(request, skS=None):
     pub = ctypes.create_string_buffer(OPAQUE_REGISTER_PUBLIC_LEN)
     __check(opaquelib.opaque_CreateRegistrationResponse(request, skS, sec, pub))
     return sec.raw, pub.raw
+
+#int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
+#                                         const uint8_t _pubs[n][OPAQUE_REGISTER_PUBLIC_LEN],
+#                                         uint8_t beta[crypto_scalarmult_ristretto255_BYTES]) {
+def CombineRegistrationResponses(t, n, pubs):
+    if len(pubs) != n * OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pubs size")
+    if t<2: raise ValueError("invalid t, must be greater than 1")
+    if t>127: raise ValueError("invalid t, must be less than 128")
+    if n<=t: raise ValueError("invalid n, must be greater than t")
+    if n>128: raise ValueError("invalid n, must be less than 129")
+    __check(opaquelib.opaque_CombineRegistrationResponses(t, n, pubs))
 
 #  Client finalizes registration by concluding the OPRF, generating
 #  its own keys and enveloping it all.

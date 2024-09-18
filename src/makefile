@@ -2,7 +2,7 @@ PREFIX?=/usr/local
 LIBS=-lsodium -loprf
 DEFINES=
 CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
-		  -fstack-clash-protection -Werror=format-security -Werror=implicit-function-declaration \
+		  -Werror=format-security -Werror=implicit-function-declaration \
         -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv -std=c99 $(DEFINES)
         #-fstrict-flex-arrays
 LDFLAGS=-g $(LIBS)
@@ -13,16 +13,25 @@ SOVER=0
 AR?=ar
 
 UNAME := $(shell uname -s)
+ARCH := $(shell uname -m)
 ifeq ($(UNAME),Darwin)
 	SOEXT=dylib
 	SOFLAGS=-Wl,-install_name,$(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT)
 else
 	CFLAGS+=-Wl,-z,defs -Wl,-z,relro -Wl,-z,noexecstack -Wl,-z,now \
-			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error \
-			  -fcf-protection=full 
+			  -fsanitize=signed-integer-overflow -fsanitize-undefined-trap-on-error
 	#		  -mbranch-protection=standard -fstrict-flex-arrays=3 
 	SOEXT=so
 	SOFLAGS=-Wl,-soname,libopaque.$(SOEXT).$(SOVER)
+   ifeq ($(ARCH),x86_64)
+      CFLAGS+=-fcf-protection=full
+   endif
+
+   ifeq ($(ARCH),parisc64)
+   else ifeq ($(ARCH),parisc64)
+   else
+      CFLAGS+=-fstack-clash-protection
+   endif
 endif
 
 SODIUM_NEWER_THAN_1_0_18 := $(shell pkgconf --atleast-version=1.0.19 libsodium; echo $$?)
@@ -53,13 +62,31 @@ all: libopaque.$(SOEXT) libopaque.$(AEXT) tests utils/opaque $(MANPAGES)
 debug: DEFINES=-DTRACE -DNORANDOM
 debug: all
 
+asan:
+	CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
+	ifeq ($(ARCH),x86_64)
+	   CFLAGS+=-fcf-protection=full
+	endif
+	ifeq ($(ARCH),parisc64)
+	else ifeq ($(ARCH),parisc64)
+	else
+	   CFLAGS+=-fstack-clash-protection
+	endif
 asan: DEFINES=-DTRACE -DNORANDOM
-asan: CFLAGS=-fsanitize=address -static-libasan -g -march=native -Wall -O2 -g -fstack-protector-strong -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -Wl,-z,noexecstack $(DEFINES)
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
+mingw64:
+	 CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
+	ifeq ($(ARCH),x86_64)
+	   CFLAGS+=-fcf-protection=full
+	endif
+	ifeq ($(ARCH),parisc64)
+	else ifeq ($(ARCH),parisc64)
+	else
+	   CFLAGS+=-fstack-clash-protection
+	endif
 mingw64: CC=x86_64-w64-mingw32-gcc
-mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -fstack-clash-protection -fcf-protection=full -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
 mingw64: LIBS=-L. -lws2_32 -Lwin/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
 mingw64: INC=-Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
 mingw64: SOEXT=dll

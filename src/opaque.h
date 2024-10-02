@@ -205,6 +205,32 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
                                     uint8_t authU[crypto_auth_hmacsha512_BYTES]);
 
 /**
+   This is the core of opaque_CreateCredentialResponse() but it
+   accepts 3 additional parameters enabling the use of 3hashTDH for a
+   threshold instantiation of OPAQUE
+
+   see description for other parameters parameters above for
+   opaque_CreateCredentialResponse()
+
+   @param [in] zero: a TOPRF_Share_BYTES long byte-array containing a
+          SSS sharing of the value zero.
+   @param [in] ssid_S: a sub-session ID which all the participating
+          servers agree on.
+   @param [in] ssid_S_len: the length of the ssid_S value
+ */
+int opaque_CreateCredentialResponse_core(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN],
+                                         const uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                                         const Opaque_Ids *ids,
+                                         const uint8_t *ctx,
+                                         const uint16_t ctx_len,
+                                         const uint8_t zero[TOPRF_Share_BYTES],
+                                         const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                                         // output
+                                         uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                                         uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                                         uint8_t authU[crypto_auth_hmacsha512_BYTES]);
+
+/**
    This function combines the shares during a threshold OPAQUE
    session setup into the evaluated blinded OPRF element beta.
 
@@ -220,14 +246,15 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
    @param [in] t: the threshold.
    @param [in] n: the number of items in indexes and ke2s.
    @param [in] indexes: the indexes of the shares in the ke2s array.
-   @param [inout] pubs: all responses from all servers.
+   @param [in] ke2s: all responses from all servers.
+   @param [out] beta: the threshold combined beta
 
    @return 0 on success.
  */
-
 int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
                                       const uint8_t indexes[n],
-                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN]);
+                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN],
+                                      uint8_t beta[crypto_scalarmult_ristretto255_BYTES]);
 
 /**
    This is the same function as defined in the paper with the
@@ -261,6 +288,30 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES],
                               uint8_t export_key[crypto_hash_sha512_BYTES]);
+
+/**
+   This is the same function as opaque_RecoverCredentials() except is
+   has one additional parameter for an externally supplied OPRF evaluated element.
+
+   This allows the implementation of a threshold OPAQUE where the OPRF
+   evaluated element is recovered from the responses and combined into
+   a final beta value. This is usually done by calling
+   opaque_CombineCredentialResponses()
+
+   For the explanations of the parameters and return values see the
+   description of opaque_CreateCredentialRequest(). The only extra parameter is:
+
+   @param [in] beta: the externally calculated beta value.
+ */
+int opaque_RecoverCredentials_extBeta(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                              const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+                              const uint8_t *ctx, const uint16_t ctx_len,
+                              const Opaque_Ids *ids0,
+                              const uint8_t beta[crypto_scalarmult_ristretto255_BYTES],
+                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                              uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
+                              uint8_t export_key[crypto_hash_sha512_BYTES]);
+
 
 /**
    Explicit User Authentication.
@@ -358,10 +409,35 @@ int opaque_CreateRegistrationResponse(const uint8_t request[crypto_core_ristrett
  */
 int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_core_ristretto255_BYTES],
                                                 const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
-                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
                                                 const toprf_keygencb keygen,
-                                                void* keygen_ctx);
+                                                void* keygen_ctx,
+                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]);
+
+
+/**
+   Same as opaque_CreateRegistrationResponse_extKeygen() - except this takes
+   additional parameters to enable 3hashTDH-based threshold-OPAQUE.
+
+   other parameters parameters: see description for
+   opaque_CreateRegistrationResponse() and
+   opaque_CreateRegistrationResponse_extKeygen()
+
+   @param [in] zero: a TOPRF_Share_BYTES long byte-array containing a
+          SSS sharing of the value zero.
+   @param [in] ssid_S: a sub-session ID which all the participating
+          servers agree on.
+   @param [in] ssid_S_len: the length of the ssid_S value
+
+ */
+int opaque_CreateRegistrationResponse_core(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                           const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                           const toprf_keygencb keygen,
+                                           void* keygen_ctx,
+                                           const uint8_t zero[TOPRF_Share_BYTES],
+                                           const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                                           uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                           uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]);
 
 /**
    This function combines the shares during a threshold OPAQUE

@@ -267,11 +267,12 @@ def CreateCredentialResponse(pub, rec, ids, ctx):
 #                              uint8_t authU[crypto_auth_hmacsha512_BYTES],
 #                              uint8_t export_key[crypto_hash_sha512_BYTES]);
 
-def RecoverCredentials(resp, sec, ctx, ids=None):
+def RecoverCredentials(resp, sec, ctx, ids=None, beta=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
     if len(resp) != OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
     if len(sec) <= OPAQUE_USER_SESSION_SECRET_LEN: raise ValueError("invalid sec param")
+    if beta is not None and len(beta) != crypto_core_ristretto255_BYTES: raise ValueError("invalid beta parameter")
 
     ctx=ctx.encode("utf8") if isinstance(ctx,str) else ctx
 
@@ -281,7 +282,7 @@ def RecoverCredentials(resp, sec, ctx, ids=None):
 
     if ids is None: ids = Ids()
 
-    __check(opaquelib.opaque_RecoverCredentials(resp, sec, ctx, len(ctx), ctypes.pointer(ids), sk, authU, export_key))
+    __check(opaquelib.opaque_RecoverCredentials_extBeta(resp, sec, ctx, len(ctx), ctypes.pointer(ids), beta, sk, authU, export_key))
     return sk.raw, authU.raw, export_key.raw
 
 #int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
@@ -293,7 +294,10 @@ def CombineCredentialResponses(t, n, indexes, ke2s):
     if t>127: raise ValueError("invalid t, must be less than 128")
     if n<t: raise ValueError("invalid n, must be greater than t")
     if n>128: raise ValueError("invalid n, must be less than 129")
-    __check(opaquelib.opaque_CombineCredentialResponses(t, n, indexes, ke2s))
+
+    beta = ctypes.create_string_buffer(crypto_core_ristretto255_BYTES)
+    __check(opaquelib.opaque_CombineCredentialResponses(t, n, indexes, ke2s, beta))
+    return beta.raw
 
 #  Explicit User Authentication.
 #

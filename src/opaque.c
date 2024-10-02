@@ -816,8 +816,17 @@ int opaque_CreateCredentialRequest(const uint8_t *pwdU, const uint16_t pwdU_len,
 // (d) Computes K := KE(p_s, x_s, P_u, X_u) and SK := f K (0);
 // (e) Sends β, X s and c to U;
 // (f) Outputs (sid , ssid , SK).
-int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN], const uint8_t _rec[OPAQUE_USER_RECORD_LEN], const Opaque_Ids *ids, const uint8_t *ctx, const uint16_t ctx_len, uint8_t ke2[OPAQUE_SERVER_SESSION_LEN], uint8_t sk[OPAQUE_SHARED_SECRETBYTES], uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
-
+int opaque_CreateCredentialResponse_core(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN],
+                                         const uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                                         const Opaque_Ids *ids,
+                                         const uint8_t *ctx,
+                                         const uint16_t ctx_len,
+                                         const uint8_t zero[TOPRF_Share_BYTES],
+                                         const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                                         // output
+                                         uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                                         uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                                         uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
   Opaque_UserSession *pub = (Opaque_UserSession *) ke1;
   Opaque_UserRecord *rec = (Opaque_UserRecord *) _rec;
   Opaque_ServerSession *resp = (Opaque_ServerSession *) ke2;
@@ -839,8 +848,31 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
 
   // computes β := α^k_s
   // 1. Z = Evaluate(DeserializeScalar(credentialFile.kU), request.data)
-  if (oprf_Evaluate(rec->kU, pub->blinded, resp->Z) != 0) {
-    return -1;
+  if(zero == NULL) {
+    if (oprf_Evaluate(rec->kU, pub->blinded, resp->Z) != 0) {
+      return -1;
+    }
+  } else {
+    if(ssid_S_len==0 || ssid_S == NULL) {
+      return -1;
+    }
+    uint8_t k[TOPRF_Share_BYTES];
+    if(-1==sodium_mlock(k, sizeof k)) return -1;
+
+    uint8_t beta[TOPRF_Part_BYTES];
+    k[0]=zero[0];
+    memcpy(k+1,rec->kU, TOPRF_Share_BYTES-1);
+#ifdef TRACE
+    dump(k, sizeof k, "k");
+    dump(zero, TOPRF_Share_BYTES, "zero");
+    dump(ssid_S, ssid_S_len, "ssid_S");
+#endif
+    int ret =toprf_3hashtdh(k, zero, pub->blinded, ssid_S, ssid_S_len, beta);
+    sodium_munlock(k, sizeof k);
+    if(0 != ret) {
+      return -1;
+    }
+    memcpy(resp->Z,beta+1,sizeof(beta)-1);
   }
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(resp->Z, sizeof resp->Z, "EvaluationElement");
@@ -989,13 +1021,27 @@ int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC
   return 0;
 }
 
+
+int opaque_CreateCredentialResponse(const uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN],
+                                    const uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                                    const Opaque_Ids *ids,
+                                    const uint8_t *ctx,
+                                    const uint16_t ctx_len,
+                                    // output
+                                    uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                                    uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                                    uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
+  return opaque_CreateCredentialResponse_core(ke1, _rec, ids, ctx, ctx_len, NULL, NULL, 0, ke2, sk, authU);
+}
+
 int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
                                       const uint8_t indexes[n],
-                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN]) {
+                                      const uint8_t ke2s[n][OPAQUE_SERVER_SESSION_LEN],
+                                      uint8_t beta[crypto_scalarmult_ristretto255_BYTES]) {
   if(n<t) return 1; // not enough shares
   if(t<2) return 1; // not a threshold setup
 #ifdef TRACE
-  dump(ke2s, n*OPAQUE_SERVER_SESSION_LEN, "ke2s");
+  dump((uint8_t*)ke2s, n*OPAQUE_SERVER_SESSION_LEN, "ke2s");
 #endif
   uint8_t responses[n][TOPRF_Part_BYTES];
   for(int i=0;i<n;i++) {
@@ -1005,17 +1051,16 @@ int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
     memcpy(&responses[i][1], &ke2->Z, crypto_scalarmult_ristretto255_BYTES);
   }
 #ifdef TRACE
-  dump(responses, n*TOPRF_Part_BYTES, "responses");
+  dump((uint8_t*)responses, n*TOPRF_Part_BYTES, "responses");
 #endif
-  uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
   toprf_thresholdmult(t, responses, beta);
 #ifdef TRACE
-  dump(beta, crypto_scalarmult_ristretto255_BYTES, "beta");
+  dump((uint8_t*)beta, crypto_scalarmult_ristretto255_BYTES, "beta");
 #endif
   uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
   for(int i=1;i<=n-t;i++) {
 #ifdef TRACE
-    dump(&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
+    dump((uint8_t*)&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
 #endif
     toprf_thresholdmult(t, (const uint8_t(*)[TOPRF_Part_BYTES]) &responses[i], tmp);
 #ifdef TRACE
@@ -1026,10 +1071,6 @@ int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
     }
   }
 
-  for(int i=0;i<n;i++) {
-    Opaque_ServerSession *ke2 = (Opaque_ServerSession*) ke2s[i];
-    memcpy(&ke2->Z, beta, crypto_scalarmult_ristretto255_BYTES);
-  }
   return 0;
 }
 
@@ -1041,13 +1082,14 @@ int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
 //     Otherwise sets (p_u, P_u, P_s ) := AuthDec_rw (c);
 // (d) Computes K := KE(p_u, x_u, P_s, X_s) and SK := f_K(0);
 // (e) Outputs (sid, ssid, SK).
-int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
-                              const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
-                              const uint8_t *ctx, const uint16_t ctx_len,
-                              const Opaque_Ids *ids0,
-                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
-                              uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
-                              uint8_t export_key[crypto_hash_sha512_BYTES]) {
+int opaque_RecoverCredentials_extBeta(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                                      const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+                                      const uint8_t *ctx, const uint16_t ctx_len,
+                                      const Opaque_Ids *ids0,
+                                      const uint8_t beta[crypto_scalarmult_ristretto255_BYTES],
+                                      uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                                      uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
+                                      uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
   Opaque_ServerSession *resp = (Opaque_ServerSession *) ke2;
   Opaque_UserSession_Secret *sec = (Opaque_UserSession_Secret *) _sec;
@@ -1056,6 +1098,7 @@ int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
   dump(sec->pwdU,sec->pwdU_len, "session user finish pwdU ");
   dump(_sec,OPAQUE_USER_SESSION_SECRET_LEN, "session user finish sec ");
   dump(ke2,OPAQUE_SERVER_SESSION_LEN, "session user finish resp ");
+  if(beta!=NULL) dump(beta, crypto_scalarmult_ristretto255_BYTES, "beta");
 #endif
 
   // 1. (client_private_key, server_public_key, export_key) =
@@ -1066,9 +1109,16 @@ int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
   uint8_t N[crypto_core_ristretto255_BYTES];
   if(-1==sodium_mlock(N, sizeof N)) return -1;
   // 1. N = Unblind(blind, response.data)
-  if(0!=oprf_Unblind(sec->blind, resp->Z, N)) {
-    sodium_munlock(N, sizeof N);
-    return -1;
+  if(beta==NULL) {
+    if(0!=oprf_Unblind(sec->blind, resp->Z, N)) {
+      sodium_munlock(N, sizeof N);
+      return -1;
+    }
+  } else {
+    if(0!=oprf_Unblind(sec->blind, beta, N)) {
+      sodium_munlock(N, sizeof N);
+      return -1;
+    }
   }
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(N, sizeof N, "unblinded");
@@ -1326,6 +1376,16 @@ int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
   return 0;
 }
 
+int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
+                              const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
+                              const uint8_t *ctx, const uint16_t ctx_len,
+                              const Opaque_Ids *ids0,
+                              uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
+                              uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
+                              uint8_t export_key[crypto_hash_sha512_BYTES]) {
+  return opaque_RecoverCredentials_extBeta(ke2, _sec, ctx, ctx_len, ids0, NULL, sk, authU, export_key);
+}
+
 // extra function to implement the hmac based auth as defined in the irtf cfrg draft
 int opaque_UserAuth(const uint8_t authU0[crypto_auth_hmacsha512_BYTES], const uint8_t authU[crypto_auth_hmacsha512_BYTES]) {
     return sodium_memcmp(authU0, authU, crypto_auth_hmacsha512_BYTES);
@@ -1349,12 +1409,14 @@ int opaque_CreateRegistrationRequest(const uint8_t *pwdU, const uint16_t pwdU_le
 // (3) computes: β := α^k_s,
 // (4) finally generates: p_s ←_R Z_q, P_s := g^p_s;
 // called CreateRegistrationResponse in the irtf cfrg rfc draft
-int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_core_ristretto255_BYTES],
-                                                const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
-                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
-                                                const toprf_keygencb keygen,
-                                                void* keygen_ctx) {
+int opaque_CreateRegistrationResponse_core(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                           const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                           const toprf_keygencb keygen,
+                                           void* keygen_ctx,
+                                           const uint8_t zero[TOPRF_Share_BYTES],
+                                           const uint8_t *ssid_S, const uint16_t ssid_S_len,
+                                           uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                           uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
   Opaque_RegisterSrvSec *sec = (Opaque_RegisterSrvSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
 
@@ -1373,8 +1435,31 @@ int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_cor
 
   // computes β := α^k_s
   // 2. Z = Evaluate(kU, request.data)
-  if (oprf_Evaluate(sec->kU, blinded, pub->Z) != 0) {
-    return -1;
+  if (zero == NULL) {
+    if (oprf_Evaluate(sec->kU, blinded, pub->Z) != 0) {
+      return -1;
+    }
+  } else {
+    if(ssid_S_len==0 || ssid_S == NULL) {
+      return -1;
+    }
+    uint8_t k[TOPRF_Share_BYTES];
+    if(-1==sodium_mlock(k, sizeof k)) return -1;
+    uint8_t beta[TOPRF_Part_BYTES];
+    k[0]=zero[0];
+    memcpy(k+1,sec->kU, TOPRF_Share_BYTES-1);
+#ifdef TRACE
+    dump(k, sizeof k, "k");
+    dump(zero, TOPRF_Share_BYTES, "zero");
+    dump(ssid_S, ssid_S_len, "ssid_S");
+    dump(blinded, crypto_core_ristretto255_BYTES, "blinded");
+#endif
+    int ret =toprf_3hashtdh(k, zero, blinded, ssid_S, ssid_S_len, beta);
+    sodium_munlock(k, sizeof k);
+    if(0 != ret) {
+      return -1;
+    }
+    memcpy(pub->Z,beta+1,sizeof(beta)-1);
   }
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(sec->kU, sizeof sec->kU, "kU");
@@ -1400,11 +1485,20 @@ int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_cor
   return 0;
 }
 
+int opaque_CreateRegistrationResponse_extKeygen(const uint8_t blinded[crypto_core_ristretto255_BYTES],
+                                                const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                                                const toprf_keygencb keygen,
+                                                void* keygen_ctx,
+                                                uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
+                                                uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
+  return opaque_CreateRegistrationResponse_core(blinded, skS, keygen, keygen_ctx, NULL, NULL, 0, _sec, _pub);
+}
+
 int opaque_CreateRegistrationResponse(const uint8_t blinded[crypto_core_ristretto255_BYTES],
                                       const uint8_t skS[crypto_scalarmult_SCALARBYTES],
                                       uint8_t _sec[OPAQUE_REGISTER_SECRET_LEN],
                                       uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN]) {
-  return opaque_CreateRegistrationResponse_extKeygen(blinded, skS, _sec, _pub, NULL, NULL);
+  return opaque_CreateRegistrationResponse_core(blinded, skS, NULL, NULL, NULL, NULL, 0, _sec, _pub);
 }
 
 int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
@@ -1412,7 +1506,7 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
   if(n<t) return 1; // not enough shares
   if(t<2) return 1; // not a threshold setup
 #ifdef TRACE
-  dump(_pubs, n*OPAQUE_REGISTER_PUBLIC_LEN, "pubs");
+  dump((uint8_t*)_pubs, n*OPAQUE_REGISTER_PUBLIC_LEN, "pubs");
 #endif
   uint8_t responses[n][TOPRF_Part_BYTES];
   for(int i=0;i<n;i++) {
@@ -1421,7 +1515,7 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
     memcpy(&responses[i][1], &pub->Z, crypto_scalarmult_ristretto255_BYTES);
   }
 #ifdef TRACE
-  dump(responses, n*TOPRF_Part_BYTES, "responses");
+  dump((uint8_t*)responses, n*TOPRF_Part_BYTES, "responses");
 #endif
   uint8_t beta[crypto_scalarmult_ristretto255_BYTES];
   toprf_thresholdmult(t, responses, beta);
@@ -1431,7 +1525,7 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
   uint8_t tmp[crypto_scalarmult_ristretto255_BYTES];
   for(int i=1;i<=n-t;i++) {
 #ifdef TRACE
-    dump(&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
+    dump((uint8_t*)&responses[i], t*TOPRF_Part_BYTES, "shares[%d]", i);
 #endif
     toprf_thresholdmult(t, (const uint8_t(*)[TOPRF_Part_BYTES]) &responses[i], tmp);
 #ifdef TRACE

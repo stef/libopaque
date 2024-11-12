@@ -85,7 +85,7 @@ EXPORTED_FUNCTIONS=\
 "_opaquejs_CreateRegistrationResponse", \
 "_opaquejs_FinalizeRequest", \
 "_opaquejs_StoreUserRecord", \
-"_toprf_3hashtdh", \
+"_opaquejs_3hashtdh", \
 "_free", \
 "_malloc"
 

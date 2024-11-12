@@ -68,6 +68,14 @@ int opaquejs_OPAQUE_REGISTRATION_RECORD_LEN() {
   return OPAQUE_REGISTRATION_RECORD_LEN;
 }
 
+int opaquejs_TOPRF_Share_BYTES() {
+   return TOPRF_Share_BYTES;
+}
+
+int opaquejs_TOPRF_Part_BYTES() {
+   return TOPRF_Part_BYTES;
+}
+
 int opaquejs_GenServerKeyPair(
   uint8_t pkS[crypto_scalarmult_BYTES],
   uint8_t skS[crypto_scalarmult_SCALARBYTES]) {
@@ -190,4 +198,13 @@ void opaquejs_StoreUserRecord(
   uint8_t rec[OPAQUE_USER_RECORD_LEN]) {
 
   opaque_StoreUserRecord(sec, recU, rec);
+}
+
+int opaquejs_3hashtdh(
+      const uint8_t k[TOPRF_Share_BYTES],
+      const uint8_t z[TOPRF_Share_BYTES],
+      const uint8_t alpha[crypto_core_ristretto255_BYTES],
+      const uint8_t *ssid_S, const uint16_t ssid_S_len,
+      uint8_t beta[TOPRF_Part_BYTES]) {
+   return toprf_3hashtdh(k, z, alpha, ssid_S, ssid_S_len, beta);
 }

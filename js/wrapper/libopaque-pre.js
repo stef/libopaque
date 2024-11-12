@@ -775,6 +775,95 @@
       }
     }
 
+    Module["_3hashTDH"] = (params) => {
+      return _3hashTDH(Module, params);
+    };
+    Module["_3hashTDH"] = Module.cwrap("opaquejs_3hashtdh", null, [
+      "number", // const uint8_t k[TOPRF_Share_BYTES],
+      "number", // const uint8_t z[TOPRF_Share_BYTES],
+      "number", // const uint8_t alpha[crypto_core_ristretto255_BYTES],
+      "number", // const uint8_t *ssid_S,
+      "number", // const uint16_t ssid_S_len,
+      "number", // uint8_t beta[TOPRF_Part_BYTES]);
+    ]);
+    function _3hashTDH(module, params) {
+      const pointers = [];
+      try {
+        const {
+          k,          // required
+          z,          // required
+          alpha,      // required
+          ssid_S,     // required
+        } = params;
+        validateUint8Arrays({ sec, rec });
+
+        const ssid_S_len = ssid_S.length;
+
+        const k_pointer = AllocatedBuf.fromUint8Array(
+          k,
+          module.TOPRF_Share_BYTES,
+          module
+        );
+        pointers.push(k_pointer);
+
+        const z_pointer = AllocatedBuf.fromUint8Array(
+          z,
+          module.TOPRF_Share_BYTES,
+          module
+        );
+        pointers.push(z_pointer);
+
+        const alpha_pointer = AllocatedBuf.fromUint8Array(
+          alpha,
+          module.crypto_core_ristretto255_BYTES,
+          module
+        );
+        pointers.push(alpha_pointer);
+
+        const ssid_S_pointer = AllocatedBuf.fromUint8Array(
+          ssid_S,
+          ssid_S_len,
+          module
+        );
+        pointers.push(ssid_S_pointer);
+
+        const beta_pointer = new AllocatedBuf(
+          module.TOPRF_Part_Bytes,
+          module
+        );
+        pointers.push(beta_pointer);
+
+        if (
+          0 !==
+           module._3hashTDH(
+              k_pointer.address,
+              z_pointer.address,
+              alpha_pointer.address,
+              ssid_S_pointer.address,
+              ssid_S_len,
+              beta_pointer.address
+           )
+        ) {
+          const error = new Error("3hashTDH failed.");
+          error.name = "OpaqueError";
+          throw error;
+        }
+        return {
+          rec: beta_pointer.toUint8Array(),
+        };
+      } catch (e) {
+        if (e.name === "OpaqueError") throw e;
+        const error = new Error(
+          "3hashTDH failed. (" + e.name + ") " + e.message
+        );
+        error.name = "OpaqueError";
+        error.cause = e;
+        throw error;
+      } finally {
+        zeroAndFree(pointers);
+      }
+    }
+
     // The following is from
     // https://github.com/jedisct1/libsodium/blob/2f915846ff41191c1a17357f0efaae9d500e9858/src/libsodium/randombytes/randombytes.c .
     // We can remove it once we upgrade libsodium to a version strictly greater

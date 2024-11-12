@@ -85,6 +85,7 @@ EXPORTED_FUNCTIONS=\
 "_opaquejs_CreateRegistrationResponse", \
 "_opaquejs_FinalizeRequest", \
 "_opaquejs_StoreUserRecord", \
+"_toprf_3hashtdh", \
 "_free", \
 "_malloc"
 
@@ -129,7 +130,7 @@ all-libopaquejs: clean-libopaquejs format libopaquejs es-check
 
 # See the comments for LIBOPAQUE_CFLAGS for why -fstack-clash-protection
 # appears for libopaque.so but not for tests.html or tests.js.
-libopaque.so: $(LIBOPRFHOME)/oprf.c ../src/opaque.c ../src/common.c $(EXTRA_SOURCES)
+libopaque.so: $(LIBOPRFHOME)/toprf.c $(LIBOPRFHOME)/oprf.c ../src/opaque.c ../src/common.c $(EXTRA_SOURCES)
 	$(CC) -shared $(CFLAGS) -o libopaque.so $^ $(LIBOPAQUE_LDFLAGS)
 
 build: clean format all es-check test

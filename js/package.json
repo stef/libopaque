@@ -44,9 +44,9 @@
   ],
   "devDependencies": {
     "es-check": "5.2.0",
-    "npm-check-updates": "11.1.1",
+    "npm-check-updates": "^17.1.11",
     "prettier": "2.2.1",
     "sort-package-json": "1.48.1",
-    "terser": "5.6.0"
+    "terser": "^5.36.0"
   }
 }

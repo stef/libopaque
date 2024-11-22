@@ -1,10 +1,11 @@
 PREFIX?=/usr/local
 LIBS=-lsodium -loprf
 DEFINES=
-CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic \
+CFLAGS?=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables \
 		  -Werror=format-security -Werror=implicit-function-declaration \
-        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv -std=c99 $(DEFINES)
+        -Warray-bounds -fsanitize=bounds -fsanitize-undefined-trap-on-error -ftrapv $(DEFINES)
         #-fstrict-flex-arrays
+CFLAGS+= -std=c99 -fpic
 LDFLAGS=-g $(LIBS)
 CC?=gcc
 AEXT=a

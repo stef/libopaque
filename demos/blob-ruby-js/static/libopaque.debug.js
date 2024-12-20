@@ -1,1 +1,1 @@
-../js/dist/libopaque.debug.js
+../../../js/dist/libopaque.debug.js

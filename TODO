@@ -1,6 +1,0 @@
-* expose crypto_pwhash hardness params in the API
-* document API in the README
-* adopt to new dumbed down envelope format base: {skU}{pkS}, customIdentifier: {skU}{pkS,idU,idS}
-* change hkdf to use sha512 instead of sha256 to be compliant with the draft
-
-

@@ -21,6 +21,7 @@ setup(
     long_description=read('README.md'),
     long_description_content_type="text/markdown",
     requires=["libsodium"],
+    install_requires = ("pysodium"),
     classifiers=["Development Status :: 4 - Beta",
                  "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
                  "Topic :: Security :: Cryptography",

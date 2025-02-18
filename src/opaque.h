@@ -299,15 +299,21 @@ int opaque_RecoverCredentials(const uint8_t resp[OPAQUE_SERVER_SESSION_LEN],
    opaque_CombineCredentialResponses()
 
    For the explanations of the parameters and return values see the
-   description of opaque_CreateCredentialRequest(). The only extra parameter is:
+   description of opaque_CreateCredentialRequest(). The extra parameters are:
 
    @param [in] beta: the externally calculated beta value.
+   @param [in] unlink_masking_key: a pointer to an array, if not NULL, will
+   make the masking key unique by running PRF(pkS, masking_key), this makes
+   user records unique on all threshold servers, otherwise the masking_key will
+   make these records linkable.
+   @param [in] umk_len: the length of the array pointed at by unlink_masking_key.
  */
 int opaque_RecoverCredentials_extBeta(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
                               const uint8_t *_sec/*[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len]*/,
                               const uint8_t *ctx, const uint16_t ctx_len,
                               const Opaque_Ids *ids0,
                               const uint8_t beta[crypto_scalarmult_ristretto255_BYTES],
+										const uint8_t *unlink_masking_key, const size_t umk_len,
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
                               uint8_t export_key[crypto_hash_sha512_BYTES]);
@@ -465,9 +471,13 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
    Client finalizes registration by concluding the OPRF, generating
    its own keys and enveloping it all.
 
-   This function is called FinalizeRequest in the rfc.  This function
-   is run by the user, taking as input the context sec that was an
-   output of the user running opaque_CreateRegistrationRequest(), and the
+   This is an extended variant of the function called FinalizeRequest in the
+   rfc. It adds an additonal pointer to an array and a size of this array as
+   parameter that can be used to make user records unlinkable across servers in
+   a threshold setup.
+
+   This function is run by the user, taking as input the context sec that was
+   an output of the user running opaque_CreateRegistrationRequest(), and the
    output pub from the server of opaque_CreateRegistrationResponse().
 
    @param [in] sec - output from opaque_CreateRegistrationRequest(),
@@ -475,6 +485,11 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
    @param [in] pub - response from the server running
    opaque_CreateRegistrationResponse()
    @param [in] ids - if ids are not the default value
+   @param [in] unlink_masking_key: a pointer to an array, if not NULL, will
+   make the masking key unique by running PRF(pkS, masking_key), this makes
+   user records unique on all threshold servers, otherwise the masking_key will
+   make these records linkable.
+   @param [in] umk_len: the length of the array pointed at by unlink_masking_key.
    @param [out] reg_rec - the opaque registration record containing
    the users data.
    @param [out] export_key - key used to encrypt/authenticate extra
@@ -482,6 +497,24 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
    needed set to NULL.
 
    @return the function returns 0 if everything is correct.
+ */
+int opaque_FinalizeRequest_core(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+                                const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                                const Opaque_Ids *ids,
+                                const uint8_t *unlink_masking_key, const size_t umk_len,
+                                uint8_t reg_rec[OPAQUE_REGISTRATION_RECORD_LEN],
+                                uint8_t export_key[crypto_hash_sha512_BYTES]);
+
+/**
+   Client finalizes registration by concluding the OPRF, generating
+   its own keys and enveloping it all.
+
+   This function is called FinalizeRequest in the rfc.  This function
+   is run by the user, taking as input the context sec that was an
+   output of the user running opaque_CreateRegistrationRequest(), and the
+   output pub from the server of opaque_CreateRegistrationResponse().
+
+   for parameters see opaque_FinalizeRequest() description.
  */
 int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
                            const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],

@@ -124,6 +124,9 @@ class Ids(ctypes.Structure):
 #       private key, should be set to NULL if per/user keys are to be
 #       generated
 #  @param [in] ids - the ids of the user and server, see Opaque_Ids
+#  @param [in] unlink masking key either None or an array, which is
+#       is used to make the masking key unique among threshold servers
+#  @param [in] the length of the unlink_masking_key array.
 #  @param [out] rec - the opaque record the server needs to
 #       store. this is a pointer to memory allocated by the caller,
 #       and must be large enough to hold the record and take into
@@ -138,17 +141,21 @@ class Ids(ctypes.Structure):
 #                    const Opaque_Ids *ids,
 #                    uint8_t rec[OPAQUE_USER_RECORD_LEN],
 #                    uint8_t export_key[crypto_hash_sha512_BYTES]);
-def Register(pwdU, ids, skS=None):
+def Register(pwdU, ids, skS=None, unlink_masking_key=None):
     if not pwdU:
         raise ValueError("invalid parameter")
     if skS and len(skS) != crypto_scalarmult_SCALARBYTES:
         raise ValueError("invalid skS param")
 
     pwdU=pwdU.encode("utf8") if isinstance(pwdU,str) else pwdU
+    umk_len = len(unlink_masking_key) if unlink_masking_key is not None else 0
 
     rec = ctypes.create_string_buffer(OPAQUE_USER_RECORD_LEN)
     export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
-    __check(opaquelib.opaque_Register(pwdU, len(pwdU), skS, ctypes.pointer(ids), rec, export_key))
+    __check(opaquelib.opaque_Register_core(pwdU, len(pwdU),
+                                           skS, ctypes.pointer(ids),
+                                           unlink_masking_key, umk_len,
+                                           rec, export_key))
     return rec.raw, export_key.raw
 
 #  This function initiates a new OPAQUE session, is the same as the
@@ -267,7 +274,7 @@ def CreateCredentialResponse(pub, rec, ids, ctx):
 #                              uint8_t authU[crypto_auth_hmacsha512_BYTES],
 #                              uint8_t export_key[crypto_hash_sha512_BYTES]);
 
-def RecoverCredentials(resp, sec, ctx, ids=None, beta=None):
+def RecoverCredentials(resp, sec, ctx, ids=None, beta=None, unlink_masking_key=None):
     if None in (resp, sec):
         raise ValueError("invalid parameter")
     if len(resp) != OPAQUE_SERVER_SESSION_LEN: raise ValueError("invalid resp param")
@@ -281,8 +288,14 @@ def RecoverCredentials(resp, sec, ctx, ids=None, beta=None):
     export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
 
     if ids is None: ids = Ids()
+    umk_len = len(unlink_masking_key) if unlink_masking_key is not None else 0
 
-    __check(opaquelib.opaque_RecoverCredentials_extBeta(resp, sec, ctx, len(ctx), ctypes.pointer(ids), beta, sk, authU, export_key))
+    __check(opaquelib.opaque_RecoverCredentials_extBeta(resp, sec,
+                                                        ctx, len(ctx),
+                                                        ctypes.pointer(ids),
+                                                        beta,
+                                                        unlink_masking_key, umk_len,
+                                                        sk, authU, export_key))
     return sk.raw, authU.raw, export_key.raw
 
 #int opaque_CombineCredentialResponses(const uint8_t t, const uint8_t n,
@@ -422,17 +435,22 @@ def CombineRegistrationResponses(t, n, pubs):
 #int opaque_FinalizeRequest(const uint8_t *sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
 #                           const uint8_t pub[OPAQUE_REGISTER_PUBLIC_LEN],
 #                           const Opaque_Ids *ids,
+#                           const uint8_t *unlink_masking_key, const size_t umk_len,
 #                           uint8_t reg_rec[OPAQUE_REGISTRATION_RECORD_LEN],
 #                           uint8_t export_key[crypto_hash_sha512_BYTES]);
-def FinalizeRequest(sec, pub, ids):
+def FinalizeRequest(sec, pub, ids, unlink_masking_key=None):
     if None in (sec, pub, ids):
         raise ValueError("invalid parameter")
     if len(sec) <= OPAQUE_REGISTER_USER_SEC_LEN: raise ValueError("invalid sec param")
     if len(pub) != OPAQUE_REGISTER_PUBLIC_LEN: raise ValueError("invalid pub param")
 
+    umk_len = len(unlink_masking_key) if unlink_masking_key is not None else 0
+
     rec = ctypes.create_string_buffer(OPAQUE_REGISTRATION_RECORD_LEN)
     export_key = ctypes.create_string_buffer(crypto_hash_sha512_BYTES)
-    __check(opaquelib.opaque_FinalizeRequest(sec, pub, ctypes.pointer(ids), rec, export_key))
+    __check(opaquelib.opaque_FinalizeRequest_core(sec, pub, ctypes.pointer(ids),
+                                                  unlink_masking_key, umk_len,
+                                                  rec, export_key))
     return rec.raw, export_key.raw
 
 #  Final Registration step - server adds own info to the record to be stored.

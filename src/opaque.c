@@ -671,14 +671,22 @@ static int create_envelope(const uint8_t rwdU[OPAQUE_RWDU_BYTES],
   return 0;
 }
 
+static void personalize_masking_key(const uint8_t *umk, const uint16_t umk_len,
+                                    uint8_t masking_key[crypto_hash_sha512_BYTES]) {
+  crypto_generichash(masking_key, crypto_hash_sha512_BYTES, // out
+        umk, umk_len,                                       // in
+        masking_key, crypto_hash_sha512_BYTES);             // key
+}
+
 // (StorePwdFile, sid , U, pw): S computes k_s ←_R Z_q , rw := F_k_s (pw),
 // p_s ←_R Z_q , p_u ←_R Z_q , P_s := g^p_s , P_u := g^p_u , c ← AuthEnc_rw (p_u, P_u, P_s);
 // it records file[sid] := {k_s, p_s, P_s, P_u, c}.
-int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
-                    const uint8_t skS[crypto_scalarmult_SCALARBYTES],
-                    const Opaque_Ids *ids,
-                    uint8_t _rec[OPAQUE_USER_RECORD_LEN],
-                    uint8_t export_key[crypto_hash_sha512_BYTES]) {
+int opaque_Register_core(const uint8_t *pwdU, const uint16_t pwdU_len,
+                         const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                         const Opaque_Ids *ids,
+                         const uint8_t *unlink_masking_key, const size_t umk_len,
+                         uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                         uint8_t export_key[crypto_hash_sha512_BYTES]) {
   Opaque_UserRecord *rec = (Opaque_UserRecord *)_rec;
 
 #ifdef TRACE
@@ -734,11 +742,20 @@ int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
     return -1;
   }
   sodium_munlock(rwdU, sizeof rwdU);
+  if(unlink_masking_key!=NULL) personalize_masking_key(unlink_masking_key, umk_len, rec->recU.masking_key);
 
 #ifdef TRACE
   dump(_rec, OPAQUE_USER_RECORD_LEN, "user rec");
 #endif
   return 0;
+}
+
+int opaque_Register(const uint8_t *pwdU, const uint16_t pwdU_len,
+                    const uint8_t skS[crypto_scalarmult_SCALARBYTES],
+                    const Opaque_Ids *ids,
+                    uint8_t _rec[OPAQUE_USER_RECORD_LEN],
+                    uint8_t export_key[crypto_hash_sha512_BYTES]) {
+  return opaque_Register_core(pwdU, pwdU_len, skS, ids, NULL, 0, _rec, export_key);
 }
 
 int opaque_CreateCredentialRequest_oprf(const uint8_t *pwdU, const uint16_t pwdU_len, uint8_t _sec[OPAQUE_USER_SESSION_SECRET_LEN+pwdU_len], uint8_t ke1[OPAQUE_USER_SESSION_PUBLIC_LEN]) {
@@ -1087,6 +1104,7 @@ int opaque_RecoverCredentials_extBeta(const uint8_t ke2[OPAQUE_SERVER_SESSION_LE
                                       const uint8_t *ctx, const uint16_t ctx_len,
                                       const Opaque_Ids *ids0,
                                       const uint8_t beta[crypto_scalarmult_ristretto255_BYTES],
+                                      const uint8_t *unlink_masking_key, const size_t umk_len,
                                       uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                                       uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
                                       uint8_t export_key[crypto_hash_sha512_BYTES]) {
@@ -1152,6 +1170,7 @@ int opaque_RecoverCredentials_extBeta(const uint8_t ke2[OPAQUE_SERVER_SESSION_LE
   crypto_kdf_hkdf_sha512_expand(masking_key, crypto_hash_sha512_BYTES,
                                 (const char*) masking_key_info, sizeof masking_key_info,
                                 rwdU);
+  if(unlink_masking_key!=NULL) personalize_masking_key(unlink_masking_key, umk_len, masking_key);
 
   // 1.4. credential_response_pad = Expand(masking_key,
   //        concat(response.masking_nonce, "CredentialResponsePad"), Npk + Ne)
@@ -1383,7 +1402,7 @@ int opaque_RecoverCredentials(const uint8_t ke2[OPAQUE_SERVER_SESSION_LEN],
                               uint8_t sk[OPAQUE_SHARED_SECRETBYTES],
                               uint8_t authU[crypto_auth_hmacsha512_BYTES], // aka ke3
                               uint8_t export_key[crypto_hash_sha512_BYTES]) {
-  return opaque_RecoverCredentials_extBeta(ke2, _sec, ctx, ctx_len, ids0, NULL, sk, authU, export_key);
+  return opaque_RecoverCredentials_extBeta(ke2, _sec, ctx, ctx_len, ids0, NULL, NULL, 0, sk, authU, export_key);
 }
 
 // extra function to implement the hmac based auth as defined in the irtf cfrg draft
@@ -1549,11 +1568,12 @@ int opaque_CombineRegistrationResponses(const uint8_t t, const uint8_t n,
 // (d) P_u := g^p_u,
 // (e) c ← AuthEnc_rw (p_u, P_u, P_s);
 // called FinalizeRequest in the irtf cfrg rfc draft
-int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
-                           const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
-                           const Opaque_Ids *ids,
-                           uint8_t _rec[OPAQUE_REGISTRATION_RECORD_LEN],
-                           uint8_t export_key[crypto_hash_sha512_BYTES]) {
+int opaque_FinalizeRequest_core(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+                                const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                                const Opaque_Ids *ids,
+                                const uint8_t *unlink_masking_key, const size_t umk_len,
+                                uint8_t _rec[OPAQUE_REGISTRATION_RECORD_LEN],
+                                uint8_t export_key[crypto_hash_sha512_BYTES]) {
 
   Opaque_RegisterUserSec *sec = (Opaque_RegisterUserSec *) _sec;
   Opaque_RegisterSrvPub *pub = (Opaque_RegisterSrvPub *) _pub;
@@ -1588,6 +1608,7 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
     return -1;
   }
   sodium_munlock(rwdU, sizeof rwdU);
+  if(unlink_masking_key!=NULL) personalize_masking_key(unlink_masking_key, umk_len, rec->masking_key);
 
 #if (defined TRACE || defined CFRG_TEST_VEC)
   dump(_rec, OPAQUE_REGISTRATION_RECORD_LEN, "record");
@@ -1598,6 +1619,14 @@ int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pw
 #endif
 
   return 0;
+}
+
+int opaque_FinalizeRequest(const uint8_t *_sec/*[OPAQUE_REGISTER_USER_SEC_LEN+pwdU_len]*/,
+                           const uint8_t _pub[OPAQUE_REGISTER_PUBLIC_LEN],
+                           const Opaque_Ids *ids,
+                           uint8_t _rec[OPAQUE_REGISTRATION_RECORD_LEN],
+                           uint8_t export_key[crypto_hash_sha512_BYTES]) {
+   return opaque_FinalizeRequest_core(_sec, _pub, ids, NULL, 0, _rec, export_key);
 }
 
 // S records file[sid ] := {k_s, p_s, P_s, P_u, c}.

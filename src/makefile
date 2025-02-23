@@ -110,22 +110,22 @@ libopaque.$(AEXT): common.o opaque.o $(EXTRA_OBJECTS)
 	$(AR) -rcs libopaque.$(AEXT) $^
 
 tests/opaque-test$(EXT): tests/opaque-test.c libopaque.$(SOEXT)
-	$(CC) $(CFLAGS) -o tests/opaque-test$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o tests/opaque-test$(EXT) tests/opaque-test.c -L. -lopaque $(LDFLAGS)
 
 tests/opaque-munit$(EXT): tests/opaque-munit.c libopaque.$(SOEXT)
-	$(CC) $(CFLAGS) -o tests/opaque-munit$(EXT) tests/munit/munit.c tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o tests/opaque-munit$(EXT) tests/munit/munit.c tests/opaque-munit.c -L. -lopaque $(LDFLAGS)
 
 common-v.o: common.c
-	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
 opaque-tv1.o: opaque.c
-	$(CC) $(CFLAGS) -I$(OPRFHOME) -DCFRG_TEST_VEC -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -I$(OPRFHOME) -DCFRG_TEST_VEC -o $@ -c $<
 
 oprf-v.o: $(OPRFHOME)/oprf.c
-	$(CC) -I. $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
+	$(CC) -I. $(CPPFLAGS) $(CFLAGS) -DCFRG_TEST_VEC -o $@ -c $<
 
 tests/opaque-tv1$(EXT): tests/opaque-testvectors.c common-v.o oprf-v.o opaque-tv1.o 
-	$(CC) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -loprf -g
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DCFRG_TEST_VEC -o $@ $^ $(EXTRA_OBJECTS) -lsodium -loprf -g
 
 test: tests
 	test -x ./tests/opaque-tv1$(EXT) && ./tests/opaque-tv1$(EXT) || true
@@ -133,7 +133,7 @@ test: tests
 	LD_LIBRARY_PATH=. ./tests/opaque-munit$(EXT) --fatal-failures
 
 utils/opaque: utils/main.c libopaque.$(SOEXT)
-	$(CC) $(CFLAGS) -I. -o utils/opaque utils/main.c -L. $(LDFLAGS) -lopaque -lsodium
+	$(CC) $(CPPFLAGS) $(CFLAGS) -I. -o utils/opaque utils/main.c -L. $(LDFLAGS) -lopaque -lsodium
 
 install: $(DESTDIR)$(PREFIX)/lib/libopaque.$(SOEXT) $(DESTDIR)$(PREFIX)/lib/libopaque.$(AEXT) $(DESTDIR)$(PREFIX)/include/opaque.h $(DESTDIR)$(PREFIX)/bin/opaque $(MANPAGES-install)
 
@@ -170,10 +170,10 @@ $(DESTDIR)$(PREFIX)/bin/opaque: utils/opaque
 	cp $< $@
 
 opaque.o: opaque.c
-	$(CC) $(CFLAGS) -I$(OPRFINCDIR) -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -I$(OPRFINCDIR) -o $@ -c $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) -o $@ -c $<
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
 
 win/libsodium-win64:
 	@echo 'win/libsodium-win64 not found.'

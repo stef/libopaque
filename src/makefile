@@ -45,7 +45,7 @@ endif
 
 ifdef OPRFHOME
 	OPRFINCDIR=$(OPRFHOME)
-	LDFLAGS+= -L$(OPRFHOME)
+	LDFLAGS+= -L$(OPRFHOME) -L$(OPRFHOME)/noise_xk
 else
 	OPRFINCDIR=/usr/include/oprf
 endif
@@ -79,7 +79,7 @@ asan: all
 
 mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES) -Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include -I$(OPRFINCDIR)
 mingw64: CC=x86_64-w64-mingw32-gcc
-mingw64: LIBS=-L. -lws2_32 -Lwin/libsodium-win64/lib/ -lsodium -Wl,-Bdynamic -loprf
+mingw64: LIBS=-loprf -loprf-noiseXK -L. -lws2_32 -Lwin/libsodium-win64/lib/ -lsodium -Wl,-Bdynamic
 mingw64: INC=-Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
 mingw64: SOEXT=dll
 mingw64: EXT=.exe

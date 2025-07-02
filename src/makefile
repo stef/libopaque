@@ -45,7 +45,7 @@ endif
 
 ifdef OPRFHOME
 	OPRFINCDIR=$(OPRFHOME)
-	LDFLAGS+= -L$(OPRFHOME)
+	LDFLAGS+= -L$(OPRFHOME) -L$(OPRFHOME)/noise_xk
 else
 	OPRFINCDIR=/usr/include/oprf
 endif
@@ -77,23 +77,14 @@ asan: DEFINES=-DTRACE -DNORANDOM
 asan: LDFLAGS+= -fsanitize=address -static-libasan
 asan: all
 
-mingw64:
-	 CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES)
-	ifeq ($(ARCH),x86_64)
-	   CFLAGS+=-fcf-protection=full
-	endif
-	ifeq ($(ARCH),parisc64)
-	else ifeq ($(ARCH),parisc64)
-	else
-	   CFLAGS+=-fstack-clash-protection
-	endif
+mingw64: CFLAGS=-march=native -Wall -O2 -g -fstack-protector-strong -D_FORTIFY_SOURCE=2 -fasynchronous-unwind-tables -fpic -Werror=format-security -Werror=implicit-function-declaration -ftrapv $(DEFINES) -Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include -I$(OPRFINCDIR)
 mingw64: CC=x86_64-w64-mingw32-gcc
-mingw64: LIBS=-L. -lws2_32 -Lwin/libsodium-win64/lib/ -Wl,-Bstatic -lsodium -Wl,-Bdynamic
+mingw64: LIBS=-loprf -loprf-noiseXK -L. -lws2_32 -Lwin/libsodium-win64/lib/ -lsodium -Wl,-Bdynamic
 mingw64: INC=-Iwin/libsodium-win64/include/sodium -Iwin/libsodium-win64/include
 mingw64: SOEXT=dll
 mingw64: EXT=.exe
 mingw64: MAKETARGET=mingw
-mingw64: win/libsodium-win64 libopaque.$(SOEXT) tests utils/opaque
+mingw64: win/libsodium-win64 libopaque.$(SOEXT)
 
 TESTS=tests/opaque-test$(EXT) tests/opaque-munit$(EXT)
 ifeq ($(shell test -e $(OPRFHOME)/oprf.c && echo -n yes),yes)
